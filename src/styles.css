@@ -1167,3 +1167,329 @@ a.row {
 .tabbar button .tab-label {
   font-size: 10px;
 }
+
+/* ---- Charts (colors validated for CVD + contrast on the card surfaces) ---- */
+:root {
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-deemph: #d1d1d6;
+  --chart-grid: #e5e5ea;
+  --chart-axis: #c7c7cc;
+  --chart-ink-muted: #8e8e93;
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-critical: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --chart-1: #3987e5;
+    --chart-2: #d95926;
+    --chart-deemph: #48484a;
+    --chart-grid: #2c2c2e;
+    --chart-axis: #48484a;
+    --chart-ink-muted: #8e8e93;
+  }
+}
+.chart {
+  margin: 0;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 12px 12px 4px;
+}
+.chart-readout {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 4px 6px;
+  min-height: 24px;
+  font-size: 15px;
+}
+.readout-values {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 12px;
+}
+.readout-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.key-line {
+  display: inline-block;
+  width: 12px;
+  height: 2px;
+  border-radius: 1px;
+}
+.key-rect {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+.chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+  touch-action: pan-y;
+}
+.chart-svg .grid {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+}
+.chart-svg .axis-base {
+  stroke: var(--chart-axis);
+  stroke-width: 1;
+}
+.chart-svg .ref-line {
+  stroke: var(--text-2);
+  stroke-width: 1;
+}
+.chart-svg .tick {
+  font-size: 10px;
+  fill: var(--chart-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.chart-svg .tick-strong {
+  fill: var(--text);
+  font-weight: 600;
+}
+.chart-svg .ref-label {
+  fill: var(--text-2);
+}
+.chart-svg .hit {
+  fill: transparent;
+}
+.chart-svg .col {
+  cursor: pointer;
+  outline: none;
+}
+.chart-svg .col.active .hit {
+  fill: var(--fill);
+}
+.chart-svg .col:focus-visible .hit {
+  stroke: var(--tint);
+  stroke-width: 1.5;
+}
+.legend {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text-2);
+  padding: 6px 4px 0;
+}
+.chart-table {
+  font-size: 13px;
+  color: var(--text-2);
+  padding: 6px 4px 8px;
+}
+.chart-table summary {
+  cursor: pointer;
+  color: var(--tint);
+}
+.chart-table table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.chart-table th,
+.chart-table td {
+  text-align: right;
+  padding: 4px 0;
+  border-bottom: 0.5px solid var(--separator);
+  font-weight: 400;
+}
+.chart-table th[scope='row'],
+.chart-table thead th:first-child {
+  text-align: left;
+}
+
+/* Ranked bars */
+.ranked {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 6px 0;
+}
+.ranked-row {
+  display: grid;
+  grid-template-columns: minmax(96px, 42%) 1fr;
+  align-items: center;
+  gap: 2px 10px;
+  width: 100%;
+  padding: 7px 16px;
+  text-align: left;
+}
+.ranked-row:active {
+  background: var(--fill);
+}
+.ranked-label {
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ranked-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.ranked-fill {
+  height: 14px;
+  background: var(--chart-1);
+  border-radius: 0 4px 4px 0;
+  flex: none;
+  max-width: calc(100% - 64px);
+}
+.ranked-value {
+  font-size: 13px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ranked-note {
+  grid-column: 2;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+/* Budget meters */
+.meter-row {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  text-align: left;
+  position: relative;
+}
+.meter-row + .meter-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  border-top: 0.5px solid var(--separator);
+}
+.meter-row:active {
+  background: var(--fill);
+}
+.meter-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 15px;
+}
+.meter-head .muted {
+  font-variant-numeric: tabular-nums;
+}
+.meter-track {
+  display: block;
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  margin: 7px 0 5px;
+  background: color-mix(in srgb, var(--chart-1) 16%, transparent);
+  overflow: hidden;
+}
+.meter-track.warning {
+  background: color-mix(in srgb, var(--status-warning) 22%, transparent);
+}
+.meter-track.over {
+  background: color-mix(in srgb, var(--status-critical) 18%, transparent);
+}
+.meter-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 4px;
+  background: var(--chart-1);
+}
+.meter-track.warning .meter-fill {
+  background: var(--status-warning);
+}
+.meter-track.over .meter-fill {
+  background: var(--status-critical);
+}
+.meter-pace {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--text);
+  opacity: 0.55;
+}
+.meter-sub {
+  display: block;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.meter-sub .status {
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Overview dashboard */
+.month-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 4px 0 0;
+}
+.month-switch strong {
+  font-size: 17px;
+}
+.month-switch .icon-button:disabled {
+  opacity: 0.3;
+}
+.hero-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hero-number {
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -0.8px;
+  line-height: 1.05;
+}
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+.kpi {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 12px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.kpi-value {
+  font-size: 20px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kpi .card-sub {
+  font-size: 11px;
+}
+.section-title .link {
+  text-transform: none;
+  font-size: 15px;
+}
+button.hero-card {
+  width: 100%;
+  text-align: left;
+}

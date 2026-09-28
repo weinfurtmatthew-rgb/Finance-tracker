@@ -1,19 +1,27 @@
-import { useMemo } from 'preact/hooks';
-import { byId, useAccounts, useCategories, useMeta, useTransactions } from '../hooks';
+import { useMemo, useState } from 'preact/hooks';
+import { useAccounts, useMeta, useTransactions } from '../hooks';
 import { useNav } from '../nav';
+import { useRecurringModel } from '../recurringModel';
+import { useSpending } from '../spendingModel';
 import { accountBalance } from '../lib/balances';
-import { addMonths, monthLabel, todayISO, monthKey } from '../lib/dates';
-import { summarizeMonth } from '../lib/summary';
+import { addDays, addMonths, daysInMonth, dayOfMonth, monthKey, monthLabel } from '../lib/dates';
+import { formatMoney } from '../lib/money';
+import { budgetProgress, monthElapsed } from '../lib/budgets';
+import { isOutflow } from '../lib/recurring';
 import { Empty, Money, Section } from '../components/ui';
-import { TransactionRow } from '../components/TransactionRow';
+import { ColumnChart, RankedBars, compactMoney } from '../components/charts';
+
+/** Stat-tile values auto-compact so they fit a third of the screen: $2,271 but $17.4K. */
+const tile = (cents: number) => (Math.abs(cents) >= 1_000_000 ? compactMoney(cents) : formatMoney(cents, { whole: true }));
+import { BudgetMeter, budgetStatusText } from '../components/BudgetMeter';
+import { RecurringRow } from '../components/RecurringRow';
+import { Icons } from '../components/icons';
 import { AccountEditor } from './AccountEditor';
 import { ImportFlow } from './Import';
-import { Icons } from '../components/icons';
-import { useRecurringModel } from '../recurringModel';
-import { RecurringRow } from '../components/RecurringRow';
 import { AlertCard } from './Recurring';
 import { RecurringReview } from './RecurringReview';
-import { addDays } from '../lib/dates';
+import { BudgetsEditor } from './BudgetsEditor';
+import { CategoryDetail } from './CategoryDetail';
 
 const isStandalone = () =>
   window.matchMedia?.('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
@@ -22,34 +30,50 @@ export function Home() {
   const nav = useNav();
   const accounts = useAccounts();
   const txns = useTransactions();
-  const categories = useCategories();
   const lastBackup = useMeta<number>('lastBackupAt');
-  const cats = useMemo(() => byId(categories), [categories]);
-  const acctMap = useMemo(() => byId(accounts), [accounts]);
-  const month = monthKey(todayISO());
-  const thisMonth = useMemo(() => summarizeMonth(txns, cats, month), [txns, cats, month]);
-  const lastMonth = useMemo(() => summarizeMonth(txns, cats, addMonths(month, -1)), [txns, cats, month]);
+  const rec = useRecurringModel();
+  const { months, budgets, cats } = useSpending();
+  const today = rec.today;
+  const current = monthKey(today);
+  const [month, setMonth] = useState(current);
+  const isCurrent = month === current;
 
   const open = accounts.filter((a) => !a.archived);
-  let assets = 0;
-  let debts = 0;
-  for (const a of open) {
-    const b = accountBalance(a, txns);
-    if (b < 0) debts += b;
-    else assets += b;
-  }
-  const rec = useRecurringModel();
-  const soon = rec.upcomingItems.filter((i) => i.late || i.date <= addDays(rec.today, rec.settings.reminderDays));
+  const netWorth = useMemo(() => open.reduce((s, a) => s + accountBalance(a, txns), 0), [open, txns]);
+  const m = months.get(month);
+  const spent = (m?.flexible ?? 0) + (m?.fixed ?? 0);
+  const progress = useMemo(() => budgetProgress(budgets, m, month, today), [budgets, m, month, today]);
+  const elapsed = monthElapsed(month, today);
+  const budgetTotal = progress.reduce((s, p) => s + p.limit, 0);
+  const budgetSpent = progress.reduce((s, p) => s + p.spent, 0);
+  const budgeted = new Set(budgets.map((b) => b.categoryId));
+  const otherFlexible = [...(m?.byCategory ?? [])].filter(([id]) => !budgeted.has(id)).reduce((s, [, v]) => s + Math.max(0, v), 0);
+  const warnings = isCurrent ? progress.filter((p) => p.state !== 'ok' || p.offPace) : [];
+  const stillDue = isCurrent ? rec.upcomingItems.filter((i) => isOutflow(i.status.rec) && monthKey(i.date) === month).reduce((s, i) => s + Math.abs(i.amount), 0) : 0;
+  const soon = isCurrent ? rec.upcomingItems.filter((i) => i.late || i.date <= addDays(today, rec.settings.reminderDays)) : [];
   const uncategorized = txns.filter((t) => t.categoryId === 'uncategorized').length;
   const backupDue = txns.length > 0 && (!lastBackup || Date.now() - lastBackup > 14 * 86_400_000);
+  const [y, mo] = month.split('-').map(Number);
+  const daysLeft = isCurrent ? daysInMonth(y, mo) - dayOfMonth(today) + 1 : 0;
+
+  // Charts: 12 months of spending; 6 months of income vs spending ending at the viewed month.
+  const trendKeys = Array.from({ length: 12 }, (_, i) => addMonths(current, i - 11));
+  const flowKeys = Array.from({ length: 6 }, (_, i) => addMonths(month, i - 5));
+  const total = (k: string) => Math.max(0, (months.get(k)?.flexible ?? 0) + (months.get(k)?.fixed ?? 0));
+  const income = (k: string) => Math.max(0, months.get(k)?.income ?? 0);
+  const where = [...(m?.allByCategory ?? [])]
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
 
   const addAccount = () => nav.present((close) => <AccountEditor onClose={close} />);
   const importFile = () => nav.present((close) => <ImportFlow onClose={close} />);
+  const editBudgets = () => nav.present((close) => <BudgetsEditor onClose={close} />);
+  const openCategory = (id: string) => nav.present((close) => <CategoryDetail categoryId={id} month={month} onClose={close} />);
 
   return (
     <>
       <header class="large-title">
-        <p class="eyebrow">{monthLabel(month)}</p>
         <h1>Overview</h1>
         {open.length > 0 && (
           <button type="button" class="icon-button" aria-label="Import a file" onClick={importFile}>
@@ -85,32 +109,77 @@ export function Home() {
         </Empty>
       ) : (
         <>
-          <div class="cards">
-            <button type="button" class="card" onClick={() => nav.setTab('accounts')}>
-              <span class="card-label">Net worth</span>
-              <Money cents={assets + debts} whole class="card-value" />
-              <span class="card-sub">
-                <Money cents={assets} whole /> assets · <Money cents={-debts} whole /> owed
-              </span>
+          <div class="month-switch" role="group" aria-label="Month">
+            <button type="button" class="icon-button" aria-label="Previous month" onClick={() => setMonth(addMonths(month, -1))}>
+              ‹
             </button>
-            <button type="button" class="card" onClick={() => nav.showActivity({ month })}>
-              <span class="card-label">Spent this month</span>
-              <Money cents={thisMonth.spent} whole class="card-value" />
-              <span class="card-sub">
-                <Money cents={lastMonth.spent} whole /> last month
-              </span>
+            <strong>{monthLabel(month)}</strong>
+            <button type="button" class="icon-button" aria-label="Next month" disabled={isCurrent} onClick={() => setMonth(addMonths(month, 1))}>
+              ›
             </button>
           </div>
 
-          {rec.alerts.map((a) => (
-            <AlertCard key={a.key} alert={a} />
-          ))}
+          {budgets.length > 0 ? (
+            <button type="button" class="hero-card" onClick={editBudgets}>
+              <span class="card-label">{budgetSpent > budgetTotal ? 'Over budget' : isCurrent ? 'Left to spend' : 'Left in budget'}</span>
+              <span class={`hero-number ${budgetSpent > budgetTotal ? 'neg-text' : ''}`}>{formatMoney(Math.abs(budgetTotal - budgetSpent), { whole: true })}</span>
+              <span class="card-sub">
+                {formatMoney(budgetSpent, { whole: true })} of {formatMoney(budgetTotal, { whole: true })} budgeted
+                {isCurrent && ` · ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
+              </span>
+            </button>
+          ) : (
+            <div class="hero-card">
+              <span class="card-label">Spent in {monthLabel(month, { short: true }).split(' ')[0]}</span>
+              <span class="hero-number">{formatMoney(spent, { whole: true })}</span>
+              <span class="card-sub">
+                {formatMoney(total(addMonths(month, -1)), { whole: true })} the month before
+              </span>
+            </div>
+          )}
+
+          <div class="kpis">
+            <button type="button" class="kpi" onClick={() => nav.showActivity({ month })}>
+              <span class="card-label">Spent</span>
+              <span class="kpi-value">{tile(spent)}</span>
+              <span class="card-sub">{formatMoney(m?.flexible ?? 0, { whole: true })} everyday</span>
+            </button>
+            <button type="button" class="kpi" onClick={() => nav.setTab('recurring')}>
+              <span class="card-label">Fixed bills</span>
+              <span class="kpi-value">{tile((m?.fixed ?? 0) + stillDue)}</span>
+              <span class="card-sub">{isCurrent ? `${formatMoney(stillDue, { whole: true })} still due` : 'paid'}</span>
+            </button>
+            <button type="button" class="kpi" onClick={() => nav.setTab('accounts')}>
+              <span class="card-label">Net worth</span>
+              <span class="kpi-value">{tile(netWorth)}</span>
+              <span class="card-sub">today</span>
+            </button>
+          </div>
+
+          {isCurrent && rec.alerts.map((a) => <AlertCard key={a.key} alert={a} />)}
+
+          {warnings.length > 0 && (
+            <div class="callout warn">
+              <strong>
+                {warnings.length} budget{warnings.length === 1 ? ' needs' : 's need'} attention
+              </strong>
+              {warnings.map((p) => {
+                const s = budgetStatusText(p);
+                return (
+                  <p>
+                    <span aria-hidden="true">{s.icon} </span>
+                    {cats.get(p.categoryId)?.name}: {s.text}
+                  </p>
+                );
+              })}
+            </div>
+          )}
 
           {soon.length > 0 && (
             <Section
               title={
                 <>
-                  <span>Upcoming</span>
+                  <span>Upcoming bills</span>
                   <button type="button" class="link" onClick={() => nav.setTab('recurring')}>
                     See all
                   </button>
@@ -118,7 +187,7 @@ export function Home() {
               }
             >
               {soon.map((i) => (
-                <RecurringRow status={i.status} today={rec.today} date={i.date} late={i.late} category={cats.get(i.status.rec.categoryId ?? '')} />
+                <RecurringRow status={i.status} today={today} date={i.date} late={i.late} category={cats.get(i.status.rec.categoryId ?? '')} />
               ))}
             </Section>
           )}
@@ -130,11 +199,96 @@ export function Home() {
             </button>
           )}
 
-          {backupDue && (
-            <button type="button" class="callout warn" onClick={() => nav.setTab('settings')}>
-              <strong>Back up your data</strong>
-              <p>{lastBackup ? "It's been over two weeks since your last backup." : "You haven't made a backup yet."} Your data only lives on this phone. Tap to save a backup file.</p>
-            </button>
+          {budgets.length > 0 ? (
+            <Section
+              title={
+                <>
+                  <span>Budgets</span>
+                  <button type="button" class="link" onClick={editBudgets}>
+                    Edit
+                  </button>
+                </>
+              }
+              footer={isCurrent ? 'The line on each bar shows where you’d be at an even pace for the month.' : undefined}
+            >
+              {progress
+                .sort((a, b) => b.ratio - a.ratio)
+                .map((p) => (
+                  <BudgetMeter progress={p} category={cats.get(p.categoryId)} elapsed={isCurrent ? elapsed : 0} onClick={() => openCategory(p.categoryId)} />
+                ))}
+              {otherFlexible > 0 && (
+                <div class="row">
+                  <span class="row-main">
+                    <span class="row-title">Everything else</span>
+                    <span class="row-subtitle">Categories without a budget</span>
+                  </span>
+                  <span class="row-detail">{formatMoney(otherFlexible, { whole: true })}</span>
+                </div>
+              )}
+            </Section>
+          ) : (
+            txns.length > 0 && (
+              <button type="button" class="callout" onClick={editBudgets}>
+                <strong>Set up monthly budgets</strong>
+                <p>Limits are suggested from your last 3 months of everyday spending, and you can adjust any of them.</p>
+              </button>
+            )
+          )}
+
+          {txns.length > 0 && (
+            <>
+              <Section title="Spending by month">
+                <ColumnChart
+                  title="Total spending for the last 12 months"
+                  columns={trendKeys.map((k) => ({ key: k, label: monthLabel(k, { short: true }) }))}
+                  series={[{ name: 'Spent', color: 'var(--chart-1)', values: trendKeys.map(total) }]}
+                  selected={month}
+                  onSelect={setMonth}
+                />
+              </Section>
+
+              <Section title="Income vs spending">
+                <ColumnChart
+                  title="Income and spending for the last 6 months"
+                  columns={flowKeys.map((k) => ({ key: k, label: monthLabel(k, { short: true }) }))}
+                  series={[
+                    { name: 'Income', color: 'var(--chart-1)', values: flowKeys.map(income) },
+                    { name: 'Spending', color: 'var(--chart-2)', values: flowKeys.map(total) },
+                  ]}
+                  selected={month}
+                  onSelect={setMonth}
+                  readoutExtra={(i) => {
+                    const net = income(flowKeys[i]) - total(flowKeys[i]);
+                    return (
+                      <span class="readout-item muted">
+                        {net >= 0 ? 'saved' : 'overspent'} <Money cents={Math.abs(net)} whole />
+                      </span>
+                    );
+                  }}
+                />
+              </Section>
+
+              <Section title={`Where it went · ${monthLabel(month, { short: true })}`} footer="Includes bills and subscriptions. Tap a category for its history.">
+                {where.length ? (
+                  <RankedBars
+                    items={where.map(([id, v]) => ({
+                      key: id,
+                      label: (
+                        <>
+                          <span aria-hidden="true">{cats.get(id)?.emoji}</span> {cats.get(id)?.name ?? 'Unknown'}
+                        </>
+                      ),
+                      value: v,
+                    }))}
+                    onSelect={openCategory}
+                  />
+                ) : (
+                  <div class="group">
+                    <div class="row muted">No spending this month.</div>
+                  </div>
+                )}
+              </Section>
+            </>
           )}
 
           {uncategorized > 0 && (
@@ -146,38 +300,12 @@ export function Home() {
             </button>
           )}
 
-          {thisMonth.byCategory.length > 0 && (
-            <Section title="Top spending this month">
-              {thisMonth.byCategory.slice(0, 6).map((c) => {
-                const cat = cats.get(c.categoryId);
-                const pct = Math.max(2, Math.round((c.spent / thisMonth.byCategory[0].spent) * 100));
-                return (
-                  <button type="button" class="bar-row" onClick={() => nav.showActivity({ month, categoryId: c.categoryId })}>
-                    <span class="bar-label">
-                      <span aria-hidden="true">{cat?.emoji}</span> {cat?.name ?? 'Unknown'}
-                    </span>
-                    <Money cents={c.spent} whole />
-                    <span class="bar-track">
-                      <span class="bar-fill" style={{ width: `${pct}%`, background: cat?.color }} />
-                    </span>
-                  </button>
-                );
-              })}
-            </Section>
+          {backupDue && (
+            <button type="button" class="callout warn" onClick={() => nav.setTab('settings')}>
+              <strong>Back up your data</strong>
+              <p>{lastBackup ? "It's been over two weeks since your last backup." : "You haven't made a backup yet."} Your data only lives on this phone. Tap to save a backup file.</p>
+            </button>
           )}
-
-          <Section title="Recent activity">
-            {txns.length === 0 ? (
-              <div class="row muted">No transactions yet.</div>
-            ) : (
-              txns.slice(0, 6).map((t) => <TransactionRow txn={t} category={cats.get(t.categoryId)} account={acctMap.get(t.accountId)} />)
-            )}
-            {txns.length > 6 && (
-              <button type="button" class="row link-row" onClick={() => nav.showActivity({})}>
-                See all activity
-              </button>
-            )}
-          </Section>
         </>
       )}
     </>
