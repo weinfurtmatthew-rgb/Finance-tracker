@@ -5,14 +5,17 @@
 import { useEffect, useState } from 'preact/hooks';
 import { getMeta, setMeta } from '../db';
 import type { ChatMessage } from './ask';
-import type { ModelManifest } from './models';
+import { MODELS, type ModelManifest } from './models';
 
 export type AiPhase = 'checking' | 'unavailable' | 'off' | 'downloading' | 'ready' | 'error';
 
 export interface AiState {
   phase: AiPhase;
-  /** Bytes to download for everything (from the site's models/manifest.json). */
+  /** Download sizes, from the site's models/manifest.json. */
   sizeBytes?: number;
+  llmSizeBytes?: number;
+  /** The optional language model has been added (it may still be loading). */
+  llmWanted: boolean;
   progress?: { loaded: number; total: number };
   embed: boolean;
   llm: boolean;
@@ -27,7 +30,7 @@ interface AiMock {
 }
 const mock = () => (globalThis as { __financeAiMock?: AiMock }).__financeAiMock;
 
-let state: AiState = { phase: 'checking', embed: false, llm: false };
+let state: AiState = { phase: 'checking', embed: false, llm: false, llmWanted: false };
 const listeners = new Set<() => void>();
 function set(patch: Partial<AiState>) {
   state = { ...state, ...patch };
@@ -81,29 +84,52 @@ let started = false;
 export async function initAi() {
   if (started) return;
   started = true;
-  if (mock()) return set({ phase: 'ready', embed: true, llm: true, sizeBytes: 0 });
+  if (mock()) return set({ phase: 'ready', embed: true, llm: true, llmWanted: true, sizeBytes: 0 });
   manifest = await fetch(`${import.meta.env.BASE_URL}models/manifest.json`, { cache: 'no-cache' })
     .then((r) => (r.ok ? r.json() : null))
     .catch(() => null);
   if (!manifest) return set({ phase: 'unavailable' });
-  set({ sizeBytes: manifest.total });
+  set({ sizeBytes: manifest.models.embed.bytes, llmSizeBytes: manifest.models.llm.bytes, llmWanted: !!(await getMeta<boolean>('aiLlmEnabled')) });
   if (await getMeta<boolean>('aiEnabled')) void load();
   else set({ phase: 'off' });
 }
 
 async function load() {
-  set({ phase: 'downloading', error: undefined, progress: undefined });
+  set({ phase: 'downloading', error: undefined, progress: undefined, llmError: undefined });
   try {
     await navigator.storage?.persist?.().catch(() => false);
-    const r = await call<{ embed: boolean; llm: boolean; llmError?: string }>('load', { llm: true });
+    const r = await call<{ embed: boolean; llm: boolean; llmError?: string }>('load', { llm: state.llmWanted });
     set({ phase: 'ready', embed: r.embed, llm: r.llm, llmError: r.llmError });
   } catch (e) {
-    set({ phase: 'error', error: e instanceof Error ? e.message : String(e) });
+    const detail = e instanceof Error ? e.message : String(e);
+    set({ phase: 'error', error: `The AI files couldn't be loaded. Check your connection and try again. (${detail.slice(0, 120)})` });
   }
 }
 
+/** Turn on the core AI (the small embedding model). */
 export async function enableAi() {
   await setMeta('aiEnabled', true);
+  await load();
+}
+
+/** Add the optional language model (a separate, much larger download). */
+export async function enableLlm() {
+  await setMeta('aiLlmEnabled', true);
+  set({ llmWanted: true });
+  await load();
+}
+
+/** Remove just the language model's files; the core AI keeps working. */
+export async function removeLlm() {
+  await setMeta('aiLlmEnabled', false);
+  worker?.terminate();
+  worker = null;
+  pending.clear();
+  for (const name of (await caches?.keys?.()) ?? []) {
+    const cache = await caches.open(name);
+    for (const req of await cache.keys()) if (req.url.includes(MODELS.llm.id)) await cache.delete(req);
+  }
+  set({ llmWanted: false, llm: false });
   await load();
 }
 
@@ -115,7 +141,8 @@ export async function removeAi() {
   const names = (await caches?.keys?.()) ?? [];
   await Promise.all(names.filter((n) => /transformers|onnx|ort/i.test(n)).map((n) => caches.delete(n)));
   await setMeta('aiEnabled', false);
-  set({ phase: manifest ? 'off' : 'unavailable', embed: false, llm: false, progress: undefined, llmError: undefined });
+  await setMeta('aiLlmEnabled', false);
+  set({ phase: manifest ? 'off' : 'unavailable', embed: false, llm: false, llmWanted: false, progress: undefined, llmError: undefined });
 }
 
 export async function embed(texts: string[]): Promise<ArrayLike<number>[]> {
