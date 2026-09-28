@@ -5,8 +5,9 @@
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CATEGORIES } from '../src/lib/categories';
-import { nearestCategory, trainingExamples } from '../src/ai/similar';
-import { llmMessages, parseLlmOutput, type AskContext } from '../src/ai/ask';
+import { CATEGORY_SEEDS, nearestCategory, trainingExamples } from '../src/ai/similar';
+import { understand, type AskContext, type ChatMessage } from '../src/ai/ask';
+import { factSentences, numbersAreFaithful, summaryMessages } from '../src/ai/summary';
 import { explainMessages, parseExplain } from '../src/ai/explain';
 import { MODELS } from '../src/ai/models';
 
@@ -51,38 +52,61 @@ describe.runIf(run)('real on-device models', () => {
     expect(got.filter(([, want, have]) => want === have).length).toBeGreaterThanOrEqual(8);
   }, 300_000);
 
-  it('language model turns questions into lookups', async () => {
+  it('questions in your own words are understood (rules + embedding model)', async () => {
+    const { pipeline } = await transformers();
+    const embedder = await pipeline('feature-extraction', MODELS.embed.id, { dtype: MODELS.embed.dtype });
+    const embed = async (texts: string[]) => {
+      const out = await embedder(texts, { pooling: 'mean', normalize: true });
+      const d = out.dims[1];
+      return texts.map((_, i) => (out.data as Float32Array).slice(i * d, (i + 1) * d));
+    };
+    const ctx: AskContext = { today: '2026-09-28', categories: DEFAULT_CATEGORIES, merchants: ['Starbucks', "Trader Joe's", 'Target'] };
+    // Phrasings the rules don't cover, so the embedding model has to do the work.
+    const cases: [string, string, string?][] = [
+      ['what ate up most of my paycheck this month', 'top_categories'],
+      ['which shops get the bulk of my cash', 'top_merchants'],
+      ['what services do i get billed for every month', 'subscriptions'],
+      ['did i blow past my limits', 'budget'],
+      ['what did i put the most money into in a single go', 'largest'],
+      ['how much does eating at restaurants set me back', 'spending', 'dining'],
+      ['how rich am i right now', 'net_worth'],
+      ['how much hit my account from work', 'income'],
+      ['what is the weather tomorrow', 'none'],
+    ];
+    const rows = [];
+    let ok = 0;
+    for (const [q, intent, category] of cases) {
+      const parsed = await understand(q, ctx, embed, CATEGORY_SEEDS);
+      const got = parsed ? parsed.intent : 'none';
+      const good = got === intent && (!category || parsed?.categoryId === category);
+      if (good) ok++;
+      rows.push({ q, want: `${intent}${category ? `/${category}` : ''}`, got: `${got}${parsed?.categoryId ? `/${parsed.categoryId}` : ''} (${parsed?.source ?? ''})` });
+    }
+    console.table(rows);
+    expect(ok).toBeGreaterThanOrEqual(6);
+  }, 300_000);
+
+  it('language model: explain and recap (reported)', async () => {
     const { pipeline } = await transformers();
     let generator;
     try {
       generator = await pipeline('text-generation', MODELS.llm.id, { dtype: MODELS.llm.dtype });
     } catch (e) {
-      // q4f16 is built for WebGPU; some CPU builds of ONNX Runtime can't run it. Report, don't fail.
       console.warn(`Language model could not run on this CPU runner: ${e instanceof Error ? e.message : e}`);
       return;
     }
-    const ctx: AskContext = { today: '2026-09-28', categories: DEFAULT_CATEGORIES, merchants: ['Starbucks', "Trader Joe's", 'Target'] };
-    const cases: [string, string, string?][] = [
-      ['how much cash did i drop on food delivery and restaurants in august', 'spending', 'dining'],
-      ['what did i splurge on the most this month', 'top_categories'],
-      ['total spent at target since june', 'spending'],
-      ['how much money came in last month', 'income'],
-      ['list my streaming services', 'subscriptions'],
-      ['what is the priciest thing i bought this year', 'largest'],
-    ];
-    const rows = [];
-    let ok = 0;
-    for (const [q, intent, category] of cases) {
-      const out = (await generator(llmMessages(q, ctx), { max_new_tokens: 100, do_sample: false })) as Array<{ generated_text: Array<{ content: string }> }>;
-      const text = out[0].generated_text.at(-1)?.content ?? '';
-      const parsed = parseLlmOutput(text, ctx);
-      const good = parsed?.intent === intent && (!category || parsed.categoryId === category);
-      if (good) ok++;
-      rows.push({ q, want: `${intent}${category ? `/${category}` : ''}`, got: parsed ? `${parsed.intent}/${parsed.categoryId ?? ''}` : text.slice(0, 60) });
-    }
-    console.table(rows);
-    const ex = (await generator(explainMessages('TST* BLUE DOOR CAFE 0442 BOSTON MA'), { max_new_tokens: 40, do_sample: false })) as Array<{ generated_text: Array<{ content: string }> }>;
-    console.log('explain:', parseExplain(ex[0].generated_text.at(-1)?.content ?? ''));
-    expect(ok).toBeGreaterThanOrEqual(4);
+    const gen = async (messages: ChatMessage[], n: number) => {
+      const out = (await generator(messages, { max_new_tokens: n, do_sample: false })) as Array<{ generated_text: Array<{ content: string }> }>;
+      return out[0].generated_text.at(-1)?.content ?? '';
+    };
+    const explained = parseExplain(await gen(explainMessages('TST* BLUE DOOR CAFE 0442 BOSTON MA'), 40));
+    console.log('explain:', explained);
+    const facts = factSentences({
+      month: '2026-09', label: 'September 2026', current: true, spent: 227100, previous: 250000,
+      topCategory: { name: 'Rent & Mortgage', amount: 165000 }, over: ['Dining'], near: [], income: 0, priceIncreases: ['Netflix'], netWorthChange: 272900,
+    });
+    const recap = await gen(summaryMessages(facts), 120);
+    console.log('recap:', recap, '| faithful:', numbersAreFaithful(recap, facts));
+    expect(explained?.name).toBeTruthy();
   }, 900_000);
 });

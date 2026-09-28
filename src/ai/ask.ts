@@ -26,6 +26,11 @@ export interface Query {
   source: 'rules' | 'ai';
 }
 
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
 export interface AskContext {
   today: ISODate;
   categories: Category[];
@@ -155,15 +160,15 @@ export function findMerchant(text: string, merchants: string[]): string | undefi
 export function detectIntent(text: string): Intent | null {
   const t = text.toLowerCase();
   if (/net ?worth|how much am i worth|what am i worth/.test(t)) return 'net_worth';
-  if (/subscription|recurring|what bills|which bills|my bills/.test(t)) return 'subscriptions';
+  if (/subscription|recurring|streaming|membership|what bills|which bills|my bills/.test(t)) return 'subscriptions';
   if (/budget|left to spend|over(spent| budget)/.test(t)) return 'budget';
-  if (/(biggest|largest|most expensive|highest)\s+(single\s+)?(purchase|transaction|expense|charge|payment)s?/.test(t)) return 'largest';
+  if (/(biggest|largest|most expensive|highest|priciest)\s+(single\s+)?(purchase|transaction|expense|charge|payment|thing|item)s?|(priciest|most expensive) (thing|item|purchase)/.test(t)) return 'largest';
   if (/how many times|how often|number of (times|visits|purchases|transactions)/.test(t)) return 'count';
-  if (/(earn|earned|income|made|make|paid me|paycheck|salary)/.test(t) && !/spend|spent|spending/.test(t)) return 'income';
-  if (/categor|where (did|does|do) (my |all )?(the )?money go|where.*spending go|what (did|do) i spend (the )?most on/.test(t)) return 'top_categories';
+  if (/(earn|earned|income|made|make|paid me|paycheck|salary|came in|come in|money in|deposited|got paid)/.test(t) && !/spend|spent|spending/.test(t)) return 'income';
+  if (/categor|where (did|does|do) (my |all )?(the )?money go|where.*spending go|what (did|do) i (spend|splurge|blow|blew)\b.*\bmost\b|splurge/.test(t)) return 'top_categories';
   if (/(merchant|store|stores|shop|shops|places|place|companies|company)\b.*(most|top|biggest)|(most|top|biggest).*(merchant|store|shop|place|companies)|where do i (shop|spend) (the )?most/.test(t))
     return 'top_merchants';
-  if (/spend|spent|spending|cost|costs|pay|paid|expenses|expense/.test(t)) return 'spending';
+  if (/spend|spent|spending|cost|costs|pay|paid|expenses|expense|drop|dropped|blow|blew|shell(ed)? out/.test(t)) return 'spending';
   return null;
 }
 
@@ -179,62 +184,76 @@ export function parseQuestion(text: string, ctx: AskContext): Query | null {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Language-model understanding (fallback)
+// AI understanding (fallback): the small embedding model compares the question with example
+// questions for each kind of lookup. (A 0.5B language model proved unreliable at this in testing.)
 // ---------------------------------------------------------------------------------------------
 
-export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
+export const INTENT_EXAMPLES: Record<Intent, string[]> = {
+  spending: ['how much did i spend on this', 'how much money went to that', 'what is my total spending on it', 'how much have i paid for this', 'what did it cost me'],
+  income: ['how much money came in', 'how much did i earn', 'what was my income', 'how much did i get paid', 'how much was deposited'],
+  top_categories: ['what did i spend the most on', 'where did my money go', 'what are my biggest spending categories', 'breakdown of my spending by category', 'what am i spending too much on'],
+  top_merchants: ['which stores do i spend the most at', 'where do i shop the most', 'which companies get most of my money', 'my top merchants'],
+  subscriptions: ['what subscriptions do i have', 'which streaming services am i paying for', 'list my recurring charges', 'what memberships do i pay for'],
+  net_worth: ['what is my net worth', 'how much am i worth', 'what do i own minus what i owe'],
+  budget: ['am i over budget', 'how much is left in my budget', 'am i on track with my budget', 'how is my budget looking'],
+  largest: ['what was my biggest purchase', 'what is the most expensive thing i bought', 'my largest single expense', 'what was my priciest purchase'],
+  count: ['how many times did i go there', 'how often do i buy this', 'number of visits', 'how many purchases did i make there'],
+};
+
+export interface IntentMatch {
+  intent: Intent;
+  similarity: number;
 }
 
-export function llmMessages(question: string, ctx: AskContext): ChatMessage[] {
-  const cats = ctx.categories.filter((c) => c.group !== 'transfer').map((c) => c.id);
-  const system = [
-    'You convert questions about personal finances into JSON. Reply with one JSON object and nothing else.',
-    `Today is ${ctx.today}.`,
-    `"intent" is one of: ${INTENTS.join(', ')}.`,
-    `"category" is one of: ${cats.join(', ')}, or null.`,
-    '"merchant" is a store or company name mentioned in the question, or null.',
-    '"start" and "end" are dates as YYYY-MM-DD, or null if no time is mentioned.',
-  ].join('\n');
-  const ex = (q: string, a: object): ChatMessage[] => [
-    { role: 'user', content: q },
-    { role: 'assistant', content: JSON.stringify(a) },
-  ];
-  return [
-    { role: 'system', content: system },
-    ...ex('what did i blow the most cash on last month', { intent: 'top_categories', category: null, merchant: null, start: `${addMonths(monthKey(ctx.today), -1)}-01`, end: dayInMonth(`${addMonths(monthKey(ctx.today), -1)}-01`, 0, 31) }),
-    ...ex('total at trader joes this year?', { intent: 'spending', category: null, merchant: "Trader Joe's", start: `${ctx.today.slice(0, 4)}-01-01`, end: ctx.today }),
-    ...ex('am i doing ok on my food budget', { intent: 'budget', category: 'dining', merchant: null, start: null, end: null }),
-    { role: 'user', content: question },
-  ];
+/** Closest example question (vectors normalized). */
+export function classifyIntent(query: ArrayLike<number>, examples: { intent: Intent; vec: ArrayLike<number> }[]): IntentMatch | null {
+  let best: IntentMatch | null = null;
+  for (const e of examples) {
+    let sim = 0;
+    for (let i = 0; i < query.length; i++) sim += query[i] * e.vec[i];
+    if (!best || sim > best.similarity) best = { intent: e.intent, similarity: sim };
+  }
+  return best;
 }
 
-const isDate = (s: unknown): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+/** Below this, the question isn't close enough to anything we know how to answer. */
+export const INTENT_THRESHOLD = 0.45;
+export const CATEGORY_THRESHOLD = 0.5;
 
-/** Validate the model's JSON. Anything unexpected is dropped rather than trusted. */
-export function parseLlmOutput(output: string, ctx: AskContext): Query | null {
-  const m = output.match(/\{[\s\S]*\}/);
-  if (!m) return null;
-  let json: Record<string, unknown>;
-  try {
-    json = JSON.parse(m[0]);
-  } catch {
-    return null;
+type Embed = (texts: string[]) => Promise<ArrayLike<number>[]>;
+
+/**
+ * Rules first; if they don't understand the question and the AI is on, the embedding model picks the
+ * kind of lookup (and the category, if the rules didn't find one). Dates and store names always come
+ * from rules, so they're exact.
+ */
+export async function understand(question: string, ctx: AskContext, embed?: Embed, categorySeeds?: Record<string, string[]>): Promise<Query | null> {
+  const ruled = parseQuestion(question, ctx);
+  if (ruled || !embed) return ruled;
+  const intents = Object.entries(INTENT_EXAMPLES).flatMap(([intent, list]) => list.map((text) => ({ intent: intent as Intent, text })));
+  const seeds = Object.entries(categorySeeds ?? {})
+    .filter(([id]) => ctx.categories.some((c) => c.id === id && c.group === 'expense'))
+    .flatMap(([id, list]) => list.map((text) => ({ id, text })));
+  const vecs = await embed([question.toLowerCase(), ...intents.map((i) => i.text), ...seeds.map((s) => s.text)]);
+  const [q] = vecs;
+  const match = classifyIntent(
+    q,
+    intents.map((i, k) => ({ intent: i.intent, vec: vecs[1 + k] })),
+  );
+  if (!match || match.similarity < INTENT_THRESHOLD) return null;
+  let categoryId = findCategory(question, ctx.categories);
+  if (!categoryId && ['spending', 'count', 'largest', 'budget'].includes(match.intent)) {
+    let best: { id: string; sim: number } | undefined;
+    seeds.forEach((s, k) => {
+      const v = vecs[1 + intents.length + k];
+      let sim = 0;
+      for (let i = 0; i < q.length; i++) sim += q[i] * v[i];
+      if (!best || sim > best.sim) best = { id: s.id, sim };
+    });
+    if (best && best.sim >= CATEGORY_THRESHOLD) categoryId = best.id;
   }
-  const intent = String(json.intent ?? '').toLowerCase() as Intent;
-  if (!INTENTS.includes(intent)) return null;
-  const catRaw = typeof json.category === 'string' ? json.category.toLowerCase() : '';
-  const category = ctx.categories.find((c) => c.id === catRaw || c.name.toLowerCase() === catRaw)?.id ?? (catRaw ? findCategory(catRaw, ctx.categories) : undefined);
-  const merchantRaw = typeof json.merchant === 'string' ? json.merchant : '';
-  const merchant = merchantRaw ? (findMerchant(merchantRaw, ctx.merchants) ?? merchantRaw) : undefined;
-  let period = thisMonth(ctx.today);
-  if (isDate(json.start) && isDate(json.end) && json.start <= json.end) {
-    const to = json.end > ctx.today ? ctx.today : json.end;
-    const sameMonth = monthKey(json.start) === monthKey(to) && json.start.endsWith('-01');
-    period = sameMonth ? monthPeriod(monthKey(json.start), ctx.today) : { from: json.start, to, label: `${json.start} to ${to}` };
-  }
-  return { intent, categoryId: category, merchant, period, source: 'ai' };
+  const merchant = match.intent === 'subscriptions' ? undefined : findMerchant(question, ctx.merchants);
+  return { intent: match.intent, categoryId, merchant, period: parsePeriod(question, ctx.today) ?? thisMonth(ctx.today), source: 'ai' };
 }
 
 // ---------------------------------------------------------------------------------------------

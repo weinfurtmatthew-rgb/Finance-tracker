@@ -1,19 +1,7 @@
 import type { Category, Transaction } from '../types';
 import { UNCATEGORIZED } from '../lib/categories';
-import { embed } from './client';
+import { vectors } from './vectors';
 import { nearestCategory, queryText, trainingExamples, type Suggestion } from './similar';
-
-// Embeddings don't change for the same text, so keep them for the session.
-const cache = new Map<string, ArrayLike<number>>();
-
-async function vectors(texts: string[]): Promise<ArrayLike<number>[]> {
-  const missing = [...new Set(texts.filter((t) => !cache.has(t)))];
-  if (missing.length) {
-    const vecs = await embed(missing);
-    missing.forEach((t, i) => cache.set(t, vecs[i]));
-  }
-  return texts.map((t) => cache.get(t)!);
-}
 
 export interface PayeeGroup {
   key: string;

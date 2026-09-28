@@ -7,8 +7,10 @@ import { addMonths, dayInMonth, formatShortDate, monthKey } from '../lib/dates';
 import { budgetProgress } from '../lib/budgets';
 import { changeSince, netWorthOn } from '../lib/networth';
 import { formatMoney } from '../lib/money';
-import { EXAMPLES, answer, llmMessages, parseLlmOutput, parseQuestion, type Answer } from '../ai/ask';
-import { chat, useAi } from '../ai/client';
+import { EXAMPLES, answer, understand, type Answer } from '../ai/ask';
+import { useAi } from '../ai/client';
+import { vectors } from '../ai/vectors';
+import { CATEGORY_SEEDS } from '../ai/similar';
 import { Sheet } from '../components/ui';
 
 interface Turn {
@@ -40,19 +42,17 @@ export function AskSheet(props: { onClose: () => void }) {
     const index = turns.length;
     setTurns((t) => [...t, { question: q, pending: true }]);
     const ctx = { today, categories, merchants };
-    let query = parseQuestion(q, ctx);
-    if (!query && ai.llm) {
-      try {
-        query = parseLlmOutput(await chat(llmMessages(q, ctx), 120), ctx);
-      } catch {
-        query = null;
-      }
+    let query = null;
+    try {
+      query = await understand(q, ctx, ai.embed ? vectors : undefined, CATEGORY_SEEDS);
+    } catch {
+      query = null;
     }
     let turn: Turn;
     if (!query) {
       turn = {
         question: q,
-        error: ai.llm
+        error: ai.embed
           ? "Sorry, I couldn't work out what to look up. Try asking about spending, a category, a store, income, subscriptions, budgets or net worth."
           : "I couldn't understand that with the basic parser. Try one of the examples, or turn on on-device AI in Settings for more flexible questions.",
       };
@@ -80,7 +80,7 @@ export function AskSheet(props: { onClose: () => void }) {
           <div class="ask-intro">
             <p class="muted">
               Ask about your spending, income, subscriptions, budgets or net worth. Answers are calculated exactly from your data, on this phone.
-              {ai.llm ? ' The on-device AI helps understand questions phrased in your own words.' : ''}
+              {ai.embed ? ' The on-device AI helps understand questions phrased in your own words.' : ''}
             </p>
             <div class="ask-examples">
               {EXAMPLES.map((e) => (

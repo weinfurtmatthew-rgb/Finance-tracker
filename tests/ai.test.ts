@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { answer, parseLlmOutput, parsePeriod, parseQuestion, type AnswerData, type AskContext } from '../src/ai/ask';
+import { answer, parsePeriod, parseQuestion, understand, type AnswerData, type AskContext } from '../src/ai/ask';
 import { factSentences, numbersAreFaithful, type SummaryFacts } from '../src/ai/summary';
 import { explainDescription, parseExplain } from '../src/ai/explain';
-import { nearestCategory, trainingExamples } from '../src/ai/similar';
+import { CATEGORY_SEEDS, nearestCategory, trainingExamples } from '../src/ai/similar';
 import { DEFAULT_CATEGORIES } from '../src/lib/categories';
 import type { Transaction } from '../src/types';
 
@@ -48,6 +48,11 @@ describe('parseQuestion (rules)', () => {
     ['how much did i make last month', { intent: 'income' }],
     ['groceries in july', { intent: 'spending', categoryId: 'groceries' }],
     ['total at trader joes this year', { intent: 'spending', merchant: "Trader Joe's" }],
+    ['how much cash did i drop on food delivery and restaurants in august', { intent: 'spending', categoryId: 'dining' }],
+    ['what did i splurge on the most this month', { intent: 'top_categories' }],
+    ['how much money came in last month', { intent: 'income' }],
+    ['list my streaming services', { intent: 'subscriptions' }],
+    ['what is the priciest thing i bought this year', { intent: 'largest' }],
   ])('%s', (q, expected) => {
     expect(parseQuestion(q, ctx)).toMatchObject(expected);
   });
@@ -56,17 +61,31 @@ describe('parseQuestion (rules)', () => {
   });
 });
 
-describe('parseLlmOutput', () => {
-  it('accepts valid JSON (even with extra text) and validates fields', () => {
-    const q = parseLlmOutput('Sure! {"intent":"spending","category":"Dining","merchant":null,"start":"2026-08-01","end":"2026-08-31"}', ctx);
-    expect(q).toMatchObject({ intent: 'spending', categoryId: 'dining', period: { from: '2026-08-01', to: '2026-08-31', label: 'August 2026' }, source: 'ai' });
+describe('understand (AI fallback with the embedding model)', () => {
+  // Fake embeddings: each text maps to the unit vector of the first keyword it contains.
+  const KEYS = ['splurge', 'most on', 'streaming', 'subscriptions', 'priciest', 'expensive', 'came in', 'income', 'restaurant', 'dining'];
+  const fake = async (texts: string[]) =>
+    texts.map((t) => {
+      const v = new Array(KEYS.length + 1).fill(0);
+      const alias: Record<string, number> = { splurge: 1, streaming: 3, priciest: 5, 'came in': 7, restaurant: 9 };
+      const i = KEYS.findIndex((k) => t.includes(k));
+      if (i !== -1) v[alias[KEYS[i]] ?? i] = 1; // unrelated text stays a zero vector (similarity 0)
+      return v;
+    });
+  const examples = { ...Object.fromEntries(Object.keys(CATEGORY_SEEDS).map((k) => [k, []])), dining: ['dining'] } as Record<string, string[]>;
+
+  it('rules win when they understand the question', async () => {
+    expect(await understand('how much did i spend on gas last month', ctx, fake, examples)).toMatchObject({ intent: 'spending', categoryId: 'gas', source: 'rules' });
   });
-  it('rejects unknown intents and bad JSON', () => {
-    expect(parseLlmOutput('{"intent":"invest"}', ctx)).toBeNull();
-    expect(parseLlmOutput('no json here', ctx)).toBeNull();
+  it('falls back to the closest example question', async () => {
+    const q = await understand('i wanna know the priciest', ctx, fake, examples);
+    expect(q).toMatchObject({ intent: 'largest', source: 'ai' });
   });
-  it('clamps future end dates to today', () => {
-    expect(parseLlmOutput('{"intent":"spending","start":"2026-01-01","end":"2026-12-31"}', ctx)?.period.to).toBe(today);
+  it('returns null when nothing is close enough', async () => {
+    expect(await understand('tell me a joke', ctx, fake, examples)).toBeNull();
+  });
+  it('without AI, only rules are used', async () => {
+    expect(await understand('i wanna know the priciest', ctx)).toBeNull();
   });
 });
 
@@ -139,6 +158,7 @@ describe('similar', () => {
     expect(ex.some((e) => e.text === 'weird co')).toBe(false);
     // Fake 2-D embeddings: the query points the same way as "starbucks".
     const withVecs = ex.map((e) => ({ ...e, vec: e.text === 'starbucks' ? [1, 0] : [0, 1] }));
-    expect(nearestCategory([1, 0], withVecs, 3)).toMatchObject({ categoryId: 'dining', like: 'starbucks' });
+    expect(nearestCategory([1, 0], withVecs)).toMatchObject({ categoryId: 'dining', like: 'starbucks' });
+    expect(ex.filter((e) => e.seed && e.categoryId === 'dining').length).toBeGreaterThan(3);
   });
 });

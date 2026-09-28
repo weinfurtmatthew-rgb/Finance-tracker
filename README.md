@@ -36,11 +36,11 @@ Turned on in **Settings → On-device AI** (a one-time download of about 500 MB 
 offline). Two small models run in the browser with [Transformers.js](https://github.com/huggingface/transformers.js):
 all-MiniLM-L6-v2 (embeddings, WebAssembly) and Qwen2.5-0.5B-Instruct (language model, WebGPU).
 
-- **Ask about your money:** questions are understood by rules first, and by the language model when the rules can't;
-  the app then **calculates the answer from your data**. The model never produces numbers, and every answer shows
-  how it was understood.
+- **Ask about your money:** questions are understood by rules first; when they can't, the embedding model matches the
+  question to example questions (a 0.5B language model was tested for this and was unreliable). The app then
+  **calculates the answer from your data**. AI never produces the numbers, and every answer shows how it was understood.
 - **Smarter categorizing:** suggests categories for uncategorized payees by similarity to the ones you've
-  categorized (plus short category descriptions), and can save them as rules.
+  categorized (plus short phrases for each category), and can save them as rules.
 - **Monthly recap** on the Overview: exact facts, reworded by the model; the rewording is discarded if it contains
   any number that isn't in the facts.
 - **"What is this?"** on a transaction: decodes bank codes (TST*, SQ*, AMZN Mktp…) exactly, plus a labeled AI guess.

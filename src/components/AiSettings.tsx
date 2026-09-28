@@ -34,10 +34,10 @@ export function AiSettings() {
       )}
       {ai.phase === 'ready' && (
         <>
-          <Row title="Smarter categorizing" detail={ai.embed ? 'On ✓' : 'Off'} chevron={false} />
+          <Row title="Categorizing & questions" subtitle="Suggests categories; understands questions in your own words" detail={ai.embed ? 'On ✓' : 'Off'} chevron={false} />
           <Row
             title="Language model"
-            subtitle={ai.llm ? 'Understands questions in your own words; writes recaps' : `Not running: ${ai.llmError ?? 'unknown error'} Basic question parsing still works.`}
+            subtitle={ai.llm ? 'Writes monthly recaps; explains bank descriptions' : `Not running: ${ai.llmError ?? 'unknown error'} Everything else still works.`}
             detail={ai.llm ? 'On ✓' : 'Off'}
             chevron={false}
           />
