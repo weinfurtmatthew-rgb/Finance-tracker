@@ -6,7 +6,7 @@ works offline, and keeps its data in the phone's local database (IndexedDB).
 
 ## Install on iPhone
 
-1. Open the app's URL in **Safari** (`https://<your-github-username>.github.io/finance-tracker/`).
+1. Open the app's URL in **Safari** (`https://weinfurtmatthew-rgb.github.io/Finance-tracker/`).
 2. Tap **Share** → **Add to Home Screen**.
 3. Open it from the Home Screen icon from now on. Home Screen apps keep their own storage and are exempt from Safari's
    7-day cleanup of website data.
