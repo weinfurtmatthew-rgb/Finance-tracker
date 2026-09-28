@@ -30,6 +30,24 @@ skips transactions you already have.
 
 ## Features
 
+### On-device AI (Phase 5, optional)
+
+Turned on in **Settings → On-device AI** (a one-time download of about 500 MB from this app's own site; then it works
+offline). Two small models run in the browser with [Transformers.js](https://github.com/huggingface/transformers.js):
+all-MiniLM-L6-v2 (embeddings, WebAssembly) and Qwen2.5-0.5B-Instruct (language model, WebGPU).
+
+- **Ask about your money:** questions are understood by rules first, and by the language model when the rules can't;
+  the app then **calculates the answer from your data**. The model never produces numbers, and every answer shows
+  how it was understood.
+- **Smarter categorizing:** suggests categories for uncategorized payees by similarity to the ones you've
+  categorized (plus short category descriptions), and can save them as rules.
+- **Monthly recap** on the Overview: exact facts, reworded by the model; the rewording is discarded if it contains
+  any number that isn't in the facts.
+- **"What is this?"** on a transaction: decodes bank codes (TST*, SQ*, AMZN Mktp…) exactly, plus a labeled AI guess.
+
+Every feature has a non-AI fallback, so the app works the same with AI off. The models aren't in git: CI downloads them
+(`scripts/fetch-models.mjs`) into the published site and runs `tests/ai-smoke.test.ts` against them.
+
 ### Net worth & goals (Phase 4)
 
 - **Net Worth tab** (formerly Accounts): net worth with change since last month (per account), and a chart over
@@ -74,10 +92,6 @@ skips transactions you already have.
 - 6-digit passcode lock with auto-lock
 - Backup / restore (JSON) and CSV export
 - Light & dark mode
-
-## Roadmap
-
-- **Phase 5:** On-device AI (categorization + "ask about your money") via an in-browser model
 
 ## Development
 

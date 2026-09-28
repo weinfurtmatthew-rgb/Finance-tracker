@@ -1585,3 +1585,168 @@ button.hero-card {
 .change-line.neg-text {
   color: var(--red);
 }
+
+/* ---- On-device AI ---- */
+.summary-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.summary-card p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+}
+.callout .pill {
+  margin-top: 10px;
+}
+.suggest-pill {
+  margin-top: 8px;
+}
+.ask {
+  padding-bottom: 80px;
+}
+.ask-intro {
+  padding: 16px 4px 0;
+}
+.ask-intro p {
+  line-height: 1.45;
+}
+.ask-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ask-examples .pill {
+  white-space: normal;
+  text-align: left;
+  font-weight: 500;
+}
+.ask-turn {
+  margin-top: 16px;
+}
+.ask-q {
+  margin: 0 0 8px auto;
+  max-width: 85%;
+  width: fit-content;
+  background: var(--tint);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 18px 18px 4px 18px;
+}
+.ask-a {
+  margin: 0;
+  background: var(--surface);
+  padding: 12px 14px;
+  border-radius: 18px 18px 18px 4px;
+  max-width: 92%;
+  line-height: 1.4;
+}
+.ask-a p {
+  margin: 4px 0 0;
+}
+.ask-headline {
+  display: block;
+  font-size: 17px;
+}
+.ask-items {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.ask-items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  border-top: 0.5px solid var(--separator);
+  font-size: 15px;
+}
+.ask-meta {
+  font-size: 12px;
+  color: var(--text-2);
+  margin-top: 8px !important;
+}
+.ask-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 8px;
+  padding: 10px 0 calc(var(--safe-bottom) + 10px);
+  background: var(--bg);
+}
+.ask-bar input {
+  flex: 1;
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 9px 14px;
+}
+.suggest-row {
+  padding: 10px 16px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.suggest-row + .suggest-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  border-top: 0.5px solid var(--separator);
+}
+.suggest-top {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+  align-items: center;
+}
+.suggest-row .chip {
+  background: var(--fill);
+  max-width: 100%;
+}
+.confidence {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  background: var(--fill);
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+.confidence.high {
+  color: var(--green);
+}
+.explain {
+  padding: 10px 16px 12px;
+  font-size: 15px;
+  position: relative;
+}
+.explain::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  border-top: 0.5px solid var(--separator);
+}
+.explain ul {
+  margin: 0 0 8px;
+  padding-left: 18px;
+  color: var(--text-2);
+  line-height: 1.45;
+}
+.explain p {
+  margin: 6px 0;
+}
+.explain-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}

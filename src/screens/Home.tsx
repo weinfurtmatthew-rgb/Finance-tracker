@@ -23,6 +23,10 @@ import { AlertCard } from './Recurring';
 import { RecurringReview } from './RecurringReview';
 import { BudgetsEditor } from './BudgetsEditor';
 import { CategoryDetail } from './CategoryDetail';
+import { AskSheet } from './AskSheet';
+import { SuggestCategories } from './SuggestCategories';
+import { SummaryCard } from '../components/SummaryCard';
+import { useAi } from '../ai/client';
 
 const isStandalone = () =>
   window.matchMedia?.('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
@@ -33,6 +37,7 @@ export function Home() {
   const txns = useTransactions();
   const lastBackup = useMeta<number>('lastBackupAt');
   const rec = useRecurringModel();
+  const ai = useAi();
   const { months, budgets, cats } = useSpending();
   const today = rec.today;
   const current = monthKey(today);
@@ -81,9 +86,14 @@ export function Home() {
       <header class="large-title">
         <h1>Overview</h1>
         {open.length > 0 && (
-          <button type="button" class="icon-button" aria-label="Import a file" onClick={importFile}>
-            {Icons.import()}
-          </button>
+          <div class="header-actions">
+            <button type="button" class="icon-button" aria-label="Ask a question" onClick={() => nav.present((close) => <AskSheet onClose={close} />)}>
+              {Icons.sparkle()}
+            </button>
+            <button type="button" class="icon-button" aria-label="Import a file" onClick={importFile}>
+              {Icons.import()}
+            </button>
+          </div>
         )}
       </header>
 
@@ -162,6 +172,8 @@ export function Home() {
               </span>
             </button>
           </div>
+
+          {txns.length > 0 && <SummaryCard month={month} />}
 
           {isCurrent && rec.alerts.map((a) => <AlertCard key={a.key} alert={a} />)}
 
@@ -306,12 +318,19 @@ export function Home() {
           )}
 
           {uncategorized > 0 && (
-            <button type="button" class="callout" onClick={() => nav.showActivity({ categoryId: 'uncategorized' })}>
-              <strong>
-                {uncategorized} transaction{uncategorized === 1 ? '' : 's'} to categorize
-              </strong>
-              <p>Tap to review. When you pick a category, the app offers to remember it for next time.</p>
-            </button>
+            <div class="callout">
+              <button type="button" class="callout-body" onClick={() => nav.showActivity({ categoryId: 'uncategorized' })}>
+                <strong>
+                  {uncategorized} transaction{uncategorized === 1 ? '' : 's'} to categorize
+                </strong>
+                <p>Tap to review. When you pick a category, the app offers to remember it for next time.</p>
+              </button>
+              {ai.embed && (
+                <button type="button" class="pill" onClick={() => nav.present((close) => <SuggestCategories onClose={close} />)}>
+                  ✨ Suggest categories
+                </button>
+              )}
+            </div>
           )}
 
           {backupDue && (
