@@ -53,6 +53,7 @@ describe('parseQuestion (rules)', () => {
     ['how much money came in last month', { intent: 'income' }],
     ['list my streaming services', { intent: 'subscriptions' }],
     ['what is the priciest thing i bought this year', { intent: 'largest' }],
+    ['did i blow past my limits', { intent: 'budget' }],
   ])('%s', (q, expected) => {
     expect(parseQuestion(q, ctx)).toMatchObject(expected);
   });
@@ -80,6 +81,11 @@ describe('understand (AI fallback with the embedding model)', () => {
   it('falls back to the closest example question', async () => {
     const q = await understand('i wanna know the priciest', ctx, fake, examples);
     expect(q).toMatchObject({ intent: 'largest', source: 'ai' });
+  });
+  it('loose keyword matches let the AI decide, and fall back to the rule if the AI is unsure', async () => {
+    // "blow" is only a weak spending hint; the fake model sees "priciest" and says largest.
+    expect(await understand('did i blow it on the priciest stuff', ctx, fake, examples)).toMatchObject({ intent: 'largest', source: 'ai' });
+    expect(await understand('did i blow it', ctx, fake, examples)).toMatchObject({ intent: 'spending', source: 'rules' });
   });
   it('returns null when nothing is close enough', async () => {
     expect(await understand('tell me a joke', ctx, fake, examples)).toBeNull();

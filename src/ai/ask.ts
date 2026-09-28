@@ -157,19 +157,32 @@ export function findMerchant(text: string, merchants: string[]): string | undefi
   return best;
 }
 
-export function detectIntent(text: string): Intent | null {
+/**
+ * Rule-based intent. "strong" matches are unambiguous phrasings; "weak" ones are loose keywords
+ * ("paycheck", "blow", "money in") that the AI gets to overrule when it's on.
+ */
+export function detectIntentWithStrength(text: string): { intent: Intent; strong: boolean } | null {
   const t = text.toLowerCase();
-  if (/net ?worth|how much am i worth|what am i worth/.test(t)) return 'net_worth';
-  if (/subscription|recurring|streaming|membership|what bills|which bills|my bills/.test(t)) return 'subscriptions';
-  if (/budget|left to spend|over(spent| budget)/.test(t)) return 'budget';
-  if (/(biggest|largest|most expensive|highest|priciest)\s+(single\s+)?(purchase|transaction|expense|charge|payment|thing|item)s?|(priciest|most expensive) (thing|item|purchase)/.test(t)) return 'largest';
-  if (/how many times|how often|number of (times|visits|purchases|transactions)/.test(t)) return 'count';
-  if (/(earn|earned|income|made|make|paid me|paycheck|salary|came in|come in|money in|deposited|got paid)/.test(t) && !/spend|spent|spending/.test(t)) return 'income';
-  if (/categor|where (did|does|do) (my |all )?(the )?money go|where.*spending go|what (did|do) i (spend|splurge|blow|blew)\b.*\bmost\b|splurge/.test(t)) return 'top_categories';
+  const strong = (intent: Intent) => ({ intent, strong: true });
+  const weak = (intent: Intent) => ({ intent, strong: false });
+  if (/net ?worth|how much am i worth|what am i worth/.test(t)) return strong('net_worth');
+  if (/subscription|recurring|streaming|membership|what bills|which bills|my bills/.test(t)) return strong('subscriptions');
+  if (/budget|left to spend|over(spent| budget)|\blimits?\b/.test(t)) return strong('budget');
+  if (/(biggest|largest|most expensive|highest|priciest)\s+(single\s+)?(purchase|transaction|expense|charge|payment|thing|item)s?|(priciest|most expensive) (thing|item|purchase)/.test(t)) return strong('largest');
+  if (/how many times|how often|number of (times|visits|purchases|transactions)/.test(t)) return strong('count');
+  const spendWord = /\b(spend|spent|spending)\b/.test(t);
+  if (/\b(income|earn|earned|salary|got paid|came in|come in)\b/.test(t) && !spendWord) return strong('income');
+  if (/categor|where (did|does|do) (my |all )?(the )?money go|where.*spending go|what (did|do) i (spend|splurge|blow|blew)\b.*\bmost\b|splurge/.test(t)) return strong('top_categories');
   if (/(merchant|store|stores|shop|shops|places|place|companies|company)\b.*(most|top|biggest)|(most|top|biggest).*(merchant|store|shop|place|companies)|where do i (shop|spend) (the )?most/.test(t))
-    return 'top_merchants';
-  if (/spend|spent|spending|cost|costs|pay|paid|expenses|expense|drop|dropped|blow|blew|shell(ed)? out/.test(t)) return 'spending';
+    return strong('top_merchants');
+  if (spendWord || /\b(expenses?|cost|costs)\b/.test(t)) return strong('spending');
+  if (/\b(made|make|paid me|paycheck|money in|deposited)\b/.test(t)) return weak('income');
+  if (/\b(pay|paid|drop|dropped|blow|blew|shell(ed)? out)\b/.test(t)) return weak('spending');
   return null;
+}
+
+export function detectIntent(text: string): Intent | null {
+  return detectIntentWithStrength(text)?.intent ?? null;
 }
 
 /** Understand a question with rules. Returns null when unsure (then the AI model gets a try). */
@@ -229,7 +242,8 @@ type Embed = (texts: string[]) => Promise<ArrayLike<number>[]>;
  */
 export async function understand(question: string, ctx: AskContext, embed?: Embed, categorySeeds?: Record<string, string[]>): Promise<Query | null> {
   const ruled = parseQuestion(question, ctx);
-  if (ruled || !embed) return ruled;
+  // Unambiguous phrasing (or no AI): trust the rules. Loose keyword matches let the AI decide first.
+  if (!embed || (ruled && detectIntentWithStrength(question)?.strong !== false)) return ruled;
   const intents = Object.entries(INTENT_EXAMPLES).flatMap(([intent, list]) => list.map((text) => ({ intent: intent as Intent, text })));
   const seeds = Object.entries(categorySeeds ?? {})
     .filter(([id]) => ctx.categories.some((c) => c.id === id && c.group === 'expense'))
@@ -240,7 +254,7 @@ export async function understand(question: string, ctx: AskContext, embed?: Embe
     q,
     intents.map((i, k) => ({ intent: i.intent, vec: vecs[1 + k] })),
   );
-  if (!match || match.similarity < INTENT_THRESHOLD) return null;
+  if (!match || match.similarity < INTENT_THRESHOLD) return ruled;
   let categoryId = findCategory(question, ctx.categories);
   if (!categoryId && ['spending', 'count', 'largest', 'budget'].includes(match.intent)) {
     let best: { id: string; sim: number } | undefined;
