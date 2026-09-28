@@ -1,6 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from './db';
-import type { Account, Category, Rule, Transaction } from './types';
+import type { Account, Category, Goal, Rule, Transaction } from './types';
+import { useMemo } from 'preact/hooks';
+import { makeBook } from './lib/networth';
 
 const EMPTY: never[] = [];
 
@@ -40,4 +42,16 @@ export function useLoaded() {
     ]);
     return { accounts, transactions, categories, lastAccountId };
   }, []);
+}
+
+/** Balances over time (transactions + values you entered), shared by Net Worth, Overview and goals. */
+export function useBook() {
+  const accounts = useAccounts();
+  const txns = useTransactions();
+  const valuations = useLiveQuery(() => db.valuations.toArray(), []) ?? EMPTY;
+  return useMemo(() => makeBook(accounts, txns, valuations), [accounts, txns, valuations]);
+}
+
+export function useGoals(): Goal[] {
+  return useLiveQuery(() => db.goals.orderBy('id').toArray(), []) ?? EMPTY;
 }

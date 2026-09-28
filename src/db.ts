@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Account, Budget, Category, CsvMapping, MetaEntry, Recurring, Rule, Transaction } from './types';
+import type { Account, Budget, Category, CsvMapping, Goal, MetaEntry, Recurring, Rule, Transaction, Valuation } from './types';
 import { DEFAULT_CATEGORIES } from './lib/categories';
 
 export class FinanceDB extends Dexie {
@@ -11,6 +11,8 @@ export class FinanceDB extends Dexie {
   meta!: Table<MetaEntry, string>;
   recurring!: Table<Recurring, string>;
   budgets!: Table<Budget, string>;
+  valuations!: Table<Valuation, string>;
+  goals!: Table<Goal, string>;
 
   constructor(name = 'finance-tracker') {
     super(name);
@@ -29,6 +31,11 @@ export class FinanceDB extends Dexie {
     // v3: monthly category budgets.
     this.version(3).stores({
       budgets: 'categoryId',
+    });
+    // v4: values for investments & vehicles, and savings goals.
+    this.version(4).stores({
+      valuations: 'id, accountId, date',
+      goals: 'id',
     });
     this.on('populate', (tx) => {
       tx.table('categories').bulkAdd(DEFAULT_CATEGORIES);

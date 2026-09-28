@@ -17,7 +17,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'home', label: 'Overview' },
   { id: 'activity', label: 'Activity' },
   { id: 'recurring', label: 'Recurring' },
-  { id: 'accounts', label: 'Accounts' },
+  { id: 'accounts', label: 'Net Worth' },
   { id: 'settings', label: 'Settings' },
 ];
 

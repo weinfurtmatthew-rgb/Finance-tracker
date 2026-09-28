@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'preact/hooks';
-import { useAccounts, useMeta, useTransactions } from '../hooks';
+import { useAccounts, useBook, useMeta, useTransactions } from '../hooks';
+import { changeSince, netWorthOn, staleValued } from '../lib/networth';
+import { UpdateValues } from './UpdateValues';
 import { useNav } from '../nav';
 import { useRecurringModel } from '../recurringModel';
 import { useSpending } from '../spendingModel';
-import { accountBalance } from '../lib/balances';
-import { addDays, addMonths, daysInMonth, dayOfMonth, monthKey, monthLabel } from '../lib/dates';
+import { addDays, addMonths, dayInMonth, daysInMonth, dayOfMonth, monthKey, monthLabel } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { budgetProgress, monthElapsed } from '../lib/budgets';
 import { isOutflow } from '../lib/recurring';
@@ -39,7 +40,11 @@ export function Home() {
   const isCurrent = month === current;
 
   const open = accounts.filter((a) => !a.archived);
-  const netWorth = useMemo(() => open.reduce((s, a) => s + accountBalance(a, txns), 0), [open, txns]);
+  const book = useBook();
+  const netWorth = useMemo(() => netWorthOn(book).net, [book]);
+  const lastMonthEnd = dayInMonth(`${addMonths(current, -1)}-01`, 0, 31);
+  const nwChange = useMemo(() => changeSince(book, lastMonthEnd).total, [book, lastMonthEnd]);
+  const stale = staleValued(book, today);
   const m = months.get(month);
   const spent = (m?.flexible ?? 0) + (m?.fixed ?? 0);
   const progress = useMemo(() => budgetProgress(budgets, m, month, today), [budgets, m, month, today]);
@@ -152,7 +157,9 @@ export function Home() {
             <button type="button" class="kpi" onClick={() => nav.setTab('accounts')}>
               <span class="card-label">Net worth</span>
               <span class="kpi-value">{tile(netWorth)}</span>
-              <span class="card-sub">today</span>
+              <span class="card-sub">
+                {nwChange >= 0 ? '▲' : '▼'} {tile(Math.abs(nwChange))} this month
+              </span>
             </button>
           </div>
 
@@ -190,6 +197,13 @@ export function Home() {
                 <RecurringRow status={i.status} today={today} date={i.date} late={i.late} category={cats.get(i.status.rec.categoryId ?? '')} />
               ))}
             </Section>
+          )}
+
+          {isCurrent && stale.length > 0 && (
+            <button type="button" class="callout" onClick={() => nav.present((close) => <UpdateValues onClose={close} />)}>
+              <strong>Time to update {stale.length === 1 ? stale[0].name : 'investment & vehicle values'}</strong>
+              <p>It's been over a month (or they were never set). Keeps your net worth history accurate.</p>
+            </button>
           )}
 
           {rec.suggestions.length > 0 && rec.recurring.length === 0 && (

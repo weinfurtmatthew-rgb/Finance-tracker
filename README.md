@@ -30,6 +30,16 @@ skips transactions you already have.
 
 ## Features
 
+### Net worth & goals (Phase 4)
+
+- **Net Worth tab** (formerly Accounts): net worth with change since last month (per account), and a chart over
+  6 months / 1 year / all time, as net worth or **assets vs debts**, with a crosshair readout and table view
+- History is rebuilt from your transactions for cash accounts, cards and loans; **investments and vehicles** keep a
+  history of the values you enter (Update Values), with a reminder when a value is over 30 days old
+- **Vehicle** account type (resale value), alongside auto loans as regular loan accounts
+- **Savings goals** linked to an account: progress bar, projected finish date at your recent 3-month pace, and, with a
+  target date, how much to save **per month and per paycheck** (using the paycheck from Recurring)
+
 ### Budgets & spending (Phase 3)
 
 - **Overview dashboard** with a month switcher: "left to spend" hero number, Spent / Fixed bills / Net worth tiles
@@ -67,7 +77,6 @@ skips transactions you already have.
 
 ## Roadmap
 
-- **Phase 4:** Net worth history & savings goals
 - **Phase 5:** On-device AI (categorization + "ask about your money") via an in-browser model
 
 ## Development
