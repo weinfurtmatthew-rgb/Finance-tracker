@@ -4,10 +4,12 @@ import { useCategories, useMeta, useRules, useTransactions } from '../hooks';
 import { useNav } from '../nav';
 import type { PasscodeRecord } from '../lib/lock';
 import { exportBackup, restoreBackup, summarizeBackup, type BackupSummary } from '../lib/backup';
-import { ActionSheet, Row, Section, Sheet } from '../components/ui';
+import { ActionSheet, Field, Row, Section, Sheet } from '../components/ui';
 import { SetPasscode } from './Lock';
 import { CategoriesSheet } from './Categories';
 import { RulesSheet } from './Rules';
+import { DEFAULT_SETTINGS, type PriceAlertRule } from '../lib/recurring';
+import type { AmountMode } from '../types';
 
 const AUTO_LOCK = [
   { minutes: 0, label: 'Immediately' },
@@ -39,7 +41,11 @@ export function Settings() {
   const categories = useCategories();
   const rules = useRules();
   const txns = useTransactions();
-  const [ask, setAsk] = useState<null | 'remove-passcode' | 'erase' | 'autolock' | { restore: string; summary: BackupSummary }>(null);
+  const amountMode = useMeta<AmountMode>('recurringAmountMode') ?? DEFAULT_SETTINGS.amountMode;
+  const priceAlert = useMeta<PriceAlertRule>('priceAlert') ?? DEFAULT_SETTINGS.priceAlert;
+  const reminderDays = useMeta<number>('reminderDays') ?? DEFAULT_SETTINGS.reminderDays;
+  const dismissedCount = useMeta<string[]>('dismissedRecurring')?.length ?? 0;
+  const [ask, setAsk] = useState<null | 'remove-passcode' | 'erase' | 'autolock' | 'amount-mode' | 'reminder' | { restore: string; summary: BackupSummary }>(null);
   const [persisted, setPersisted] = useState<boolean>();
   const [usage, setUsage] = useState<string>();
 
@@ -111,6 +117,22 @@ export function Settings() {
         )}
       </Section>
 
+      <Section title="Subscriptions & bills">
+        <Row title="Predict variable bills" detail={AMOUNT_MODES.find((m) => m.value === amountMode)?.short} onClick={() => setAsk('amount-mode')} />
+        <Row title="Price increase alerts" detail={describeRule(priceAlert)} onClick={() => nav.present((close) => <PriceAlertSheet rule={priceAlert} onClose={close} />)} />
+        <Row title="Show upcoming" detail={`${reminderDays} day${reminderDays === 1 ? '' : 's'} ahead`} onClick={() => setAsk('reminder')} />
+        {dismissedCount > 0 && (
+          <Row
+            title="Restore dismissed suggestions"
+            detail={dismissedCount}
+            onClick={async () => {
+              await setMeta('dismissedRecurring', []);
+              nav.toast('Suggestions restored');
+            }}
+          />
+        )}
+      </Section>
+
       <Section title="Organize">
         <Row title="Categories" detail={categories.length} onClick={() => nav.present((close) => <CategoriesSheet onClose={close} />)} />
         <Row title="Rules" subtitle="Auto-rename and categorize imports" detail={rules.length} onClick={() => nav.present((close) => <RulesSheet onClose={close} />)} />
@@ -168,6 +190,35 @@ export function Settings() {
           onCancel={() => setAsk(null)}
         />
       )}
+      {ask === 'amount-mode' && (
+        <ActionSheet
+          title="Predict variable bills"
+          message="How to guess the next amount for bills that change, like electric. You can override it for any single bill."
+          actions={AMOUNT_MODES.map((m) => ({
+            label: m.label,
+            bold: m.value === amountMode,
+            onClick: async () => {
+              await setMeta('recurringAmountMode', m.value);
+              setAsk(null);
+            },
+          }))}
+          onCancel={() => setAsk(null)}
+        />
+      )}
+      {ask === 'reminder' && (
+        <ActionSheet
+          title="Show upcoming bills on Overview"
+          actions={[1, 3, 7, 14].map((d) => ({
+            label: `${d} day${d === 1 ? '' : 's'} ahead`,
+            bold: d === reminderDays,
+            onClick: async () => {
+              await setMeta('reminderDays', d);
+              setAsk(null);
+            },
+          }))}
+          onCancel={() => setAsk(null)}
+        />
+      )}
       {ask === 'remove-passcode' && (
         <ActionSheet
           message="Anyone with your unlocked phone will be able to open the app."
@@ -216,5 +267,52 @@ export function Settings() {
         />
       )}
     </>
+  );
+}
+
+const AMOUNT_MODES: { value: AmountMode; label: string; short: string }[] = [
+  { value: 'average', label: 'Average of the last 3 charges', short: 'Average' },
+  { value: 'last', label: 'Same as the last charge', short: 'Last charge' },
+  { value: 'manual', label: 'The amount I enter', short: 'Manual' },
+];
+
+function describeRule(r: PriceAlertRule): string {
+  if (r.mode === 'off') return 'Off';
+  if (r.mode === 'any') return 'Any increase';
+  return r.mode === 'percent' ? `Over ${r.value}%` : `Over $${r.value}`;
+}
+
+function PriceAlertSheet(props: { rule: PriceAlertRule; onClose: () => void }) {
+  const [mode, setMode] = useState(props.rule.mode);
+  const [value, setValue] = useState(String(props.rule.value));
+  const num = Number(value);
+  const needsValue = mode === 'percent' || mode === 'dollars';
+  const valid = !needsValue || (Number.isFinite(num) && num >= 0);
+  return (
+    <Sheet
+      title="Price Alerts"
+      onClose={props.onClose}
+      saveDisabled={!valid}
+      onSave={async () => {
+        await setMeta('priceAlert', { mode, value: needsValue ? num : 0 });
+        props.onClose();
+      }}
+    >
+      <Section footer="Compares each new charge with the previous one. Card payments and income are never flagged.">
+        <Field label="Alert me">
+          <select value={mode} onChange={(e) => setMode((e.target as HTMLSelectElement).value as PriceAlertRule['mode'])}>
+            <option value="percent">When it goes up more than a %</option>
+            <option value="dollars">When it goes up more than $</option>
+            <option value="any">On any increase</option>
+            <option value="off">Never</option>
+          </select>
+        </Field>
+        {needsValue && (
+          <Field label={mode === 'percent' ? 'Percent' : 'Dollars'}>
+            <input inputMode="decimal" value={value} onInput={(e) => setValue((e.target as HTMLInputElement).value)} />
+          </Field>
+        )}
+      </Section>
+    </Sheet>
   );
 }

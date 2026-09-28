@@ -9,6 +9,11 @@ import { TransactionRow } from '../components/TransactionRow';
 import { AccountEditor } from './AccountEditor';
 import { ImportFlow } from './Import';
 import { Icons } from '../components/icons';
+import { useRecurringModel } from '../recurringModel';
+import { RecurringRow } from '../components/RecurringRow';
+import { AlertCard } from './Recurring';
+import { RecurringReview } from './RecurringReview';
+import { addDays } from '../lib/dates';
 
 const isStandalone = () =>
   window.matchMedia?.('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
@@ -33,6 +38,8 @@ export function Home() {
     if (b < 0) debts += b;
     else assets += b;
   }
+  const rec = useRecurringModel();
+  const soon = rec.upcomingItems.filter((i) => i.late || i.date <= addDays(rec.today, rec.settings.reminderDays));
   const uncategorized = txns.filter((t) => t.categoryId === 'uncategorized').length;
   const backupDue = txns.length > 0 && (!lastBackup || Date.now() - lastBackup > 14 * 86_400_000);
 
@@ -94,6 +101,34 @@ export function Home() {
               </span>
             </button>
           </div>
+
+          {rec.alerts.map((a) => (
+            <AlertCard key={a.key} alert={a} />
+          ))}
+
+          {soon.length > 0 && (
+            <Section
+              title={
+                <>
+                  <span>Upcoming</span>
+                  <button type="button" class="link" onClick={() => nav.setTab('recurring')}>
+                    See all
+                  </button>
+                </>
+              }
+            >
+              {soon.map((i) => (
+                <RecurringRow status={i.status} today={rec.today} date={i.date} late={i.late} category={cats.get(i.status.rec.categoryId ?? '')} />
+              ))}
+            </Section>
+          )}
+
+          {rec.suggestions.length > 0 && rec.recurring.length === 0 && (
+            <button type="button" class="callout" onClick={() => nav.present((close) => <RecurringReview onClose={close} />)}>
+              <strong>Found {rec.suggestions.length} possible subscriptions &amp; bills</strong>
+              <p>Tap to review them. Confirmed ones show up here before they're due.</p>
+            </button>
+          )}
 
           {backupDue && (
             <button type="button" class="callout warn" onClick={() => nav.setTab('settings')}>

@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Account, Category, CsvMapping, MetaEntry, Rule, Transaction } from './types';
+import type { Account, Category, CsvMapping, MetaEntry, Recurring, Rule, Transaction } from './types';
 import { DEFAULT_CATEGORIES } from './lib/categories';
 
 export class FinanceDB extends Dexie {
@@ -9,6 +9,7 @@ export class FinanceDB extends Dexie {
   rules!: Table<Rule, string>;
   csvMappings!: Table<CsvMapping, string>;
   meta!: Table<MetaEntry, string>;
+  recurring!: Table<Recurring, string>;
 
   constructor(name = 'finance-tracker') {
     super(name);
@@ -19,6 +20,10 @@ export class FinanceDB extends Dexie {
       rules: 'id, createdAt',
       csvMappings: 'signature',
       meta: 'key',
+    });
+    // v2: subscriptions & bills. Existing data is kept; Dexie just adds the new table.
+    this.version(2).stores({
+      recurring: 'id, kind, status',
     });
     this.on('populate', (tx) => {
       tx.table('categories').bulkAdd(DEFAULT_CATEGORIES);

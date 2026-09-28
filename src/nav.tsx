@@ -1,7 +1,7 @@
 import { createContext, type ComponentChildren } from 'preact';
 import { useContext } from 'preact/hooks';
 
-export type Tab = 'home' | 'activity' | 'accounts' | 'settings';
+export type Tab = 'home' | 'activity' | 'recurring' | 'accounts' | 'settings';
 
 export interface ActivityFilter {
   accountId?: string;

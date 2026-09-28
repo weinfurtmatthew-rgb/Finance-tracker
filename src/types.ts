@@ -81,3 +81,41 @@ export interface MetaEntry {
   key: string;
   value: unknown;
 }
+
+export type Frequency = 'weekly' | 'biweekly' | 'semimonthly' | 'monthly' | 'quarterly' | 'yearly';
+
+export type RecurringKind = 'subscription' | 'bill' | 'loan' | 'income' | 'card-payment' | 'trial';
+
+/** How to predict the next charge: average of the last 3, the last one, or a typed-in amount. */
+export type AmountMode = 'average' | 'last' | 'manual';
+
+export interface Recurring {
+  id: string;
+  name: string;
+  kind: RecurringKind;
+  frequency: Frequency;
+  /** Case-insensitive text that identifies this charge in a transaction's description or payee. */
+  match: string;
+  /** When set, only charges within about ±20% of this amount match (used to split Apple bills). */
+  matchAmount?: Cents;
+  /** Typical amount, signed like transactions (negative = money out). Used for the 'manual' mode. */
+  amount: Cents;
+  /** Overrides the default prediction mode from Settings. */
+  amountMode?: AmountMode;
+  /** Due day of month for monthly / quarterly / yearly schedules. */
+  dayOfMonth?: number;
+  /** The two due days for twice-a-month schedules, e.g. [1, 15]. */
+  days?: [number, number];
+  /** Last known payment date; matched transactions later than this take over automatically. */
+  lastPaidOn?: ISODate;
+  /** Account it's usually paid from (informational). */
+  accountId?: string;
+  categoryId?: string;
+  status: 'active' | 'cancelled';
+  cancelledOn?: ISODate;
+  cancelUrl?: string;
+  /** For free trials: the day it turns into a paid subscription. */
+  trialEndsOn?: ISODate;
+  notes?: string;
+  createdAt: number;
+}

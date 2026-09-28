@@ -962,3 +962,208 @@ details.help p {
   align-items: center;
   z-index: 15;
 }
+
+/* ---- Recurring ---- */
+.badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: 2px;
+  background: var(--fill);
+}
+.badge.warn {
+  background: color-mix(in srgb, var(--orange) 20%, transparent);
+  color: var(--orange);
+}
+.warn-text {
+  color: var(--orange);
+}
+.pos-text,
+.money.pos-text {
+  color: var(--green);
+}
+.neg-text,
+.money.neg-text {
+  color: var(--red);
+}
+.callout {
+  position: relative;
+}
+.callout.danger {
+  border-left-color: var(--red);
+}
+.callout-body {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding-right: 24px;
+}
+.callout-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+.callout .link.small {
+  margin-top: 6px;
+}
+.cards .card-value.muted {
+  color: var(--text-3);
+}
+.cards .card .link {
+  color: var(--tint);
+}
+.view-switch {
+  display: flex;
+  justify-content: center;
+  margin: 22px 0 0;
+}
+.view-switch .segmented {
+  max-width: none;
+}
+.cat-icon.lg {
+  width: 64px;
+  height: 64px;
+  font-size: 32px;
+  background: var(--surface);
+}
+.detail-hero {
+  text-align: center;
+  padding: 20px 0 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.detail-hero h2 {
+  margin: 8px 0 0;
+  font-size: 22px;
+}
+.detail-hero p {
+  margin: 0;
+}
+a.row {
+  text-decoration: none;
+}
+.intro {
+  margin: 16px 4px 4px;
+}
+.suggestion {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-top: 12px;
+}
+.suggestion-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.suggestion-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.suggestion-actions .chip {
+  background: var(--fill);
+  font-size: 14px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.spacer {
+  flex: 1;
+}
+.pill {
+  flex: none;
+  white-space: nowrap;
+  padding: 7px 14px;
+  border-radius: 16px;
+  background: var(--fill);
+  color: var(--tint);
+  font-size: 15px;
+  font-weight: 600;
+}
+.pill.primary {
+  background: var(--tint);
+  color: #fff;
+}
+
+/* Calendar */
+.calendar {
+  margin-top: 16px;
+}
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 8px;
+}
+.cal-head .icon-button {
+  font-size: 24px;
+  line-height: 1;
+}
+.cal-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 8px;
+}
+.cal-dow {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-2);
+  padding: 4px 0;
+}
+.cal-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 0;
+  border-radius: 10px;
+  min-height: 44px;
+}
+.cal-day.past .cal-num {
+  color: var(--text-2);
+}
+.cal-day.today .cal-num {
+  color: var(--tint);
+  font-weight: 700;
+}
+.cal-day.selected {
+  background: var(--fill);
+}
+.cal-num {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.cal-dots {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+}
+.cal-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* Five tabs */
+.tabbar button .tab-label {
+  font-size: 10px;
+}
