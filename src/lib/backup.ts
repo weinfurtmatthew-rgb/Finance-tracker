@@ -1,25 +1,26 @@
 import type { FinanceDB } from '../db';
 
 export const BACKUP_FORMAT = 'finance-tracker-backup';
-export const BACKUP_VERSION = 1;
+export const BACKUP_VERSION = 2;
 
 /** Settings that stay on this device and are never written to a backup file. */
 const LOCAL_ONLY_META = new Set(['passcode']);
 
 export async function exportBackup(db: FinanceDB): Promise<string> {
-  const [accounts, transactions, categories, rules, csvMappings, meta] = await Promise.all([
+  const [accounts, transactions, categories, rules, csvMappings, meta, recurring] = await Promise.all([
     db.accounts.toArray(),
     db.transactions.toArray(),
     db.categories.toArray(),
     db.rules.toArray(),
     db.csvMappings.toArray(),
     db.meta.toArray(),
+    db.recurring.toArray(),
   ]);
   return JSON.stringify({
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
-    data: { accounts, transactions, categories, rules, csvMappings, meta: meta.filter((m) => !LOCAL_ONLY_META.has(m.key)) },
+    data: { accounts, transactions, categories, rules, csvMappings, recurring, meta: meta.filter((m) => !LOCAL_ONLY_META.has(m.key)) },
   });
 }
 
@@ -36,6 +37,7 @@ function validate(json: any) {
   for (const k of ['accounts', 'transactions', 'categories', 'rules', 'csvMappings', 'meta']) {
     if (!Array.isArray(d?.[k])) throw new Error(`Backup is missing "${k}".`);
   }
+  d.recurring ??= []; // backups from version 1 had no recurring items
   return json;
 }
 
@@ -47,8 +49,8 @@ export function summarizeBackup(text: string): BackupSummary {
 /** Replace everything on this device with the backup's contents (the passcode is kept). */
 export async function restoreBackup(db: FinanceDB, text: string): Promise<void> {
   const { data } = validate(JSON.parse(text));
-  await db.transaction('rw', [db.accounts, db.transactions, db.categories, db.rules, db.csvMappings, db.meta], async () => {
-    await Promise.all([db.accounts.clear(), db.transactions.clear(), db.categories.clear(), db.rules.clear(), db.csvMappings.clear()]);
+  await db.transaction('rw', [db.accounts, db.transactions, db.categories, db.rules, db.csvMappings, db.meta, db.recurring], async () => {
+    await Promise.all([db.accounts.clear(), db.transactions.clear(), db.categories.clear(), db.rules.clear(), db.csvMappings.clear(), db.recurring.clear()]);
     const meta = await db.meta.toArray();
     await db.meta.bulkDelete(meta.filter((m) => !LOCAL_ONLY_META.has(m.key)).map((m) => m.key));
     await db.accounts.bulkAdd(data.accounts);
@@ -56,6 +58,7 @@ export async function restoreBackup(db: FinanceDB, text: string): Promise<void> 
     await db.categories.bulkAdd(data.categories);
     await db.rules.bulkAdd(data.rules);
     await db.csvMappings.bulkAdd(data.csvMappings);
+    await db.recurring.bulkAdd(data.recurring);
     await db.meta.bulkPut(data.meta.filter((m: { key: string }) => !LOCAL_ONLY_META.has(m.key)));
   });
 }

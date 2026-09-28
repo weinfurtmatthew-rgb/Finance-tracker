@@ -81,3 +81,45 @@ export function formatDay(date: ISODate): string {
     year: y === new Date().getFullYear() ? undefined : 'numeric',
   });
 }
+
+// ---- Day arithmetic (done in UTC so daylight-saving changes never shift a date) ----
+
+const utc = (d: ISODate) => {
+  const [y, m, day] = d.split('-').map(Number);
+  return Date.UTC(y, m - 1, day);
+};
+const fromUtc = (ms: number): ISODate => {
+  const d = new Date(ms);
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+};
+
+export function addDays(date: ISODate, n: number): ISODate {
+  return fromUtc(utc(date) + n * 86_400_000);
+}
+
+/** Whole days from `a` to `b` (positive when b is later). */
+export function diffDays(a: ISODate, b: ISODate): number {
+  return Math.round((utc(b) - utc(a)) / 86_400_000);
+}
+
+export function daysInMonth(year: number, month1: number): number {
+  return new Date(Date.UTC(year, month1, 0)).getUTCDate();
+}
+
+/** The given day of a month offset from `date`'s month, clamped to the month's length (31 → 30/28). */
+export function dayInMonth(date: ISODate, monthOffset: number, day: number): ISODate {
+  const [y, m] = date.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + monthOffset, 1));
+  const yy = d.getUTCFullYear();
+  const mm = d.getUTCMonth() + 1;
+  return `${yy}-${pad(mm)}-${pad(Math.min(day, daysInMonth(yy, mm)))}`;
+}
+
+export function dayOfMonth(date: ISODate): number {
+  return Number(date.slice(8, 10));
+}
+
+export function formatShortDate(date: ISODate): string {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}

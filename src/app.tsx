@@ -9,12 +9,14 @@ import { LockScreen } from './screens/Lock';
 import { Home } from './screens/Home';
 import { Activity } from './screens/Activity';
 import { Accounts } from './screens/Accounts';
+import { Recurring } from './screens/Recurring';
 import { Settings } from './screens/Settings';
 import { Icons } from './components/icons';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'home', label: 'Overview' },
   { id: 'activity', label: 'Activity' },
+  { id: 'recurring', label: 'Recurring' },
   { id: 'accounts', label: 'Accounts' },
   { id: 'settings', label: 'Settings' },
 ];
@@ -97,6 +99,7 @@ export function App() {
       <main class="screen">
         {tab === 'home' && <Home />}
         {tab === 'activity' && <Activity />}
+        {tab === 'recurring' && <Recurring />}
         {tab === 'accounts' && <Accounts />}
         {tab === 'settings' && <Settings />}
       </main>

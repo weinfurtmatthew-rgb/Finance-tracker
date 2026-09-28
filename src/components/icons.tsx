@@ -11,6 +11,14 @@ export const Icons = {
       <path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" />
     </svg>
   ),
+  recurring: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={1.8} stroke-linecap="round" stroke-linejoin="round">
+      <path d="M17 2l4 4-4 4" />
+      <path d="M3 11V9a3 3 0 0 1 3-3h15" />
+      <path d="M7 22l-4-4 4-4" />
+      <path d="M21 13v2a3 3 0 0 1-3 3H3" />
+    </svg>
+  ),
   accounts: () => (
     <svg viewBox="0 0 24 24" {...P}>
       <rect x="2" y="5" width="20" height="14" rx="2.5" />
