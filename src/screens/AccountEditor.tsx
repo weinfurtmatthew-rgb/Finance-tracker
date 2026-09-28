@@ -2,7 +2,10 @@ import { useState } from 'preact/hooks';
 import { db, newId } from '../db';
 import { useLoaded } from '../hooks';
 import { useNav } from '../nav';
-import type { Account, AccountType, Transaction } from '../types';
+import type { Account, AccountType, Transaction, Valuation } from '../types';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { isValued } from '../lib/networth';
+import { todayISO } from '../lib/dates';
 import { accountBalance, isLiability, openingBalanceFor } from '../lib/balances';
 import { parseAmount } from '../lib/money';
 import { ActionSheet, Field, Section, Sheet } from '../components/ui';
@@ -12,6 +15,7 @@ export const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'savings', label: 'Savings' },
   { value: 'credit', label: 'Credit card' },
   { value: 'brokerage', label: 'Investment' },
+  { value: 'vehicle', label: 'Vehicle' },
   { value: 'cash', label: 'Cash' },
   { value: 'loan', label: 'Loan' },
   { value: 'other', label: 'Other' },
@@ -23,14 +27,18 @@ type Props = { account?: Account; onClose: () => void; onCreated?: (a: Account) 
 
 export function AccountEditor(props: Props) {
   const data = useLoaded();
-  return data ? <AccountForm {...props} txns={data.transactions} /> : null;
+  const lastValue = useLiveQuery(
+    async () => (props.account ? ((await db.valuations.where('accountId').equals(props.account.id).sortBy('date')).at(-1) ?? null) : null),
+    [props.account?.id],
+  );
+  return data && lastValue !== undefined ? <AccountForm {...props} txns={data.transactions} lastValue={lastValue} /> : null;
 }
 
-function AccountForm(props: Props & { txns: Transaction[] }) {
+function AccountForm(props: Props & { txns: Transaction[]; lastValue: Valuation | null }) {
   const nav = useNav();
-  const { txns } = props;
+  const { txns, lastValue } = props;
   const a = props.account;
-  const current = a ? accountBalance(a, txns) : 0;
+  const current = a ? (isValued(a) && lastValue ? lastValue.value : accountBalance(a, txns)) : 0;
   const [name, setName] = useState(a?.name ?? '');
   const [type, setType] = useState<AccountType>(a?.type ?? 'checking');
   const [institution, setInstitution] = useState(a?.institution ?? '');
@@ -39,6 +47,7 @@ function AccountForm(props: Props & { txns: Transaction[] }) {
   const [balance, setBalance] = useState(a ? ((isLiability(a) ? -current : current) / 100).toFixed(2) : '');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const liability = isLiability({ type });
+  const valued = isValued({ type });
   const count = a ? txns.filter((t) => t.accountId === a.id).length : 0;
 
   const save = async () => {
@@ -54,16 +63,29 @@ function AccountForm(props: Props & { txns: Transaction[] }) {
       archived: a?.archived ?? false,
       createdAt: a?.createdAt ?? Date.now(),
     };
-    record.openingBalance = openingBalanceFor(record.id, txns, signed);
-    await db.accounts.put(record);
+    if (valued) {
+      // Investments & vehicles: record a dated value (a point in net worth history).
+      await db.accounts.put(record);
+      // Only a new or changed value is recorded, so renaming an account doesn't add a history point.
+      const today = todayISO();
+      if (!balance.trim()) {
+        // No value entered (yet).
+      } else if (lastValue?.date === today) await db.valuations.update(lastValue.id, { value: signed });
+      else if (!lastValue || lastValue.value !== signed) await db.valuations.add({ id: newId(), accountId: record.id, date: today, value: signed });
+    } else {
+      record.openingBalance = openingBalanceFor(record.id, txns, signed);
+      await db.accounts.put(record);
+    }
     nav.toast(a ? 'Account saved' : 'Account added');
     props.onCreated?.(record);
     props.onClose();
   };
 
   const remove = async () => {
-    await db.transaction('rw', db.accounts, db.transactions, async () => {
+    await db.transaction('rw', db.accounts, db.transactions, db.valuations, db.goals, async () => {
       await db.transactions.where('accountId').equals(a!.id).delete();
+      await db.valuations.where('accountId').equals(a!.id).delete();
+      await db.goals.filter((g) => g.accountId === a!.id).delete();
       await db.accounts.delete(a!.id);
     });
     nav.toast('Account deleted');
@@ -101,14 +123,18 @@ function AccountForm(props: Props & { txns: Transaction[] }) {
         </Field>
       </Section>
       <Section
-        title={liability ? 'Amount owed today' : 'Balance today'}
+        title={valued ? 'Value today' : liability ? 'Amount owed today' : 'Balance today'}
         footer={
-          liability
-            ? 'What you owe right now, as shown by your bank. Future transactions adjust it automatically.'
-            : 'Your current balance, as shown by your bank. Future transactions adjust it automatically.'
+          valued
+            ? type === 'vehicle'
+              ? 'A resale estimate (Kelley Blue Book, Edmunds or Carvana). Update it now and then; each update is a point in your net worth history.'
+              : 'The total value shown on your brokerage’s site. Update it now and then; each update is a point in your net worth history.'
+            : liability
+              ? 'What you owe right now, as shown by your bank. Future transactions adjust it automatically.'
+              : 'Your current balance, as shown by your bank. Future transactions adjust it automatically.'
         }
       >
-        <Field label={liability ? 'Owed' : 'Balance'}>
+        <Field label={valued ? 'Value' : liability ? 'Owed' : 'Balance'}>
           <input inputMode="decimal" value={balance} placeholder="0.00" onInput={(e) => setBalance((e.target as HTMLInputElement).value)} />
         </Field>
       </Section>

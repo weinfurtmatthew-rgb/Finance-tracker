@@ -4,7 +4,7 @@ export type Cents = number;
 /** Calendar date as 'YYYY-MM-DD' (no time zone surprises). */
 export type ISODate = string;
 
-export type AccountType = 'checking' | 'savings' | 'credit' | 'brokerage' | 'cash' | 'loan' | 'other';
+export type AccountType = 'checking' | 'savings' | 'credit' | 'brokerage' | 'vehicle' | 'cash' | 'loan' | 'other';
 
 export interface Account {
   id: string;
@@ -124,5 +124,24 @@ export interface Recurring {
 export interface Budget {
   categoryId: string;
   limit: Cents;
+  createdAt: number;
+}
+
+/** A value you entered for an investment account or vehicle on a given day. */
+export interface Valuation {
+  id: string;
+  accountId: string;
+  date: ISODate;
+  value: Cents;
+}
+
+/** Save up to `target` in a linked account, optionally by a date. */
+export interface Goal {
+  id: string;
+  name: string;
+  emoji: string;
+  target: Cents;
+  targetDate?: ISODate;
+  accountId: string;
   createdAt: number;
 }

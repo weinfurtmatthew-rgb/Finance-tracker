@@ -201,3 +201,145 @@ export function RankedBars(props: {
     </div>
   );
 }
+
+/** Axis ticks covering [min, max], including 0 (at most ~5 ticks). */
+export function niceRange(min: number, max: number): number[] {
+  if (min >= 0) return niceScale(max);
+  const span = Math.max(1, max - Math.min(0, min));
+  const raw = span / 3;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw)!;
+  const lo = Math.floor(min / step) * step;
+  const hi = Math.max(0, Math.ceil(max / step) * step);
+  const ticks: number[] = [];
+  for (let v = lo; v <= hi + step / 2; v += step) ticks.push(Math.round(v));
+  return ticks;
+}
+
+/**
+ * Line chart over dates (x spaced by real time). One series gets a light area wash; two series get a
+ * legend. A crosshair snaps to the nearest point and the readout above shows every series there.
+ */
+export function LineChart(props: {
+  dates: string[];
+  labels: string[];
+  series: Series[];
+  title: string;
+  height?: number;
+}) {
+  const { dates, series } = props;
+  const [active, setActive] = useState<number | null>(null);
+  const H = props.height ?? 160;
+  const plotW = W - AXIS_W - 8;
+  const all = series.flatMap((s) => s.values);
+  const ticks = niceRange(Math.min(0, ...all), Math.max(1, ...all));
+  const lo = ticks[0];
+  const hi = ticks[ticks.length - 1];
+  const y = (v: number) => 8 + (H - 16) * (1 - (v - lo) / (hi - lo || 1));
+  const t0 = Date.parse(dates[0]);
+  const t1 = Date.parse(dates[dates.length - 1]);
+  const x = (i: number) => AXIS_W + (dates.length === 1 ? plotW : ((Date.parse(dates[i]) - t0) / (t1 - t0 || 1)) * plotW);
+  const shown = active ?? dates.length - 1;
+  const single = series.length === 1;
+
+  const onMove = (e: PointerEvent) => {
+    const svg = e.currentTarget as SVGSVGElement;
+    const rect = svg.getBoundingClientRect();
+    const px = ((e.clientX - rect.left) / rect.width) * W;
+    let best = 0;
+    for (let i = 1; i < dates.length; i++) if (Math.abs(x(i) - px) < Math.abs(x(best) - px)) best = i;
+    setActive(best);
+  };
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === 'ArrowLeft') setActive(Math.max(0, shown - 1));
+    if (e.key === 'ArrowRight') setActive(Math.min(dates.length - 1, shown + 1));
+  };
+  const line = (vals: number[]) => vals.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+
+  return (
+    <figure class="chart" aria-label={props.title}>
+      <div class="chart-readout" aria-live="polite">
+        <span class="muted">{props.labels[shown]}</span>
+        <span class="readout-values">
+          {series.map((s) => (
+            <span class="readout-item">
+              {!single && <i class="key-line" style={{ background: s.color }} />}
+              <strong>{compactMoneyFull(s.values[shown] ?? 0)}</strong>
+              {!single && <span class="muted"> {s.name}</span>}
+            </span>
+          ))}
+        </span>
+      </div>
+      <svg
+        viewBox={`0 0 ${W} ${H + X_AXIS_H}`}
+        role="img"
+        aria-label={props.title}
+        class="chart-svg"
+        tabIndex={0}
+        onPointerMove={onMove}
+        onPointerDown={onMove}
+        onPointerLeave={() => setActive(null)}
+        onKeyDown={onKey}
+        onBlur={() => setActive(null)}
+      >
+        {ticks.map((t) => (
+          <g>
+            <line x1={AXIS_W} x2={W} y1={y(t)} y2={y(t)} class={t === 0 ? 'axis-base' : 'grid'} />
+            <text x={AXIS_W - 6} y={y(t) + 4} class="tick" text-anchor="end">
+              {compactMoney(t)}
+            </text>
+          </g>
+        ))}
+        {single && dates.length > 1 && (
+          <path d={`${line(series[0].values)}L${x(dates.length - 1)},${y(Math.max(lo, 0))}L${x(0)},${y(Math.max(lo, 0))}Z`} fill={series[0].color} opacity="0.1" />
+        )}
+        {series.map((s) => (
+          <path d={line(s.values)} fill="none" stroke={s.color} stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+        ))}
+        {active != null && <line x1={x(shown)} x2={x(shown)} y1={4} y2={H} class="crosshair" />}
+        {series.map((s) => (
+          <circle cx={x(shown)} cy={y(s.values[shown] ?? 0)} r="4.5" fill={s.color} class="dot" />
+        ))}
+        {[0, Math.floor((dates.length - 1) / 2), dates.length - 1]
+          .filter((i, k, arr) => arr.indexOf(i) === k)
+          .map((i) => (
+            <text x={x(i)} y={H + 15} class="tick" text-anchor={i === 0 ? 'start' : i === dates.length - 1 ? 'end' : 'middle'}>
+              {props.labels[i]}
+            </text>
+          ))}
+      </svg>
+      {!single && (
+        <figcaption class="legend">
+          {series.map((s) => (
+            <span>
+              <i class="key-line" style={{ background: s.color }} /> {s.name}
+            </span>
+          ))}
+        </figcaption>
+      )}
+      <details class="chart-table">
+        <summary>Show as table</summary>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              {series.map((s) => (
+                <th scope="col">{s.name}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {dates.map((_, i) => (
+              <tr>
+                <th scope="row">{props.labels[i]}</th>
+                {series.map((s) => (
+                  <td>{compactMoneyFull(s.values[i] ?? 0)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </details>
+    </figure>
+  );
+}
