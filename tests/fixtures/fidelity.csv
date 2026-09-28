@@ -1,0 +1,9 @@
+
+
+Run Date,Account,Action,Symbol,Description,Type,Quantity,Price ($),Commission ($),Fees ($),Accrued Interest ($),Amount ($),Settlement Date
+09/20/2026,Individual X12345678,"DIVIDEND RECEIVED FIDELITY GOVERNMENT MONEY MARKET (SPAXX) (Cash)",SPAXX,FIDELITY GOVERNMENT MONEY MARKET,Cash,0.000,,,,,1.23,
+09/18/2026,Individual X12345678,"YOU BOUGHT VANGUARD TOTAL STOCK MKT ETF (VTI) (Cash)",VTI,VANGUARD TOTAL STOCK MKT ETF,Cash,2,280.10,,,,-560.20,09/19/2026
+09/17/2026,Individual X12345678,"Electronic Funds Transfer Received (Cash)",,No Description,Cash,0.000,,,,,1000,
+
+"The data and information in this spreadsheet is provided to you solely for your use and is not for distribution."
+"Brokerage services are provided by Fidelity Brokerage Services LLC (FBS)."
