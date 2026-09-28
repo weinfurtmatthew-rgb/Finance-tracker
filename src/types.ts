@@ -119,3 +119,10 @@ export interface Recurring {
   notes?: string;
   createdAt: number;
 }
+
+/** A monthly spending limit for one category. Each month starts fresh (no rollover). */
+export interface Budget {
+  categoryId: string;
+  limit: Cents;
+  createdAt: number;
+}

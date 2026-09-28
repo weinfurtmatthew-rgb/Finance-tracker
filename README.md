@@ -30,6 +30,16 @@ skips transactions you already have.
 
 ## Features
 
+### Budgets & spending (Phase 3)
+
+- **Overview dashboard** with a month switcher: "left to spend" hero number, Spent / Fixed bills / Net worth tiles
+- **Monthly category budgets**, pre-filled from your last 3 months of everyday spending (rounded up), fresh start each month
+- Bills & subscriptions tracked under Recurring are **fixed costs**: shown separately, never counted against budgets
+- Budget bars with an even-pace marker; warnings at **80% used** and when you're **on pace to overspend**
+- Charts: **spending by month** (12 months, tap to switch month), **income vs spending** (6 months, with amount saved),
+  **where it went** (ranked categories), and **category history** with the budget line. Each chart has a table view.
+- Chart colors validated for color-blind safety and contrast in light & dark mode
+
 ### Subscriptions & bills (Phase 2)
 
 - **Recurring tab** with Upcoming, Calendar and All views
@@ -57,7 +67,6 @@ skips transactions you already have.
 
 ## Roadmap
 
-- **Phase 3:** Budgets & spending trends (category budgets, charts)
 - **Phase 4:** Net worth history & savings goals
 - **Phase 5:** On-device AI (categorization + "ask about your money") via an in-browser model
 
