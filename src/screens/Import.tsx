@@ -7,6 +7,10 @@ import type { DraftTransaction } from '../lib/draft';
 import { csvToDrafts, detectFormat, headerSignature, readCsv, type CsvTable } from '../lib/csv';
 import { looksLikeOfx, parseOfx, type OfxStatement } from '../lib/ofx';
 import { prepareImport, toTransactions } from '../lib/importer';
+import { payeeHistory } from '../lib/categorize';
+import { aiState } from '../ai/client';
+import { automaticPicks } from '../ai/suggest';
+import { ReviewAiPicks } from './ReviewAiPicks';
 import { openingBalanceFor } from '../lib/balances';
 import { formatDay } from '../lib/dates';
 import { formatMoney } from '../lib/money';
@@ -62,8 +66,11 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
   const [newType, setNewType] = useState<AccountType>('checking');
   const [newInstitution, setNewInstitution] = useState('');
   const [useBalance, setUseBalance] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ added: number; skipped: number; account: Account; balanceSet: boolean }>();
+  const [busy, setBusy] = useState<false | 'import' | 'ai'>(false);
+  const [done, setDone] = useState<{ added: number; skipped: number; account: Account; balanceSet: boolean; uncategorized: number; byAi: number }>();
+  // What you've categorized yourself teaches new imports: same payee, same category.
+  const allTxns = useLiveQuery(() => db.transactions.toArray(), []);
+  const history = useMemo(() => payeeHistory(allTxns ?? []), [allTxns]);
 
   const existingIds = useLiveQuery(async () => {
     if (accountId === NEW) return new Set<string>();
@@ -115,6 +122,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
   };
 
   const statement = parsed?.kind === 'ofx' ? parsed.statements[parsed.index] : undefined;
+  const accountType = accountId === NEW ? newType : accounts?.find((a) => a.id === accountId)?.type;
   const read = useMemo((): { drafts: DraftTransaction[]; skipped: number } => {
     if (!parsed) return { drafts: [], skipped: 0 };
     if (parsed.kind === 'ofx') return { drafts: parsed.statements[parsed.index].transactions, skipped: 0 };
@@ -122,8 +130,8 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
   }, [parsed]);
 
   const prepared = useMemo(
-    () => (existingIds && rules ? prepareImport(accountId, read.drafts, existingIds, rules) : []),
-    [read, existingIds, rules, accountId],
+    () => (existingIds && rules ? prepareImport(accountId, read.drafts, existingIds, rules, { history, creditAccount: accountType === 'credit' }) : []),
+    [read, existingIds, rules, accountId, history, accountType],
   );
   const fresh = prepared.filter((p) => !p.duplicate);
   const dupes = prepared.length - fresh.length;
@@ -132,7 +140,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
 
   const commit = async () => {
     if (!parsed || !rules) return;
-    setBusy(true);
+    setBusy('import');
     try {
       const source: TransactionSource = parsed.kind;
       const result = await db.transaction('rw', [db.accounts, db.transactions, db.csvMappings], async () => {
@@ -153,7 +161,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
         }
         const existing = await db.transactions.where('accountId').equals(account.id).toArray();
         const ids = new Set(existing.map((t) => t.importId).filter((x): x is string => !!x));
-        const items = prepareImport(account.id, read.drafts, ids, rules);
+        const items = prepareImport(account.id, read.drafts, ids, rules, { history, creditAccount: account.type === 'credit' });
         const rows = toTransactions(account, items, source, newId);
         await db.transactions.bulkAdd(rows);
         let balanceSet = false;
@@ -163,9 +171,23 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
           balanceSet = true;
         }
         if (parsed.kind === 'csv') await db.csvMappings.put({ ...parsed.mapping, accountId: account.id });
-        return { added: rows.length, skipped: items.length - rows.length, account, balanceSet };
+        return { added: rows.length, skipped: items.length - rows.length, account, balanceSet, rows };
       });
-      setDone(result);
+      // On-device AI: confidently categorize what the rules and keywords couldn't, marked for review.
+      let byAi = 0;
+      if (aiState().embed && categories && result.rows.length) {
+        setBusy('ai');
+        try {
+          const picks = await automaticPicks(new Set(result.rows.map((r) => r.id)), await db.transactions.toArray(), categories);
+          await db.transactions.bulkUpdate(picks.map((p) => ({ key: p.id, changes: { categoryId: p.categoryId, categorySource: 'ai' as const } })));
+          byAi = picks.length;
+        } catch {
+          // The import itself worked; AI is a bonus.
+        }
+      }
+      const fresh = await db.transactions.bulkGet(result.rows.map((r) => r.id));
+      const uncategorized = fresh.filter((t) => t?.categoryId === 'uncategorized').length;
+      setDone({ added: result.added, skipped: result.skipped, account: result.account, balanceSet: result.balanceSet, uncategorized, byAi });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -174,7 +196,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
   };
 
   if (done) {
-    const uncategorized = prepared.filter((p) => !p.duplicate && p.categoryId === 'uncategorized').length;
+    const { uncategorized, byAi } = done;
     return (
       <Sheet title="Import" onClose={props.onClose}>
         <Empty icon="✅" title={`Imported ${done.added} transaction${done.added === 1 ? '' : 's'}`}>
@@ -182,8 +204,18 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
             Into <b>{done.account.name}</b>.{done.skipped > 0 && ` ${done.skipped} already-imported transaction${done.skipped === 1 ? ' was' : 's were'} skipped.`}
             {uncategorized > 0 && ` ${uncategorized} need a category.`}
           </p>
+          {byAi > 0 && (
+            <p>
+              ✨ On-device AI categorized {byAi} more. They're marked so you can check them.
+            </p>
+          )}
           <div class="button-stack">
-            <button type="button" class="button primary" onClick={() => nav.showActivity({ accountId: done.account.id })}>
+            {byAi > 0 && (
+              <button type="button" class="button primary" onClick={() => nav.present((close) => <ReviewAiPicks onClose={close} />)}>
+                Review AI Picks
+              </button>
+            )}
+            <button type="button" class={`button ${byAi > 0 ? '' : 'primary'}`} onClick={() => nav.showActivity({ accountId: done.account.id })}>
               View Transactions
             </button>
             {!done.balanceSet && (
@@ -260,8 +292,8 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
       title="Review Import"
       onClose={props.onClose}
       onSave={commit}
-      saveLabel={busy ? 'Importing…' : `Import ${fresh.length}`}
-      saveDisabled={busy || fresh.length === 0 || (accountId === NEW && !newName.trim())}
+      saveLabel={busy === 'ai' ? 'Categorizing…' : busy ? 'Importing…' : `Import ${fresh.length}`}
+      saveDisabled={!!busy || fresh.length === 0 || (accountId === NEW && !newName.trim())}
     >
       <Section
         title="File"

@@ -27,6 +27,12 @@ export interface Account {
 
 export type TransactionSource = 'manual' | 'csv' | 'ofx';
 
+/**
+ * Where a transaction's category came from. Your own choices teach the AI the most; guesses count
+ * less, and AI picks you haven't reviewed yet ('ai') never teach it at all.
+ */
+export type CategorySource = 'user' | 'rule' | 'history' | 'bank' | 'keyword' | 'default' | 'ai';
+
 export interface Transaction {
   id: string;
   accountId: string;
@@ -37,6 +43,8 @@ export interface Transaction {
   /** Cleaned-up merchant name shown in the UI. */
   payee: string;
   categoryId: string;
+  /** Missing on transactions from before this was tracked. */
+  categorySource?: CategorySource;
   notes: string;
   source: TransactionSource;
   /** Stable identifier used to skip duplicates when re-importing overlapping files. */

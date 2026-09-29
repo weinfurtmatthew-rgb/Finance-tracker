@@ -1,12 +1,13 @@
 import { useState } from 'preact/hooks';
 import { db, newId, setMeta } from '../db';
+import { isTrusted, payeeKey } from '../lib/categorize';
 import { useLoaded } from '../hooks';
 import { useNav } from '../nav';
-import type { Account, Category, Rule, Transaction } from '../types';
+import type { Account, Category, Transaction } from '../types';
 import { centsToInput, formatMoney, parseUserAmount } from '../lib/money';
 import { todayISO } from '../lib/dates';
 import { UNCATEGORIZED } from '../lib/categories';
-import { ActionSheet, CategorySelect, Field, Section, Segmented, Sheet } from '../components/ui';
+import { ActionSheet, CategorySelect, Field, Section, Segmented, Sheet, Toggle } from '../components/ui';
 import { ExplainPanel } from '../components/ExplainPanel';
 
 type Props = { txn?: Transaction; accountId?: string; onClose: () => void };
@@ -17,10 +18,10 @@ export function TransactionEditor(props: Props) {
   const accounts = data.accounts.filter((a) => !a.archived || a.id === props.txn?.accountId);
   const fallback =
     accounts.find((a) => a.id === data.lastAccountId && !a.archived) ?? accounts.find((a) => a.type === 'checking' && !a.archived) ?? accounts[0];
-  return <TransactionForm {...props} accounts={accounts} categories={data.categories} defaultAccountId={fallback?.id} />;
+  return <TransactionForm {...props} accounts={accounts} categories={data.categories} txns={data.transactions} defaultAccountId={fallback?.id} />;
 }
 
-function TransactionForm(props: Props & { accounts: Account[]; categories: Category[]; defaultAccountId?: string }) {
+function TransactionForm(props: Props & { accounts: Account[]; categories: Category[]; txns: Transaction[]; defaultAccountId?: string }) {
   const nav = useNav();
   const { accounts, categories } = props;
   const t = props.txn;
@@ -31,11 +32,18 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
   const [accountId, setAccountId] = useState(t?.accountId ?? props.accountId ?? props.defaultAccountId ?? '');
   const [categoryId, setCategoryId] = useState(t?.categoryId ?? UNCATEGORIZED);
   const [notes, setNotes] = useState(t?.notes ?? '');
-  const [ask, setAsk] = useState<null | 'rule' | 'delete'>(null);
+  const [ask, setAsk] = useState<null | 'delete'>(null);
+  const [alsoOthers, setAlsoOthers] = useState(true);
 
   const cents = parseUserAmount(amount);
   const valid = cents != null && cents > 0 && !!date && !!accountId && !!payee.trim();
-  const category = categories.find((c) => c.id === categoryId);
+  const changed = !!t && t.categoryId !== categoryId && categoryId !== UNCATEGORIZED;
+  // Same payee, same direction of money, still on a guessed category: fixing one fixes them all.
+  const others = changed
+    ? props.txns.filter(
+        (x) => x.id !== t!.id && payeeKey(x.payee) === payeeKey(t!.payee) && x.amount > 0 === t!.amount > 0 && x.categoryId !== categoryId && !isTrusted(x),
+      )
+    : [];
 
   const save = async () => {
     if (!valid) return;
@@ -48,37 +56,20 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
       description: t?.description ?? payee.trim(),
       payee: payee.trim(),
       categoryId,
+      // Choosing (or re-saving) a category yourself makes it one the AI learns from most.
+      categorySource: categoryId === UNCATEGORIZED ? undefined : !t || changed || t.categorySource === 'ai' ? 'user' : t.categorySource,
       notes: notes.trim(),
       source: t?.source ?? 'manual',
       importId: t?.importId,
       createdAt: t?.createdAt ?? Date.now(),
     };
+    if (!record.categorySource) delete record.categorySource;
     await db.transactions.put(record);
     if (!t) await setMeta('lastManualAccount', accountId);
-    // Offer to remember the choice when an imported transaction's category changes.
-    if (t && t.source !== 'manual' && t.categoryId !== categoryId && categoryId !== UNCATEGORIZED) {
-      setAsk('rule');
-      return;
-    }
-    nav.toast(t ? 'Saved' : 'Transaction added');
-    props.onClose();
-  };
-
-  const createRule = async (applyToPast: boolean) => {
-    const match = payee.trim();
-    const rule: Rule = { id: newId(), match, categoryId, createdAt: Date.now() };
-    await db.rules.add(rule);
-    let updated = 0;
-    if (applyToPast) {
-      const needle = match.toLowerCase();
-      await db.transactions
-        .filter((x) => x.id !== t!.id && x.categoryId !== categoryId && `${x.description}\n${x.payee}`.toLowerCase().includes(needle))
-        .modify((x) => {
-          x.categoryId = categoryId;
-          updated++;
-        });
-    }
-    nav.toast(updated ? `Rule saved · ${updated} more updated` : 'Rule saved');
+    if (changed && alsoOthers && others.length) {
+      await db.transactions.bulkUpdate(others.map((x) => ({ key: x.id, changes: { categoryId, categorySource: 'user' as const } })));
+      nav.toast(`Saved · ${others.length} more updated`);
+    } else nav.toast(t ? 'Saved' : 'Transaction added');
     props.onClose();
   };
 
@@ -140,6 +131,15 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
           <input value={notes} placeholder="Optional" onInput={(e) => setNotes((e.target as HTMLInputElement).value)} />
         </Field>
       </Section>
+      {others.length > 0 && (
+        <Section footer={`Future imports from ${t!.payee} will use ${categories.find((c) => c.id === categoryId)?.name ?? 'it'} too.`}>
+          <Toggle
+            checked={alsoOthers}
+            onChange={setAlsoOthers}
+            label={`Also change ${others.length} other ${t!.payee} transaction${others.length === 1 ? '' : 's'}`}
+          />
+        </Section>
+      )}
       {t && t.source !== 'manual' && (
         <Section title="From your bank" footer={`Imported from a ${t.source.toUpperCase()} file.`}>
           <div class="row">
@@ -156,18 +156,6 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
             Delete Transaction
           </button>
         </Section>
-      )}
-      {ask === 'rule' && (
-        <ActionSheet
-          title={`Always use ${category?.emoji ?? ''} ${category?.name ?? ''}?`}
-          message={`Future imports that mention “${payee.trim()}” will be filed under ${category?.name}.`}
-          actions={[
-            { label: 'Yes, and Update Past Ones', bold: true, onClick: () => createRule(true) },
-            { label: 'Yes, Future Imports Only', onClick: () => createRule(false) },
-            { label: 'No, Just This One', onClick: () => props.onClose() },
-          ]}
-          onCancel={() => props.onClose()}
-        />
       )}
       {ask === 'delete' && (
         <ActionSheet

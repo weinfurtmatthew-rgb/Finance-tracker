@@ -57,8 +57,14 @@ It uses a small embedding model (all-MiniLM-L6-v2) running in the browser with
 - **Ask about your money:** questions are understood by rules first; when they can't, the model matches the question to
   example questions. The app then **calculates the answer from your data**. AI never produces the numbers, and every
   answer shows how it was understood.
-- **Smarter categorizing:** suggests categories for uncategorized payees by similarity to the ones you've
-  categorized (plus short phrases for each category), and can save them as rules.
+- **Smarter categorizing:** the closest payees you've categorized (plus short phrases for each category) vote on
+  a category. It respects the direction of money (money in is never spending, money out is never income), trusts your
+  own choices most, and only calls a pick "Likely" when one category clearly wins.
+  - **At import**, confident picks for transactions that would otherwise be uncategorized, the income fallback or a
+    bank's catch-all "Other" are applied automatically, marked ✨, and listed under **Review AI Picks**. Unreviewed picks
+    never teach the AI, so a mistake can't reinforce itself.
+  - **Learns silently:** fixing a category also offers to fix the same payee's other guessed transactions, and future
+    imports from that payee (including refunds) use your choice, with no rule needed.
 - **Monthly recap** on the Overview, computed exactly from your data.
 - **"What is this?"** on a transaction: decodes bank codes (TST*, SQ*, AMZN Mktp…) and suggests a name and category.
 

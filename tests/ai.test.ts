@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { answer, parsePeriod, parseQuestion, understand, type AnswerData, type AskContext } from '../src/ai/ask';
 import { factSentences, type SummaryFacts } from '../src/ai/summary';
 import { explainDescription } from '../src/ai/explain';
-import { CATEGORY_SEEDS, nearestCategory, trainingExamples } from '../src/ai/similar';
+import { CATEGORY_SEEDS, matchText, nearestCategory, trainingExamples, VOTE } from '../src/ai/similar';
+import { automaticPicks, suggestForUncategorized } from '../src/ai/suggest';
 import { DEFAULT_CATEGORIES } from '../src/lib/categories';
 import type { Transaction } from '../src/types';
 
@@ -165,5 +166,96 @@ describe('similar', () => {
     const withVecs = ex.map((e) => ({ ...e, vec: e.text === 'starbucks' ? [1, 0] : [0, 1] }));
     expect(nearestCategory([1, 0], withVecs)).toMatchObject({ categoryId: 'dining', like: 'starbucks' });
     expect(ex.filter((e) => e.seed && e.categoryId === 'dining').length).toBeGreaterThan(3);
+  });
+});
+
+describe('categorizing with the embedding model', () => {
+  // Fake embeddings: bag of words, so texts sharing words are similar (cosine of word counts).
+  const bow = async (texts: string[]) => {
+    const vocab = new Map<string, number>();
+    const words = texts.map((t) => t.split(/\W+/).filter(Boolean));
+    words.flat().forEach((w) => vocab.has(w) || vocab.set(w, vocab.size));
+    return words.map((ws) => {
+      const v = new Array(Math.max(1, vocab.size)).fill(0);
+      ws.forEach((w) => v[vocab.get(w)!]++);
+      const len = Math.hypot(...v) || 1;
+      return v.map((x) => x / len);
+    });
+  };
+  // One shared vocabulary per call, so compare within a single embed call.
+  const embedAll = (all: string[]) => {
+    let cache: Map<string, number[]> | null = null;
+    return async (texts: string[]) => {
+      if (!cache) {
+        const vecs = await bow(all);
+        cache = new Map(all.map((t, i) => [t, vecs[i]]));
+      }
+      return texts.map((t) => cache!.get(t) ?? new Array(cache!.values().next().value!.length).fill(0));
+    };
+  };
+  const t = (payee: string, amount: number, categoryId: string, categorySource?: Transaction['categorySource'], id = `x${n++}`): Transaction => ({
+    id, accountId: 'a', date: '2026-09-01', amount, description: payee.toUpperCase(), payee, categoryId, categorySource, notes: '', source: 'csv', createdAt: 0,
+  });
+  const texts = (txns: Transaction[]) => [
+    ...new Set([...trainingExamples(txns, DEFAULT_CATEGORIES).map((e) => e.text), ...txns.map(matchText)]),
+  ];
+
+  it('strips store numbers and symbols before matching', () => {
+    expect(matchText({ payee: 'Shell #0042', description: '' })).toBe('shell');
+    expect(matchText({ payee: 'SQ *Blue Bottle 3312', description: '' })).toBe('sq blue bottle');
+  });
+
+  it('money coming in never gets a spending category, and money going out never becomes income', async () => {
+    const history = [t('Blue Cafe', -600, 'dining', 'user'), t('Blue Cafe', -700, 'dining', 'user'), t('Acme Payroll', 250000, 'income', 'user')];
+    const deposit = t('Blue Cafe Payroll', 120000, 'uncategorized');
+    const purchase = t('Acme Payroll Store', -2000, 'uncategorized');
+    const all = [...history, deposit, purchase];
+    const groups = await suggestForUncategorized(all, DEFAULT_CATEGORIES, embedAll(texts(all)));
+    const pick = (p: string) => groups.find((g) => g.payee === p)?.suggestion?.categoryId;
+    expect(pick('Blue Cafe Payroll')).toBe('income');
+    expect(pick('Acme Payroll Store')).not.toBe('income');
+  });
+
+  it('several agreeing neighbours outvote one odd one', () => {
+    const vec = (a: number, b: number) => [a, b, Math.sqrt(Math.max(0, 1 - a * a - b * b))];
+    const examples = [
+      { text: 'odd', categoryId: 'shopping', weight: 1, vec: vec(0.92, 0) },
+      { text: 'a', categoryId: 'dining', weight: 1, vec: vec(0.88, 0.1) },
+      { text: 'b', categoryId: 'dining', weight: 1, vec: vec(0.87, 0.12) },
+      { text: 'c', categoryId: 'dining', weight: 1, vec: vec(0.86, 0.15) },
+    ];
+    const s = nearestCategory(vec(1, 0), examples)!;
+    expect(s.categoryId).toBe('dining');
+    expect(s.share).toBeGreaterThan(0.6);
+  });
+
+  it('is only confident when one category clearly wins', () => {
+    const tie = nearestCategory([1, 0], [
+      { text: 'a', categoryId: 'dining', weight: 1, vec: [0.9, Math.sqrt(1 - 0.81)] },
+      { text: 'b', categoryId: 'groceries', weight: 1, vec: [0.9, -Math.sqrt(1 - 0.81)] },
+    ])!;
+    expect(tie.confident).toBe(false);
+    const far = nearestCategory([1, 0], [{ text: 'a', categoryId: 'dining', weight: 1, vec: [VOTE.confidentSimilarity - 0.1, Math.sqrt(1 - (VOTE.confidentSimilarity - 0.1) ** 2)] }])!;
+    expect(far.confident).toBe(false);
+  });
+
+  it('your own choices teach it; unreviewed AI picks never do', () => {
+    const ex = trainingExamples([t('Corner Deli', -900, 'groceries', 'ai'), t('Joes Diner', -900, 'dining', 'user'), t('Mart', -100, 'shopping', 'keyword')], DEFAULT_CATEGORIES);
+    expect(ex.some((e) => e.text === 'corner deli')).toBe(false);
+    expect(ex.find((e) => e.text === 'joes diner')!.weight).toBeGreaterThan(ex.find((e) => e.text === 'mart')!.weight);
+  });
+
+  it('after import, applies confident picks only to guessed categories', async () => {
+    const history = [t('Green Leaf Market', -4000, 'groceries', 'user'), t('Green Leaf Market', -3500, 'groceries', 'user'), t('Green Leaf Market', -3000, 'groceries', 'user')];
+    const fresh = [
+      t('Green Leaf Market', -2500, 'uncategorized', 'default', 'n1'),
+      t('Green Leaf Market', -2600, 'other', 'bank', 'n2'),
+      t('Green Leaf Market', -2700, 'dining', 'keyword', 'n3'),
+      t('Zzyx Qwv', -100, 'uncategorized', 'default', 'n4'),
+    ];
+    const all = [...history, ...fresh];
+    const picks = await automaticPicks(new Set(['n1', 'n2', 'n3', 'n4']), all, DEFAULT_CATEGORIES, embedAll(texts(all)));
+    expect(picks.map((p) => p.id).sort()).toEqual(['n1', 'n2']);
+    expect(picks.every((p) => p.categoryId === 'groceries')).toBe(true);
   });
 });

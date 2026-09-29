@@ -1,4 +1,4 @@
-import type { Rule } from '../types';
+import type { CategorySource, Rule, Transaction } from '../types';
 import { CARD_PAYMENT, TRANSFER, UNCATEGORIZED } from './categories';
 
 /** 'in' keywords only match money coming in (e.g. "dividend"). */
@@ -96,19 +96,55 @@ export function findRule(rules: Rule[], description: string, payee: string): Rul
 export interface Categorized {
   payee: string;
   categoryId: string;
+  source: CategorySource;
+}
+
+/** Transactions whose category you chose or confirmed yourself (or a rule chose). */
+export const isTrusted = (t: Pick<Transaction, 'categorySource'>) => t.categorySource === 'user' || t.categorySource === 'rule';
+
+/** A payee's usual category, learned from the transactions you've categorized yourself. */
+export type PayeeHistory = Map<string, string>;
+
+export const payeeKey = (payee: string) => payee.trim().toLowerCase();
+
+export function payeeHistory(txns: Transaction[]): PayeeHistory {
+  const counts = new Map<string, Map<string, number>>();
+  for (const t of txns) {
+    if (!isTrusted(t) || t.categoryId === UNCATEGORIZED) continue;
+    const k = payeeKey(t.payee);
+    const m = counts.get(k) ?? new Map<string, number>();
+    m.set(t.categoryId, (m.get(t.categoryId) ?? 0) + 1);
+    counts.set(k, m);
+  }
+  const out: PayeeHistory = new Map();
+  for (const [k, m] of counts) out.set(k, [...m].sort((a, b) => b[1] - a[1])[0][0]);
+  return out;
 }
 
 export function categorize(
-  input: { description: string; payee: string; amount: number; bankCategory?: string },
+  input: { description: string; payee: string; amount: number; bankCategory?: string; creditAccount?: boolean },
   rules: Rule[],
+  history: PayeeHistory = new Map(),
 ): Categorized {
   const rule = findRule(rules, input.description, input.payee);
   const payee = rule?.payee || input.payee;
-  if (rule?.categoryId) return { payee, categoryId: rule.categoryId };
-  // Order: the bank's payment/reward labels, then specific merchant keywords, then the bank's broad
-  // category (refunds keep it, so they offset that category's spending), then a fallback.
+  if (rule?.categoryId) return { payee, categoryId: rule.categoryId, source: 'rule' };
+  // Order: the bank's payment/reward labels, then what you've chosen for this payee before (a refund
+  // lands in the category you use for that store), then specific merchant keywords, then the bank's
+  // broad category, then a fallback.
   const fromBank = categoryFromBank(input.bankCategory);
-  if (fromBank === CARD_PAYMENT || fromBank === 'income') return { payee, categoryId: fromBank };
+  if (fromBank === CARD_PAYMENT || fromBank === 'income') return { payee, categoryId: fromBank, source: 'bank' };
+  const known = history.get(payeeKey(payee));
+  if (known) return { payee, categoryId: known, source: 'history' };
   const fromKeywords = keywordCategory(input.description, input.amount);
-  return { payee, categoryId: fromKeywords ?? fromBank ?? guessCategory(input.description, input.amount) };
+  if (fromKeywords) return { payee, categoryId: fromKeywords, source: 'keyword' };
+  if (fromBank) return { payee, categoryId: fromBank, source: 'bank' };
+  // Unknown money coming in: on a checking account it's most likely income, but on a credit card
+  // it's a refund or credit, which is never income.
+  const fallback = input.amount > 0 && !input.creditAccount ? 'income' : UNCATEGORIZED;
+  return { payee, categoryId: fallback, source: 'default' };
 }
+
+/** Categories that are only a guess, which the AI may replace when it's confident. */
+export const isWeakCategory = (t: Pick<Transaction, 'categoryId' | 'categorySource'>) =>
+  t.categoryId === UNCATEGORIZED || t.categorySource === 'default' || (t.categorySource === 'bank' && t.categoryId === 'other');

@@ -1,6 +1,6 @@
-import type { Account, Rule, Transaction, TransactionSource } from '../types';
+import type { Account, CategorySource, Rule, Transaction, TransactionSource } from '../types';
 import type { DraftTransaction } from './draft';
-import { categorize } from './categorize';
+import { categorize, type PayeeHistory } from './categorize';
 import { cleanPayee } from './payee';
 
 export interface PreparedTransaction {
@@ -9,6 +9,7 @@ export interface PreparedTransaction {
   duplicate: boolean;
   payee: string;
   categoryId: string;
+  categorySource: CategorySource;
 }
 
 /** Small, fast, stable string hash (FNV-1a, 32-bit) used for import ids. */
@@ -42,14 +43,16 @@ export function prepareImport(
   drafts: DraftTransaction[],
   existingImportIds: Set<string>,
   rules: Rule[],
+  opts: { history?: PayeeHistory; creditAccount?: boolean } = {},
 ): PreparedTransaction[] {
   const ids = importIds(accountId, drafts);
   return drafts.map((draft, i) => {
-    const { payee, categoryId } = categorize(
-      { description: draft.description, payee: cleanPayee(draft.description), amount: draft.amount, bankCategory: draft.bankCategory },
+    const { payee, categoryId, source } = categorize(
+      { description: draft.description, payee: cleanPayee(draft.description), amount: draft.amount, bankCategory: draft.bankCategory, creditAccount: opts.creditAccount },
       rules,
+      opts.history,
     );
-    return { draft, importId: ids[i], duplicate: existingImportIds.has(ids[i]), payee, categoryId };
+    return { draft, importId: ids[i], duplicate: existingImportIds.has(ids[i]), payee, categoryId, categorySource: source };
   });
 }
 
@@ -70,6 +73,7 @@ export function toTransactions(
       description: p.draft.description,
       payee: p.payee,
       categoryId: p.categoryId,
+      categorySource: p.categorySource,
       notes: '',
       source,
       importId: p.importId,

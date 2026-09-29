@@ -30,8 +30,10 @@ describe.runIf(run)('real on-device models', () => {
     const examples = trainingExamples([], DEFAULT_CATEGORIES);
     const exVecs = await vec(examples.map((e) => e.text));
     const indexed = examples.map((e, i) => ({ ...e, vec: exVecs[i] }));
-    const cases: [string, string][] = [
-      ['shell oil 57444', 'gas'],
+    const groups = new Map(DEFAULT_CATEGORIES.map((c) => [c.id, c.group]));
+    // [text, expected, money in?]
+    const cases: [string, string, boolean?][] = [
+      ['shell oil', 'gas'],
       ['whole foods market', 'groceries'],
       ['blue bottle coffee', 'dining'],
       ['delta air lines', 'travel'],
@@ -41,13 +43,24 @@ describe.runIf(run)('real on-device models', () => {
       ['amc theatres', 'entertainment'],
       ['great clips haircut', 'personal'],
       ['geico auto insurance', 'insurance'],
-      ['acme corp payroll', 'income'],
+      ['acme corp payroll', 'income', true],
       ['chipotle mexican grill', 'dining'],
+      // Direction: the same words must not flip money in/out into the wrong kind of category.
+      ['coffee co payroll', 'income', true],
+      ['payroll services cafe', 'dining'],
     ];
     const qVecs = await vec(cases.map((c) => c[0]));
-    const got = cases.map((c, i) => [c[0], c[1], nearestCategory(qVecs[i], indexed)?.categoryId]);
-    console.table(got);
-    expect(got.filter(([, want, have]) => want === have).length).toBeGreaterThanOrEqual(8);
+    const rows = cases.map((c, i) => {
+      const s = nearestCategory(qVecs[i], indexed, { dir: c[2] ? 'in' : 'out', groups });
+      return { text: c[0], want: c[1], got: s?.categoryId, sim: s?.similarity.toFixed(2), share: s?.share.toFixed(2), confident: s?.confident };
+    });
+    console.table(rows);
+    expect(rows.filter((r) => r.want === r.got).length).toBeGreaterThanOrEqual(10);
+    // Money going out never becomes income, money coming in never becomes spending.
+    expect(rows.every((r, i) => (cases[i][2] ? groups.get(r.got!) !== 'expense' : groups.get(r.got!) !== 'income'))).toBe(true);
+    // When it's confident, it should be right.
+    const confident = rows.filter((r) => r.confident);
+    expect(confident.filter((r) => r.want === r.got).length).toBeGreaterThanOrEqual(Math.ceil(confident.length * 0.9));
   }, 300_000);
 
   it('questions in your own words are understood (rules + embedding model)', async () => {

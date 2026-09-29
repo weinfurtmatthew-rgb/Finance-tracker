@@ -23,7 +23,7 @@ export function SuggestCategories(props: { onClose: () => void }) {
     suggestForUncategorized(txns, categories)
       .then((g) => {
         setGroups(g);
-        setChoice(Object.fromEntries(g.filter((x) => x.suggestion).map((x) => [x.key, x.suggestion!.categoryId])));
+        setChoice(Object.fromEntries(g.filter((x) => x.suggestion?.confident).map((x) => [x.key, x.suggestion!.categoryId])));
       })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, [ai.embed, txns.length]);
@@ -34,7 +34,7 @@ export function SuggestCategories(props: { onClose: () => void }) {
     await db.transaction('rw', db.transactions, db.rules, async () => {
       for (const [key, categoryId] of chosen) {
         const g = groups!.find((x) => x.key === key)!;
-        await db.transactions.bulkUpdate(g.txns.map((t) => ({ key: t.id, changes: { categoryId } })));
+        await db.transactions.bulkUpdate(g.txns.map((t) => ({ key: t.id, changes: { categoryId, categorySource: 'user' as const } })));
         n += g.txns.length;
         if (remember) await db.rules.add({ id: newId(), match: g.payee, categoryId, createdAt: Date.now() });
       }
@@ -63,7 +63,7 @@ export function SuggestCategories(props: { onClose: () => void }) {
       {groups && groups.length === 0 && <Empty icon="✅" title="Nothing to categorize" />}
       {groups && groups.length > 0 && (
         <>
-          <p class="section-footer intro">Suggestions come from payees you've already categorized. Check each one, change any that look wrong, then Apply.</p>
+          <p class="section-footer intro">“Likely” picks are filled in; for guesses, tap the suggestion to use it. Suggestions come from payees you've already categorized.</p>
           <Section>
             {groups.map((g) => (
               <div class="suggest-row">
@@ -75,7 +75,7 @@ export function SuggestCategories(props: { onClose: () => void }) {
                       {g.suggestion?.like && ` · like “${g.suggestion.like}”`}
                     </span>
                   </span>
-                  {g.suggestion && <span class={`confidence ${g.suggestion.similarity > 0.6 ? 'high' : ''}`}>{g.suggestion.similarity > 0.6 ? 'Likely' : 'Guess'}</span>}
+                  {g.suggestion && <span class={`confidence ${g.suggestion.confident ? 'high' : ''}`}>{g.suggestion.confident ? 'Likely' : 'Guess'}</span>}
                 </div>
                 <CategorySelect
                   class="chip"
@@ -85,7 +85,9 @@ export function SuggestCategories(props: { onClose: () => void }) {
                   onChange={(id) => setChoice({ ...choice, [g.key]: id })}
                 />
                 {g.suggestion && cats.get(g.suggestion.categoryId) && choice[g.key] !== g.suggestion.categoryId && (
-                  <span class="row-subtitle"> (suggested {cats.get(g.suggestion.categoryId)!.name})</span>
+                  <button type="button" class="link small" onClick={() => setChoice({ ...choice, [g.key]: g.suggestion!.categoryId })}>
+                    Maybe {cats.get(g.suggestion.categoryId)!.emoji} {cats.get(g.suggestion.categoryId)!.name}?
+                  </button>
                 )}
               </div>
             ))}

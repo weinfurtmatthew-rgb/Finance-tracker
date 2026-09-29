@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { categorize, guessCategory } from '../src/lib/categorize';
+import { categorize, guessCategory, isWeakCategory, payeeHistory } from '../src/lib/categorize';
 import { cleanPayee } from '../src/lib/payee';
 import { importIds, prepareImport } from '../src/lib/importer';
 import { accountBalance, openingBalanceFor } from '../src/lib/balances';
@@ -55,13 +55,14 @@ describe('categorize', () => {
     expect(categorize({ description: 'SQ *BLUE BOTTLE COFFEE', payee: 'Blue Bottle Coffee', amount: -525 }, rules)).toEqual({
       payee: 'Blue Bottle',
       categoryId: 'groceries',
+      source: 'rule',
     });
   });
   it('specific merchant keywords beat the bank’s broad category', () => {
     expect(categorize({ description: 'NETFLIX.COM 866-579-7172 CA', payee: 'Netflix', amount: -1549, bankCategory: 'Services' }, []).categoryId).toBe('subscriptions');
   });
   it('then the bank category', () => {
-    expect(categorize({ description: 'XYZ', payee: 'Xyz', amount: -100, bankCategory: 'Supermarkets' }, [])).toEqual({ payee: 'Xyz', categoryId: 'groceries' });
+    expect(categorize({ description: 'XYZ', payee: 'Xyz', amount: -100, bankCategory: 'Supermarkets' }, [])).toEqual({ payee: 'Xyz', categoryId: 'groceries', source: 'bank' });
     expect(categorize({ description: 'DIRECTPAY', payee: 'Directpay', amount: 41233, bankCategory: 'Payments and Credits' }, []).categoryId).toBe('card-payment');
     expect(categorize({ description: 'CASHBACK', payee: 'Cashback', amount: 1250, bankCategory: 'Awards and Rebate Credits' }, []).categoryId).toBe('income');
   });
@@ -69,7 +70,32 @@ describe('categorize', () => {
     expect(categorize({ description: 'AMAZON RETURN', payee: 'Amazon', amount: 2399, bankCategory: 'Merchandise' }, []).categoryId).toBe('shopping');
     expect(categorize({ description: 'AMAZON RETURN', payee: 'Amazon', amount: 2399 }, []).categoryId).toBe('shopping');
   });
+  it('a refund from a store you know follows your usual category for it', () => {
+    const history = payeeHistory([
+      txn('Tiny Shop', -3000, 'gifts', 'user'),
+      txn('Tiny Shop', -2000, 'gifts', 'user'),
+      txn('Guessed Place', -500, 'other', 'bank'),
+    ]);
+    expect(categorize({ description: 'TINY SHOP REFUND', payee: 'Tiny Shop', amount: 1500 }, [], history)).toMatchObject({ categoryId: 'gifts', source: 'history' });
+    // Only your own choices count as history, not the bank's guesses.
+    expect(history.has('guessed place')).toBe(false);
+  });
+  it('unknown money coming in is income on a checking account but never on a credit card', () => {
+    expect(categorize({ description: 'ACME LLC', payee: 'Acme Llc', amount: 5000 }, [])).toMatchObject({ categoryId: 'income', source: 'default' });
+    expect(categorize({ description: 'ACME LLC', payee: 'Acme Llc', amount: 5000, creditAccount: true }, [])).toMatchObject({ categoryId: 'uncategorized', source: 'default' });
+  });
+  it('weak categories are the ones the AI may replace', () => {
+    expect(isWeakCategory({ categoryId: 'uncategorized' })).toBe(true);
+    expect(isWeakCategory({ categoryId: 'income', categorySource: 'default' })).toBe(true);
+    expect(isWeakCategory({ categoryId: 'other', categorySource: 'bank' })).toBe(true);
+    expect(isWeakCategory({ categoryId: 'dining', categorySource: 'keyword' })).toBe(false);
+    expect(isWeakCategory({ categoryId: 'income' })).toBe(false);
+  });
 });
+
+function txn(payee: string, amount: number, categoryId: string, categorySource?: Transaction['categorySource']): Transaction {
+  return { id: Math.random().toString(36), accountId: 'a', date: '2026-09-01', amount, description: payee.toUpperCase(), payee, categoryId, categorySource, notes: '', source: 'csv', createdAt: 0 };
+}
 
 describe('duplicate detection', () => {
   const drafts = [
