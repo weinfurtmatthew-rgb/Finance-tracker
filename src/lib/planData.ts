@@ -31,6 +31,8 @@ export interface PlanSnapshot {
   monthlySpending: Cents;
   /** The bills-and-subscriptions part of monthly spending (the bare minimum). */
   monthlyFixed: Cents;
+  /** What rent or mortgage costs now, per month (the Rent & Mortgage category). */
+  monthlyHousing: Cents;
   monthlyIncome: Cents;
   monthlySurplus: Cents;
   /** Full months the averages are based on, e.g. ['2026-06', '2026-07', '2026-08']. */
@@ -82,6 +84,10 @@ export function planSnapshot(args: {
   const monthlyFixed = Math.max(
     0,
     avg((m) => m.fixed),
+  );
+  const monthlyHousing = Math.max(
+    0,
+    avg((m) => m.allByCategory.get('housing') ?? 0),
   );
   const monthlyIncome = Math.max(
     0,
@@ -155,6 +161,7 @@ export function planSnapshot(args: {
     invested: sum(['brokerage']),
     monthlySpending,
     monthlyFixed,
+    monthlyHousing,
     monthlyIncome,
     monthlySurplus: monthlyIncome - monthlySpending,
     averagedMonths,

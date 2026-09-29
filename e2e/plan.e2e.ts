@@ -3,6 +3,7 @@ import { expect, test } from './helpers';
 const CALCULATORS = [
   'Emergency fund',
   'Can I afford it?',
+  'Rent calculator',
   'Debt payoff',
   'True cost of a habit',
   'Savings growth',
@@ -55,4 +56,38 @@ test('can I afford it gives a verdict for a financed purchase', async ({ app, pa
   await app.field('Down payment').locator('input').fill('2000');
   await expect(app.sheet().locator('.status-badge')).toBeVisible();
   await expect(app.sheet().locator('.kpis')).toContainText('Payment');
+});
+
+test('rent calculator: ranges, roommates, a listing and the landlord check @smoke', async ({ app, page }) => {
+  await app.importAll();
+  await page.getByRole('button', { name: 'Plan: financial calculators' }).click();
+  await app.sheet().locator('.row', { hasText: 'Rent calculator' }).click();
+  // Known numbers, so the ranges are exact.
+  await app.field('Take-home / mo').locator('input').fill('5000');
+  await app.field('Other costs / mo').locator('input').fill('2500');
+  await app.field('Save / mo').locator('input').fill('1000');
+  await expect(app.sheet().locator('.hero-card')).toContainText('$1,500/mo');
+  await expect(app.sheet().locator('.rent-range-row', { hasText: 'Cheap' })).toContainText('up to $1,000/mo');
+  await page.screenshot({ path: 'test-results/rent-alone.png' });
+
+  await app.field(/^People/).locator('input').fill('3');
+  await app.field('Utilities / mo').locator('input').fill('180');
+  await app.field('Your extras / mo').locator('input').fill('40');
+  // Your share after $100 of extras: $1,400 of rent each, so a $4,200 place.
+  await expect(app.sheet().locator('.hero-card')).toContainText('a place up to $4,200');
+  await app.field('Listing rent / mo').locator('input').fill('3600');
+  await expect(app.sheet().locator('.hero-card')).toContainText('Acceptable');
+  await expect(app.sheet().locator('.hero-card')).toContainText('You\'d pay $1,300 a month ($1,200 rent + $100 extras)');
+  await app.sheet().getByRole('tab', { name: 'Whole place' }).click();
+  await expect(app.sheet().locator('.rent-readout').first()).toContainText('This place: $3,600 rent');
+
+  await app.field('Gross salary / yr').locator('input').fill('45000');
+  await expect(app.sheet().locator('.kpi', { hasText: 'Your share, max' })).toContainText('$1,125');
+  await expect(app.sheet().getByText(/more than your share can be/)).toBeVisible();
+  await app.sheet().locator('.rent-band').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: 'test-results/rent-roommates.png' });
+  await app.field('Listing rent / mo').locator('input').fill('5400');
+  await expect(app.sheet().locator('.hero-card')).toContainText('Expensive');
+  await expect(app.sheet().locator('.takehome-legend')).toContainText('Saving $600');
+  await app.sheet().locator('.takehome').screenshot({ path: `test-results/rent-takehome-${test.info().project.name}.png` });
 });

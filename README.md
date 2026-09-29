@@ -90,6 +90,12 @@ them to try a what-if. Results are estimates, not advice.
 - **Emergency fund:** how many months your cash covers, progress toward a 3–6 month target, and when you'll get there
 - **Can I afford it?:** pay in full or finance; cash and cushion afterwards, the monthly payment and interest, a
   comfortable / tight / stretch verdict with reasons, and what the money could grow to if invested instead
+- **Rent calculator:** what cheap, acceptable and expensive rent looks like for you, from take-home pay (25% / 30%
+  rules) checked against your real other costs and a savings goal (the lower limit wins, and it says which). Split with
+  roommates evenly (utilities optionally too), include or leave out utilities and extras, and see ranges for your
+  share or the whole place on a colored band. Type a listing's rent for a verdict and a bar of where your take-home
+  goes. Enter your gross salary for the landlord check (40× rent). Ask "what rent can I afford?" or "can I afford
+  $1,400 rent?"
 - **Debt payoff:** avalanche (highest APR first) vs snowball (smallest balance first) with extra payments, payoff
   dates, total interest and a chart. Set each card's APR and minimum on the account; otherwise typical values are used
 - **True cost of a habit:** pick a subscription or a place you go often; what it costs over 1–30 years vs investing it

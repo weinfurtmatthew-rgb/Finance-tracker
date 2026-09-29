@@ -11,6 +11,8 @@ import { TrueCostCalc } from './TrueCost';
 import { RetireCalc } from './Retire';
 import { GrowthCalc } from './Growth';
 import { RecapPage } from '../Recap';
+import { RentCalc, defaultSavingsGoal, otherCostsFrom } from './Rent';
+import { rentLimits } from '../../lib/rent';
 
 /** The calculators, each starting from your real numbers. */
 export function Plan(props: { onClose: () => void }) {
@@ -34,6 +36,17 @@ export function Plan(props: { onClose: () => void }) {
     inflation: DEFAULT_INFLATION,
     withdrawalRate: DEFAULT_WITHDRAWAL_RATE,
   });
+  const rentOk = rentLimits({
+    takeHome: d.monthlyIncome,
+    otherCosts: otherCostsFrom(d),
+    savingsGoal: defaultSavingsGoal(d.monthlyIncome),
+    people: 1,
+    includeExtras: false,
+    utilities: 0,
+    splitUtilities: true,
+    personalExtras: 0,
+    grossYearly: 0,
+  }).acceptableMax;
   const open = (render: (close: () => void) => ComponentChildren) => nav.present(render);
 
   return (
@@ -65,6 +78,12 @@ export function Plan(props: { onClose: () => void }) {
           title="Can I afford it?"
           subtitle="Check a purchase against your cash and budget"
           onClick={() => open((close) => <AffordCalc data={d} onClose={close} />)}
+        />
+        <Row
+          icon="🏠"
+          title="Rent calculator"
+          subtitle={rentOk > 0 ? `Acceptable rent for you: up to ${money(rentOk)}/mo · roommates too` : 'Cheap, acceptable and expensive rent for you'}
+          onClick={() => open((close) => <RentCalc data={d} onClose={close} />)}
         />
         <Row
           icon="💳"

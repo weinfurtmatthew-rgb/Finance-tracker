@@ -6,12 +6,22 @@
 import type { Category, Cents, ISODate, Transaction } from '../types';
 import { lines, owedByPerson, owedItems, tagKey } from '../lib/lines';
 import { people, samePerson } from '../lib/p2p';
+import { checkRent, rentLimits } from '../lib/rent';
+
+/** "$1,400", "1400 dollars", "1.4k". */
+export function findAmount(text: string): Cents | undefined {
+  const m = text.match(/\$\s?(\d[\d,]*(?:\.\d+)?)\s*(k)?|(\d[\d,]*(?:\.\d+)?)\s*(k|dollars|bucks)\b/i);
+  if (!m) return undefined;
+  const n = parseFloat((m[1] ?? m[3]).replace(/,/g, ''));
+  const k = (m[2] ?? m[4] ?? '').toLowerCase() === 'k';
+  return Number.isFinite(n) ? Math.round(n * (k ? 1000 : 1) * 100) : undefined;
+}
 import { addDays, addMonths, dayInMonth, monthKey, monthLabel } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { FREQUENCIES, monthlyCost, type RecurringStatus } from '../lib/recurring';
 import type { BudgetProgress } from '../lib/budgets';
 
-export const INTENTS = ['spending', 'income', 'top_categories', 'top_merchants', 'subscriptions', 'net_worth', 'budget', 'largest', 'count', 'owed', 'person'] as const;
+export const INTENTS = ['spending', 'income', 'top_categories', 'top_merchants', 'subscriptions', 'net_worth', 'budget', 'largest', 'count', 'owed', 'person', 'rent'] as const;
 export type Intent = (typeof INTENTS)[number];
 
 export interface Period {
@@ -28,6 +38,8 @@ export interface Query {
   tag?: string;
   /** A friend you pay through Venmo & co, or who owes you. */
   person?: string;
+  /** A dollar amount in the question ("can I afford $1,400 rent?"). */
+  amount?: Cents;
   period: Period;
   source: 'rules' | 'ai';
 }
@@ -227,6 +239,9 @@ export function detectIntentWithStrength(text: string): { intent: Intent; strong
   const strong = (intent: Intent) => ({ intent, strong: true });
   const weak = (intent: Intent) => ({ intent, strong: false });
   if (/net ?worth|how much am i worth|what am i worth/.test(t)) return strong('net_worth');
+  // "What rent can I afford?", "is $1,400 rent too much?" (but not "how much did I spend on rent?").
+  if (/\b(rent|apartment)\b/.test(t) && /afford|should i|too (much|high|expensive)|\bcheap\b|\bmax\b|what rent|rent (can|should)|how much rent/.test(t))
+    return strong('rent');
   if (/\bowes? me\b|\bowed to me\b|\bowe me\b|paid me back|pay me back|owe(s)? (you|me) money/.test(t)) return strong('owed');
   if (/subscription|recurring|streaming|membership|what bills|which bills|my bills/.test(t)) return strong('subscriptions');
   if (/budget|left to spend|over(spent| budget)|\blimits?\b/.test(t)) return strong('budget');
@@ -259,6 +274,7 @@ export function parseQuestion(text: string, ctx: AskContext): Query | null {
   if (!intent && (category || merchant || tag)) intent = 'spending';
   if (!intent) return null;
   const everything = tag || intent === 'person' || intent === 'owed';
+  if (intent === 'rent') return { intent, amount: findAmount(text), period: thisMonth(ctx.today), source: 'rules' };
   const period = parsePeriod(text, ctx.today) ?? (everything ? allTime(ctx.today) : thisMonth(ctx.today));
   return { intent, categoryId: category, merchant: intent === 'subscriptions' ? undefined : merchant, tag, person: intent === 'person' || intent === 'owed' ? person : undefined, period, source: 'rules' };
 }
@@ -279,6 +295,7 @@ export const INTENT_EXAMPLES: Record<Intent, string[]> = {
   largest: ['what was my biggest purchase', 'what is the most expensive thing i bought', 'my largest single expense', 'what was my priciest purchase'],
   count: ['how many times did i go there', 'how often do i buy this', 'number of visits', 'how many purchases did i make there'],
   owed: ['who owes me money', 'who still has to pay me back', 'how much am i owed', 'what do my friends owe me'],
+  rent: ['what rent can i afford', 'how much should i spend on an apartment', 'is this rent too expensive for me'],
   person: ['how much have i sent my friend', 'how much did i venmo them', 'how much has my roommate paid me', 'money between me and a friend'],
 };
 
@@ -363,6 +380,8 @@ export interface Answer {
 }
 
 export interface AnswerData {
+  /** For rent questions: monthly take-home and everything else you spend (rent left out). */
+  rent?: { takeHome: Cents; otherCosts: Cents };
   txns: Transaction[];
   categories: Map<string, Category>;
   recurring: RecurringStatus[];
@@ -525,6 +544,25 @@ export function answer(q: Query, d: AnswerData): Answer {
         detail: `${p.txns.length} payment${p.txns.length === 1 ? '' : 's'}. ${net === 0 ? 'You’re even.' : net < 0 ? `On balance you paid ${money(-net)} more.` : `On balance they paid ${money(net)} more.`}`,
         items: p.txns.slice(0, 6).map((t) => ({ label: t.p2p?.note || t.payee, value: Math.abs(t.amount), note: `${t.amount < 0 ? 'sent' : 'received'} ${t.date}` })),
         interpretation,
+      };
+    }
+    case 'rent': {
+      if (!d.rent || d.rent.takeHome <= 0) return { headline: 'Import a few months with your paychecks first, then I can size rent for you.', interpretation: 'rent' };
+      const inputs = { takeHome: d.rent.takeHome, otherCosts: d.rent.otherCosts, savingsGoal: Math.round((d.rent.takeHome * 0.2) / 100) * 100, people: 1, includeExtras: false, utilities: 0, splitUtilities: true, personalExtras: 0, grossYearly: 0 };
+      const l = rentLimits(inputs);
+      if (q.amount) {
+        const c = checkRent(inputs, q.amount, l);
+        const word = c.tier === 'cheap' ? 'cheap' : c.tier === 'acceptable' ? 'acceptable' : 'expensive';
+        return {
+          headline: `${money(q.amount)} rent is ${word} for you: ${Math.round(c.ofTakeHome * 100)}% of your take-home.`,
+          detail: c.savingsShort > 0 ? `You could save ${money(c.saves)} a month, ${money(c.savingsShort)} short of saving 20%.` : `You'd still save 20% of your pay. Open Plan → Rent calculator for roommates and extras.`,
+          interpretation: `rent check · ${money(q.amount)}`,
+        };
+      }
+      return {
+        headline: l.acceptableMax > 0 ? `Acceptable rent for you is up to ${money(l.acceptableMax)} a month; under ${money(l.cheapMax)} is cheap.` : `Your other costs leave no room for rent while saving 20%.`,
+        detail: `Based on ${money(d.rent.takeHome)} take-home and ${money(d.rent.otherCosts)} of other costs, saving 20%. Plan → Rent calculator covers roommates and utilities.`,
+        interpretation: 'rent ranges',
       };
     }
     case 'net_worth':
