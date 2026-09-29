@@ -253,7 +253,7 @@ export function buildRecap(args: {
       return !!a && balanceOn(book, a, period.to) >= g.target && balanceOn(book, a, startDay) < g.target;
     })
     .map((g) => `${g.emoji} ${g.name}`);
-  const cash = open.filter((a) => a.type === 'checking' || a.type === 'savings' || a.type === 'cash').reduce((s, a) => s + balanceOn(book, a, period.to), 0);
+  const cash = open.filter((a) => a.type === 'checking' || a.type === 'savings' || a.type === 'cash' || a.type === 'wallet').reduce((s, a) => s + balanceOn(book, a, period.to), 0);
   const monthsCovered = Math.max(1, days / 30.44);
   const emergencyMonths = spent > 0 && days >= 60 ? cash / (spent / monthsCovered) : undefined;
   const feesPaid = -expense.filter((l) => l.categoryId === 'fees').reduce((s, l) => s + l.amount, 0);

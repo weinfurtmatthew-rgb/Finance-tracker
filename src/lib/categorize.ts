@@ -1,5 +1,6 @@
 import type { CategorySource, Rule, Transaction } from '../types';
 import { CARD_PAYMENT, TRANSFER, UNCATEGORIZED } from './categories';
+import { bankLineApp, isAppTransferLine } from './p2p';
 
 /** 'in' keywords only match money coming in (e.g. "dividend"). */
 type Sign = 'out' | 'in' | 'any';
@@ -22,7 +23,7 @@ const KEYWORDS: Keyword[] = [
   ['coffee', 'out', ['starbucks', 'dunkin', "peet's", 'peets coffee', 'blue bottle', 'dutch bros', 'tim hortons', 'caribou coffee', 'philz', 'coffee', 'espresso']],
   ['alcohol', 'out', ['liquor', 'wine & spirits', 'total wine', 'brewery', 'brewing co', 'taproom', 'tavern', ' pub ', 'beer', 'spirits', 'bevmo', 'binny']],
   ['groceries', 'out', ['whole foods', 'wholefds', 'trader joe', 'kroger', 'safeway', 'aldi', 'wegmans', 'publix', 'stop & shop', 'stop and shop', 'market basket', 'shoprite', 'h-e-b', 'costco', "sam's club", 'sams club', 'grocery', 'instacart', 'hannaford', 'giant eagle', 'food lion', 'star market', 'price chopper', 'big y', 'sprouts']],
-  ['dining', 'out', ['restaurant', 'mcdonald', 'chipotle', 'doordash', 'uber eats', 'ubereats', 'grubhub', 'pizza', 'cafe', 'taco bell', "wendy's", 'burger', 'chick-fil-a', 'panera', 'sweetgreen', 'domino', 'tst*', 'bar & grill', 'kitchen', 'diner', 'bakery']],
+  ['dining', 'out', ['restaurant', 'mcdonald', 'chipotle', 'doordash', 'uber eats', 'ubereats', 'grubhub', 'pizza', 'cafe', 'taco bell', "wendy's", 'burger', 'chick-fil-a', 'panera', 'sweetgreen', 'domino', 'tst*', 'bar & grill', 'kitchen', 'diner', 'bakery', 'dinner', 'lunch', 'brunch', 'takeout']],
   ['gas', 'out', ['shell oil', 'shell service', 'exxon', 'mobil ', 'sunoco', 'chevron', 'citgo', 'speedway', 'gulf oil', 'marathon petro', 'valero', 'irving oil', 'cumberland farms', 'bp#', 'bp ', 'fuel', 'quiktrip', 'wawa', 'sheetz', 'racetrac', 'circle k']],
   ['transport', 'out', ['uber', 'lyft', 'mbta', 'parking', 'toll', 'e-zpass', 'ezpass', 'metro', 'transit', 'park mobile', 'parkmobile']],
   ['travel', 'out', ['airline', 'airlines', 'delta air', 'united air', 'american air', 'jetblue', 'southwest', 'spirit air', 'frontier', 'airbnb', 'marriott', 'hilton', 'hyatt', 'hotel', 'expedia', 'booking.com', 'amtrak', 'vrbo']],
@@ -32,7 +33,7 @@ const KEYWORDS: Keyword[] = [
   ['pets', 'out', ['petco', 'petsmart', 'chewy', 'veterinary', 'animal hospital', 'banfield', 'rover.com', 'bark box', 'barkbox']],
   ['kids', 'out', ['daycare', 'childcare', 'child care', 'kindercare', 'bright horizons', 'toys', "carter's", 'babies', 'buy buy baby']],
   ['health', 'out', ['cvs', 'walgreens', 'pharmacy', 'rite aid', 'dental', 'medical', 'hospital', 'doctor', 'clinic', 'optometr']],
-  ['entertainment', 'out', ['amc ', 'regal', 'ticketmaster', 'steam', 'playstation', 'xbox', 'nintendo', 'stubhub', 'cinema', 'theater', 'theatre']],
+  ['entertainment', 'out', ['amc ', 'regal', 'ticketmaster', 'steam', 'playstation', 'xbox', 'nintendo', 'stubhub', 'cinema', 'theater', 'theatre', 'concert', 'tickets', 'tix', 'movie']],
   ['housing', 'out', ['rent ', 'rent payment', 'mortgage', 'property mgmt', 'apartments']],
   ['home', 'out', ['home depot', "lowe's", 'lowes', 'ikea', 'wayfair', 'ace hardware', 'bed bath', 'true value', 'menards', 'harbor freight', 'garden', 'nursery']],
   ['electronics', 'out', ['best buy', 'apple store', 'b&h photo', 'micro center', 'newegg', 'apple.com/us']],
@@ -134,7 +135,7 @@ export function payeeHistory(txns: Transaction[]): PayeeHistory {
 }
 
 export function categorize(
-  input: { description: string; payee: string; amount: number; bankCategory?: string; creditAccount?: boolean },
+  input: { description: string; payee: string; amount: number; bankCategory?: string; creditAccount?: boolean; appPayment?: boolean },
   rules: Rule[],
   history: PayeeHistory = new Map(),
 ): Categorized {
@@ -146,6 +147,8 @@ export function categorize(
   // broad category, then a fallback.
   const fromBank = categoryFromBank(input.bankCategory);
   if (fromBank === CARD_PAYMENT || fromBank === 'income') return { payee, categoryId: fromBank, source: 'bank' };
+  // Moving money between your bank and Venmo / Cash App / Apple Cash.
+  if (isAppTransferLine(input.description)) return { payee, categoryId: TRANSFER, source: 'keyword' };
   const known = history.get(payeeKey(payee));
   if (known) return { payee, categoryId: known, source: 'history' };
   const fromKeywords = keywordCategory(input.description, input.amount);
@@ -153,7 +156,8 @@ export function categorize(
   if (fromBank) return { payee, categoryId: fromBank, source: 'bank' };
   // Unknown money coming in: on a checking account it's most likely income, but on a credit card
   // it's a refund or credit, which is never income.
-  const fallback = input.amount > 0 && !input.creditAccount ? 'income' : UNCATEGORIZED;
+  // Money from a friend through an app isn't income either (usually it's paying you back).
+  const fallback = input.amount > 0 && !input.creditAccount && !input.appPayment && !bankLineApp(input.description) ? 'income' : UNCATEGORIZED;
   return { payee, categoryId: fallback, source: 'default' };
 }
 

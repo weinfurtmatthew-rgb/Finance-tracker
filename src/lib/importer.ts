@@ -2,6 +2,8 @@ import type { Account, CategorySource, Rule, Transaction, TransactionSource } fr
 import type { DraftTransaction } from './draft';
 import { categorize, type PayeeHistory } from './categorize';
 import { cleanPayee } from './payee';
+import { APP_NAMES, appFallback, personFromBankLine } from './p2p';
+import { UNCATEGORIZED } from './categories';
 
 export interface PreparedTransaction {
   draft: DraftTransaction;
@@ -47,11 +49,20 @@ export function prepareImport(
 ): PreparedTransaction[] {
   const ids = importIds(accountId, drafts);
   return drafts.map((draft, i) => {
-    const { payee, categoryId, source } = categorize(
-      { description: draft.description, payee: cleanPayee(draft.description), amount: draft.amount, bankCategory: draft.bankCategory, creditAccount: opts.creditAccount },
+    const p = draft.p2p;
+    const guessPayee = p ? (p.kind === 'transfer' ? `${APP_NAMES[p.app]} transfer` : p.person || APP_NAMES[p.app]) : (personFromBankLine(draft.description) ?? cleanPayee(draft.description));
+    let { payee, categoryId, source } = categorize(
+      { description: draft.description, payee: guessPayee, amount: draft.amount, bankCategory: draft.bankCategory, creditAccount: opts.creditAccount, appPayment: !!p },
       rules,
       opts.history,
     );
+    // App transactions: transfers and rewards are clear from the app; otherwise an emoji in the note
+    // ("🍕") is a better guess than nothing.
+    if (p && (source === 'default' || p.kind === 'transfer' || p.kind === 'reward') && source !== 'rule') {
+      const app = appFallback(p, draft.amount);
+      if (app) ({ categoryId, source } = app);
+      else if (categoryId !== UNCATEGORIZED && source === 'default') categoryId = UNCATEGORIZED;
+    }
     return { draft, importId: ids[i], duplicate: existingImportIds.has(ids[i]), payee, categoryId, categorySource: source };
   });
 }
@@ -74,9 +85,10 @@ export function toTransactions(
       payee: p.payee,
       categoryId: p.categoryId,
       categorySource: p.categorySource,
-      notes: '',
+      notes: p.draft.p2p?.note ?? '',
       source,
       importId: p.importId,
+      ...(p.draft.p2p ? { p2p: { app: p.draft.p2p.app, person: p.draft.p2p.person, note: p.draft.p2p.note, kind: p.draft.p2p.kind, fundedFrom: p.draft.p2p.fundedFrom } } : {}),
       createdAt: now,
     }));
 }

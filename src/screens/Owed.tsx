@@ -10,7 +10,7 @@ import { Empty, Row, Section, Sheet } from '../components/ui';
 import { TransactionEditor } from './TransactionEditor';
 
 /** Record that `items` were paid back, by a transaction in the app or outside it ('untracked'). */
-async function settle(items: OwedItem[], by: string | null) {
+export async function settle(items: OwedItem[], by: string | null) {
   await db.transaction('rw', db.transactions, async () => {
     for (const i of items) {
       const t = (await db.transactions.get(i.txn.id))!;

@@ -1,0 +1,12 @@
+Account Statement - (@sam-rivera) - September 1st to September 28th 2026 ,,,,,,,,,,,,,,,,,,,,,
+Account Activity,,,,,,,,,,,,,,,,,,,,,
+,ID,Datetime,Type,Status,Note,From,To,Amount (total),Amount (tip),Amount (tax),Amount (fee),Tax Rate,Tax Exempt,Funding Source,Destination,Beginning Balance,Ending Balance,Statement Period Venmo Fees,Terminal Location,Year to Date Venmo Fees,Disclaimer
+,,,,,,,,,,,,,,,,$50.00,,,,,
+,4101,2026-09-06T18:02:11,Payment,Complete,🍕 pizza night,Sam Rivera,Alex Smith,- $24.00,,0,,0,,CITIZENS BANK *4821,,,,,Venmo,,
+,4102,2026-09-08T12:30:00,Payment,Complete,Concert tix,Jordan Lee,Sam Rivera,+ $45.00,,0,,0,,,Venmo balance,,,,Venmo,,
+,4103,2026-09-12T20:15:40,Charge,Complete,🏠 September utilities,Sam Rivera,Casey Park,+ $62.50,,0,,0,,,Venmo balance,,,,Venmo,,
+,4104,2026-09-14T09:00:00,Payment,Complete,🍻,Sam Rivera,Alex Smith,- $18.00,,0,,0,,Venmo balance,,,,,Venmo,,
+,4105,2026-09-18T15:45:00,Standard Transfer,Issued,,,,- $100.00,,0,,0,,,CITIZENS BANK *4821,,,,Venmo,,
+,4106,2026-09-20T10:10:10,Payment,Canceled,oops,Sam Rivera,Riley Chen,- $5.00,,0,,0,,Venmo balance,,,,,Venmo,,
+,4107,2026-09-24T19:00:00,Payment,Complete,thanks for dinner,Taylor Brooks,Sam Rivera,+ $31.00,,0,,0,,,Venmo balance,,,,Venmo,,
+,,,,,,,,,,,,,,,,,$70.50,$0.00,,$0.00,Please see your Venmo account agreement

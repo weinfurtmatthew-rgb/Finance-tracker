@@ -2161,3 +2161,42 @@ button.hero-card {
 .recap-teaser .card-label,
 .recap-teaser .card-sub { color: rgba(255, 255, 255, 0.85); }
 .recap-teaser-main { font-size: 20px; }
+
+/* Payment apps & people */
+.row-actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+.payback-row .row-main,
+.what-row .row-main {
+  min-width: 0;
+}
+.what-row button.row-main {
+  text-align: left;
+}
+.what-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.what-actions select {
+  max-width: 150px;
+  font-size: 14px;
+  color: var(--tint);
+  background: none;
+  text-align: right;
+}
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  background: var(--fill);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+}
