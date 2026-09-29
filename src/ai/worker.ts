@@ -1,9 +1,9 @@
 /// <reference lib="webworker" />
 /**
- * Runs the on-device models off the main thread. Everything is loaded from this site's /models/ and
- * /ort/ folders; remote model downloads are disabled.
+ * Runs the on-device embedding model off the main thread. Everything is loaded from this site's
+ * /models/ and /ort/ folders; remote model downloads are disabled.
  */
-import { env, pipeline, type FeatureExtractionPipeline, type TextGenerationPipeline } from '@huggingface/transformers';
+import { env, pipeline, type FeatureExtractionPipeline } from '@huggingface/transformers';
 import { MODELS } from './models';
 
 const base = new URL(import.meta.env.BASE_URL, self.location.origin).href;
@@ -18,7 +18,6 @@ wasm.wasmPaths = { mjs: `${base}ort/ort-wasm-simd-threaded.asyncify.mjs`, wasm: 
 wasm.numThreads = 1; // threads need cross-origin isolation, which GitHub Pages can't enable
 
 let embedder: FeatureExtractionPipeline | null = null;
-let generator: TextGenerationPipeline | null = null;
 
 const files = new Map<string, { loaded: number; total: number }>();
 function onProgress(p: { status: string; file?: string; name?: string; loaded?: number; total?: number }) {
@@ -42,37 +41,17 @@ async function loadEmbed() {
   embedder = p;
 }
 
-async function loadLlm(): Promise<{ llm: boolean; llmError?: string }> {
-  if (generator) return { llm: true };
-  files.clear();
-  const gpu = (self.navigator as Navigator & { gpu?: { requestAdapter(): Promise<unknown> } }).gpu;
-  if (!gpu || !(await gpu.requestAdapter().catch(() => null))) return { llm: false, llmError: 'WebGPU is not available in this browser.' };
-  try {
-    const g = (await pipeline('text-generation', MODELS.llm.id, { dtype: MODELS.llm.dtype, device: 'webgpu', progress_callback: onProgress })) as TextGenerationPipeline;
-    if (!g.tokenizer) throw new Error('The language model loaded without its tokenizer.');
-    generator = g;
-    return { llm: true };
-  } catch (e) {
-    return { llm: false, llmError: e instanceof Error ? e.message : String(e) };
-  }
-}
-
 self.onmessage = async (e: MessageEvent<{ id: number; type: string; payload?: any }>) => {
   const { id, type, payload } = e.data;
   try {
     let result: unknown;
     if (type === 'load') result = await loadEmbed();
-    else if (type === 'loadLlm') result = await loadLlm();
     else if (type === 'embed') {
       if (!embedder) throw new Error('Embedding model not loaded');
       const out = await embedder(payload.texts, { pooling: 'mean', normalize: true });
       const dims = out.dims[1];
       const data = out.data as Float32Array;
       result = payload.texts.map((_: string, i: number) => data.slice(i * dims, (i + 1) * dims));
-    } else if (type === 'chat') {
-      if (!generator) throw new Error('Language model not loaded');
-      const out = (await generator(payload.messages, { max_new_tokens: payload.maxTokens ?? 160, do_sample: false })) as Array<{ generated_text: Array<{ content: string }> }>;
-      result = out[0].generated_text.at(-1)?.content ?? '';
     } else throw new Error(`Unknown request: ${type}`);
     self.postMessage({ id, result });
   } catch (err) {

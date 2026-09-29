@@ -1,14 +1,12 @@
 /**
- * Checks the real on-device models (not run by default; CI runs it with AI_SMOKE=1 after
+ * Checks the real on-device model (not run by default; CI runs it with AI_SMOKE=1 after
  * scripts/fetch-models.mjs has downloaded them into .models-cache).
  */
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CATEGORIES } from '../src/lib/categories';
 import { CATEGORY_SEEDS, nearestCategory, trainingExamples } from '../src/ai/similar';
-import { understand, type AskContext, type ChatMessage } from '../src/ai/ask';
-import { factSentences, numbersAreFaithful, summaryMessages } from '../src/ai/summary';
-import { explainMessages, parseExplain } from '../src/ai/explain';
+import { understand, type AskContext } from '../src/ai/ask';
 import { MODELS } from '../src/ai/models';
 
 const run = process.env.AI_SMOKE === '1';
@@ -86,27 +84,4 @@ describe.runIf(run)('real on-device models', () => {
     expect(ok).toBeGreaterThanOrEqual(6);
   }, 300_000);
 
-  it('language model: explain and recap (reported)', async () => {
-    const { pipeline } = await transformers();
-    let generator;
-    try {
-      generator = await pipeline('text-generation', MODELS.llm.id, { dtype: MODELS.llm.dtype });
-    } catch (e) {
-      console.warn(`Language model could not run on this CPU runner: ${e instanceof Error ? e.message : e}`);
-      return;
-    }
-    const gen = async (messages: ChatMessage[], n: number) => {
-      const out = (await generator(messages, { max_new_tokens: n, do_sample: false })) as Array<{ generated_text: Array<{ content: string }> }>;
-      return out[0].generated_text.at(-1)?.content ?? '';
-    };
-    const explained = parseExplain(await gen(explainMessages('TST* BLUE DOOR CAFE 0442 BOSTON MA'), 40));
-    console.log('explain:', explained);
-    const facts = factSentences({
-      month: '2026-09', label: 'September 2026', current: true, spent: 227100, previous: 250000,
-      topCategory: { name: 'Rent & Mortgage', amount: 165000 }, over: ['Dining'], near: [], income: 0, priceIncreases: ['Netflix'], netWorthChange: 272900,
-    });
-    const recap = await gen(summaryMessages(facts), 120);
-    console.log('recap:', recap, '| faithful:', numbersAreFaithful(recap, facts));
-    expect(explained?.name).toBeTruthy();
-  }, 900_000);
 });
