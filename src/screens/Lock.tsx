@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
 import { checkPasscode, createPasscode, type PasscodeRecord } from '../lib/lock';
 import { ActionSheet } from '../components/ui';
 
@@ -12,7 +12,8 @@ function Keypad(props: { title: string; subtitle?: string; error?: string; onCom
       setCode('');
     }
   }, [code]);
-  useEffect(() => {
+  // Listen before the keypad is drawn, so digits typed the moment it appears aren't lost.
+  useLayoutEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (/^\d$/.test(e.key)) setCode((c) => (c.length < LENGTH ? c + e.key : c));
       else if (e.key === 'Backspace') setCode((c) => c.slice(0, -1));

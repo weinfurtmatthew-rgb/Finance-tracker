@@ -52,6 +52,16 @@ skips transactions you already have.
 - **Tidy up old categories** (Settings → Organize): a one-time review of older guessed categories, with confident AI
   picks filled in.
 
+### Year in review
+
+A Spotify Wrapped–style recap of your money, as tap-through story cards and as a scrolling page with charts. It's
+always on the Overview ("2026 so far") and in Plan, for this year, the last 12 months or any past year, and it opens by
+itself once in December (and in early January for the year just ended). Cards appear only when your data supports
+them: totals and savings rate, top categories and places, your #1 spot, biggest purchase and priciest/lightest
+months, no-spend days and streaks, your busiest weekday, subscriptions (new, cancelled and what that saved), net
+worth, goals reached, debt paid down and fees, vs the year before, trips (tags), months within budget, paychecks and
+any raise, and a playful spending style. **Save as Image** draws a summary on your phone for you to share.
+
 ### Plan: financial calculators
 
 Tap the calculator button on the Overview. Every calculator starts from your own numbers (cash, 3-month average

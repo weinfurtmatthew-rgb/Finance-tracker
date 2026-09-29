@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { useAccounts, useBook, useMeta, useTransactions } from '../hooks';
 import { changeSince, netWorthOn, staleValued } from '../lib/networth';
 import { UpdateValues } from './UpdateValues';
@@ -29,9 +29,16 @@ import { SuggestCategories } from './SuggestCategories';
 import { ReviewAiPicks } from './ReviewAiPicks';
 import { TidyUp, useOldGuesses } from './TidyUp';
 import { OwedSheet } from './Owed';
+import { RecapPage, RecapStories, RecapTeaser } from './Recap';
+import { autoRecapYear, yearPeriod } from '../lib/recap';
+import { db, setMeta } from '../db';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { owedByPerson, owedItems } from '../lib/lines';
 import { SummaryCard } from '../components/SummaryCard';
 import { useAi } from '../ai/client';
+
+/** The automatic year in review is only considered once per app launch. */
+let recapCheckedThisLaunch = false;
 
 const isStandalone = () =>
   window.matchMedia?.('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
@@ -73,6 +80,22 @@ export function Home() {
   const oldGuesses = useOldGuesses()?.length ?? 0;
   const tidyDone = useMeta<number>('tidyUpDone');
   const owed = useMemo(() => owedByPerson(owedItems(txns)), [txns]);
+  // The year in review opens by itself once: in December (this year) or early January (last year),
+  // when the app starts (never in the middle of something, like an import).
+  const recapYear = autoRecapYear(today);
+  const recapCheck = useLiveQuery(async () => {
+    if (recapYear == null) return null;
+    const shown = (await db.meta.get('recapShownFor'))?.value;
+    const count = await db.transactions.where('date').between(`${recapYear}-01-01`, `${recapYear}-12-31`, true, true).count();
+    return { due: shown !== recapYear && count >= 30 };
+  }, [recapYear]);
+  useEffect(() => {
+    if (recapCheck === undefined || recapCheckedThisLaunch) return;
+    recapCheckedThisLaunch = true;
+    if (!recapCheck?.due) return;
+    void setMeta('recapShownFor', recapYear);
+    nav.present((close) => <RecapStories period={yearPeriod(recapYear!, today)} onClose={close} />);
+  }, [recapCheck]);
   const owedTotal = owed.reduce((sum, p) => sum + p.total, 0);
   const backupDue = txns.length > 0 && (!lastBackup || Date.now() - lastBackup > 14 * 86_400_000);
   const [y, mo] = month.split('-').map(Number);
@@ -189,6 +212,8 @@ export function Home() {
           </div>
 
           {txns.length > 0 && <SummaryCard month={month} />}
+
+          {isCurrent && <RecapTeaser onOpen={() => nav.present((close) => <RecapPage onClose={close} />)} />}
 
           {isCurrent && rec.alerts.map((a) => <AlertCard key={a.key} alert={a} />)}
 

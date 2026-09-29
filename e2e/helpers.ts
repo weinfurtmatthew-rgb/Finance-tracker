@@ -27,7 +27,7 @@ function installAiMock() {
   (window as unknown as { __financeAiMock: unknown }).__financeAiMock = { embed: async (texts: string[]) => texts.map(vec) };
 }
 
-type Options = { withAi: boolean };
+type Options = { withAi: boolean; today: Date };
 
 /**
  * Every test starts on a fresh, empty app at a fixed date, and fails if the page throws or logs an
@@ -35,11 +35,12 @@ type Options = { withAi: boolean };
  */
 export const test = base.extend<Options & { app: App }>({
   withAi: [false, { option: true }],
-  app: async ({ page, withAi }, use) => {
+  today: [TODAY, { option: true }],
+  app: async ({ page, withAi, today }, use) => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(String(e)));
     page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
-    await page.clock.setFixedTime(TODAY);
+    await page.clock.setFixedTime(today);
     if (withAi) await page.addInitScript(installAiMock);
     await page.goto('./');
     await expect(page.getByText('Welcome')).toBeVisible();
