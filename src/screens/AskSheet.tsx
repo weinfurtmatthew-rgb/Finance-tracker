@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'preact/hooks';
 import { allTags } from '../lib/lines';
 import { people } from '../lib/p2p';
+import { usePlanData } from '../planModel';
 import { byId, useBook, useCategories, useTransactions } from '../hooks';
 import { useNav } from '../nav';
 import { useRecurringModel } from '../recurringModel';
@@ -37,6 +38,7 @@ export function AskSheet(props: { onClose: () => void }) {
   const today = rec.today;
   const merchants = useMemo(() => [...new Set(txns.map((t) => t.payee).filter(Boolean))], [txns]);
   const tags = useMemo(() => allTags(txns).map((x) => x.tag), [txns]);
+  const plan = usePlanData();
   const peopleNames = useMemo(() => [...people(txns).map((p) => p.name)], [txns]);
 
   const ask = async (question: string) => {
@@ -65,6 +67,7 @@ export function AskSheet(props: { onClose: () => void }) {
       turn = {
         question: q,
         answer: answer(query, {
+          rent: plan ? { takeHome: plan.monthlyIncome, otherCosts: Math.max(0, plan.monthlySpending - plan.monthlyHousing) } : undefined,
           txns,
           categories: cats,
           recurring: rec.statuses,
