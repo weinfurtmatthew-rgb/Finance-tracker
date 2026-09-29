@@ -10,6 +10,7 @@ import { DebtCalc } from './Debt';
 import { TrueCostCalc } from './TrueCost';
 import { RetireCalc } from './Retire';
 import { GrowthCalc } from './Growth';
+import { RecapPage } from '../Recap';
 
 /** The calculators, each starting from your real numbers. */
 export function Plan(props: { onClose: () => void }) {
@@ -108,6 +109,7 @@ export function Plan(props: { onClose: () => void }) {
           subtitle="Test a retirement budget in 1,000 markets"
           onClick={() => open((close) => <RetireCalc mode="last" data={d} onClose={close} />)}
         />
+        <Row icon="🎬" title="Year in review" subtitle="Your year so far, Wrapped-style" onClick={() => open((close) => <RecapPage onClose={close} />)} />
       </Section>
     </Sheet>
   );

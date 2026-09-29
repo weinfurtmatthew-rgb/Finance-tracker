@@ -1995,3 +1995,169 @@ button.hero-card {
   flex: none;
   accent-color: var(--tint);
 }
+
+/* Year in review */
+.theme-blue { --g1: #1d4ed8; --g2: #6d28d9; }
+.theme-orange { --g1: #c2410c; --g2: #b91c1c; }
+.theme-green { --g1: #047857; --g2: #0f766e; }
+.theme-purple { --g1: #6d28d9; --g2: #a21caf; }
+.theme-pink { --g1: #be185d; --g2: #9f1239; }
+.theme-teal { --g1: #0e7490; --g2: #1d4ed8; }
+.theme-indigo { --g1: #3730a3; --g2: #1e3a8a; }
+.theme-gold { --g1: #a16207; --g2: #c2410c; }
+.story {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: linear-gradient(160deg, var(--g1), var(--g2));
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: calc(var(--safe-top) + 56px) 28px calc(var(--safe-bottom) + 72px);
+  transition: background 0.3s;
+}
+.story-progress {
+  position: absolute;
+  top: calc(var(--safe-top) + 12px);
+  left: 12px;
+  right: 12px;
+  display: flex;
+  gap: 4px;
+}
+.story-progress span {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.3);
+}
+.story-progress span.done,
+.story-progress span.now {
+  background: #fff;
+}
+.story-close {
+  position: absolute;
+  top: calc(var(--safe-top) + 24px);
+  right: 14px;
+  z-index: 3;
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  color: #fff;
+  font-size: 18px;
+  background: rgba(0, 0, 0, 0.2);
+}
+.story-tap {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  background: transparent;
+}
+.story-tap.left { left: 0; width: 30%; }
+.story-tap.right { right: 0; width: 70%; }
+.story-card {
+  animation: story-in 0.35s ease-out;
+}
+@keyframes story-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .story-card { animation: none; }
+}
+.story-emoji { font-size: 56px; line-height: 1; margin-bottom: 18px; }
+.story-kicker {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+}
+.story-big {
+  margin: 6px 0 0;
+  font-size: 44px;
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.5px;
+  overflow-wrap: anywhere;
+}
+.story-sub { margin: 12px 0 0; font-size: 19px; line-height: 1.35; opacity: 0.92; }
+.story-lines {
+  list-style: none;
+  margin: 22px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 17px;
+  line-height: 1.35;
+}
+.story-lines li {
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.14);
+}
+.story-actions {
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  bottom: calc(var(--safe-bottom) + 64px);
+  z-index: 2;
+}
+.story-button {
+  width: 100%;
+  padding: 14px;
+  border-radius: 14px;
+  background: #fff;
+  color: #111;
+  font-size: 17px;
+  font-weight: 700;
+}
+.story-count {
+  position: absolute;
+  bottom: calc(var(--safe-bottom) + 20px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
+  opacity: 0.7;
+}
+.recap-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+.recap-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: var(--radius);
+  color: #fff;
+  background: linear-gradient(150deg, var(--g1), var(--g2));
+}
+.recap-kicker { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.85; }
+.recap-big { font-size: 28px; font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
+.recap-sub { font-size: 15px; opacity: 0.92; }
+.recap-line { font-size: 14px; opacity: 0.92; }
+.recap-teaser {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  color: #fff;
+  background: linear-gradient(135deg, #1d4ed8, #6d28d9);
+}
+.recap-teaser .card-label,
+.recap-teaser .card-sub { color: rgba(255, 255, 255, 0.85); }
+.recap-teaser-main { font-size: 20px; }
