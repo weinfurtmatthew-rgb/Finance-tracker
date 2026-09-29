@@ -24,6 +24,7 @@ import { RecurringReview } from './RecurringReview';
 import { BudgetsEditor } from './BudgetsEditor';
 import { CategoryDetail } from './CategoryDetail';
 import { AskSheet } from './AskSheet';
+import { Plan } from './plan/Plan';
 import { SuggestCategories } from './SuggestCategories';
 import { SummaryCard } from '../components/SummaryCard';
 import { useAi } from '../ai/client';
@@ -90,6 +91,9 @@ export function Home() {
           <div class="header-actions">
             <button type="button" class="icon-button" aria-label="Ask a question" onClick={() => nav.present((close) => <AskSheet onClose={close} />)}>
               {Icons.sparkle()}
+            </button>
+            <button type="button" class="icon-button" aria-label="Plan: financial calculators" onClick={() => nav.present((close) => <Plan onClose={close} />)}>
+              {Icons.calculator()}
             </button>
             <button type="button" class="icon-button" aria-label="Import a file" onClick={importFile}>
               {Icons.import()}

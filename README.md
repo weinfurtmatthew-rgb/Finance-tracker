@@ -30,6 +30,24 @@ skips transactions you already have.
 
 ## Features
 
+### Plan: financial calculators
+
+Tap the calculator button on the Overview. Every calculator starts from your own numbers (cash, 3-month average
+spending and income, investments, card and loan balances, savings APY) and says where each came from; change any of
+them to try a what-if. Results are estimates, not advice.
+
+- **Emergency fund:** how many months your cash covers, progress toward a 3–6 month target, and when you'll get there
+- **Can I afford it?:** pay in full or finance; cash and cushion afterwards, the monthly payment and interest, a
+  comfortable / tight / stretch verdict with reasons, and what the money could grow to if invested instead
+- **Debt payoff:** avalanche (highest APR first) vs snowball (smallest balance first) with extra payments, payoff
+  dates, total interest and a chart. Set each card's APR and minimum on the account; otherwise typical values are used
+- **True cost of a habit:** pick a subscription or a place you go often; what it costs over 1–30 years vs investing it
+- **Savings growth:** your savings at your APY (typed on the account, or estimated from the interest you received)
+- **Investment growth:** a start plus monthly contributions at 7% a year, also shown in today's dollars (3% inflation),
+  with the Rule of 72
+- **Financial independence:** your FI number (yearly spending ÷ 4%) and years to reach it at your savings rate
+- **Will my money last?:** a Monte Carlo test of a retirement budget in 1,000 random markets
+
 ### On-device AI (Phase 5, optional)
 
 Turned on in **Settings → On-device AI**: a one-time 24 MB download from this app's own site, then it works offline.
