@@ -3,7 +3,7 @@
  * Nothing loads until you turn AI on in Settings.
  */
 import { useEffect, useState } from 'preact/hooks';
-import { getMeta, setMeta } from '../db';
+import { deleteMeta, getMeta, setMeta } from '../db';
 import type { ChatMessage } from './ask';
 import { MODELS, type ModelManifest } from './models';
 
@@ -16,6 +16,8 @@ export interface AiState {
   llmSizeBytes?: number;
   /** The optional language model has been added (it may still be loading). */
   llmWanted: boolean;
+  /** The language model is downloading / loading right now. */
+  llmLoading?: boolean;
   progress?: { loaded: number; total: number };
   embed: boolean;
   llm: boolean;
@@ -80,29 +82,73 @@ function call<T>(type: string, payload?: unknown): Promise<T> {
 }
 
 let started = false;
+
+/** Set just before the language model starts loading and cleared once it has finished (either way). */
+const LLM_LOADING = 'aiLlmLoadingSince';
+
+const CRASH_MESSAGE =
+  'The language model made the app close while loading. It needs more memory than Safari allows on this iPhone, so it has been turned off and its files deleted. Everything else still works.';
+
+async function deleteLlmFiles() {
+  for (const name of (await caches?.keys?.()) ?? []) {
+    const cache = await caches.open(name);
+    for (const req of await cache.keys()) if (req.url.includes(MODELS.llm.id)) await cache.delete(req);
+  }
+}
+
 /** Called once at startup: finds out whether the models are hosted, and reloads them if AI is on. */
 export async function initAi() {
   if (started) return;
   started = true;
   if (mock()) return set({ phase: 'ready', embed: true, llm: true, llmWanted: true, sizeBytes: 0 });
+  // If the app died while loading the language model last time, don't try again (that would crash
+  // again on every launch).
+  let crashed = false;
+  if (await getMeta<number>(LLM_LOADING)) {
+    crashed = true;
+    await deleteMeta(LLM_LOADING);
+    await setMeta('aiLlmEnabled', false);
+    await deleteLlmFiles().catch(() => {});
+  }
   manifest = await fetch(`${import.meta.env.BASE_URL}models/manifest.json`, { cache: 'no-cache' })
     .then((r) => (r.ok ? r.json() : null))
     .catch(() => null);
   if (!manifest) return set({ phase: 'unavailable' });
-  set({ sizeBytes: manifest.models.embed.bytes, llmSizeBytes: manifest.models.llm.bytes, llmWanted: !!(await getMeta<boolean>('aiLlmEnabled')) });
+  set({
+    sizeBytes: manifest.models.embed.bytes,
+    llmSizeBytes: manifest.models.llm.bytes,
+    llmWanted: !!(await getMeta<boolean>('aiLlmEnabled')),
+    llmError: crashed ? CRASH_MESSAGE : undefined,
+  });
   if (await getMeta<boolean>('aiEnabled')) void load();
   else set({ phase: 'off' });
 }
 
 async function load() {
-  set({ phase: 'downloading', error: undefined, progress: undefined, llmError: undefined });
+  set({ phase: 'downloading', error: undefined, progress: undefined });
   try {
     await navigator.storage?.persist?.().catch(() => false);
-    const r = await call<{ embed: boolean; llm: boolean; llmError?: string }>('load', { llm: state.llmWanted });
-    set({ phase: 'ready', embed: r.embed, llm: r.llm, llmError: r.llmError });
+    // The small model first, so categorizing and questions work even if the big one can't load.
+    await call('load');
+    set({ phase: 'ready', embed: true, progress: undefined });
   } catch (e) {
     const detail = e instanceof Error ? e.message : String(e);
-    set({ phase: 'error', error: `The AI files couldn't be loaded. Check your connection and try again. (${detail.slice(0, 120)})` });
+    return set({ phase: 'error', error: `The AI files couldn't be loaded. Check your connection and try again. (${detail.slice(0, 120)})` });
+  }
+  if (state.llmWanted) await loadLlm();
+}
+
+async function loadLlm() {
+  set({ llmLoading: true, llmError: undefined, progress: undefined });
+  await setMeta(LLM_LOADING, Date.now());
+  try {
+    const r = await call<{ llm: boolean; llmError?: string }>('loadLlm');
+    set({ llm: r.llm, llmError: r.llmError });
+  } catch (e) {
+    set({ llm: false, llmError: e instanceof Error ? e.message : String(e) });
+  } finally {
+    await deleteMeta(LLM_LOADING);
+    set({ llmLoading: false, progress: undefined });
   }
 }
 
@@ -115,8 +161,8 @@ export async function enableAi() {
 /** Add the optional language model (a separate, much larger download). */
 export async function enableLlm() {
   await setMeta('aiLlmEnabled', true);
-  set({ llmWanted: true });
-  await load();
+  set({ llmWanted: true, llmError: undefined });
+  await loadLlm();
 }
 
 /** Remove just the language model's files; the core AI keeps working. */
@@ -125,11 +171,8 @@ export async function removeLlm() {
   worker?.terminate();
   worker = null;
   pending.clear();
-  for (const name of (await caches?.keys?.()) ?? []) {
-    const cache = await caches.open(name);
-    for (const req of await cache.keys()) if (req.url.includes(MODELS.llm.id)) await cache.delete(req);
-  }
-  set({ llmWanted: false, llm: false });
+  await deleteLlmFiles();
+  set({ llmWanted: false, llm: false, llmError: undefined });
   await load();
 }
 

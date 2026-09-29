@@ -35,10 +35,25 @@ export function AiSettings() {
       {ai.phase === 'ready' && (
         <>
           <Row title="Categorizing & questions" subtitle="Suggests categories; understands questions in your own words" detail={ai.embed ? 'On ✓' : 'Off'} chevron={false} />
-          {!ai.llmWanted ? (
+          {ai.llmLoading ? (
+            <div class="row">
+              <span class="row-main">
+                <span class="row-title">{ai.progress && ai.progress.loaded < ai.progress.total ? 'Downloading language model…' : 'Loading language model into memory…'}</span>
+                <span class="goal-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={ai.progress?.total ? Math.round((ai.progress.loaded / ai.progress.total) * 100) : 0}>
+                  <span class="goal-fill" style={{ width: `${ai.progress?.total ? (ai.progress.loaded / ai.progress.total) * 100 : 2}%` }} />
+                </span>
+                <span class="row-subtitle">
+                  {ai.progress?.total ? `${mb(ai.progress.loaded)} of ${mb(ai.progress.total)}` : 'Starting…'}. If the app closes during this step, the model is turned off automatically next time you open it.
+                </span>
+              </span>
+            </div>
+          ) : !ai.llmWanted ? (
             <Row
-              title="Add Language Model (optional)"
-              subtitle="Adds an AI guess of the business to “What is this?” and tries to reword monthly recaps. Large download; Wi-Fi recommended."
+              title="Add Language Model (experimental)"
+              subtitle={
+                ai.llmError ??
+                'Adds an AI guess of the business to “What is this?” and tries to reword monthly recaps. Large download, and it may need more memory than Safari allows on some iPhones.'
+              }
               detail={mb(ai.llmSizeBytes)}
               onClick={() => void enableLlm()}
             />
