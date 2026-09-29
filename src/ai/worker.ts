@@ -9,7 +9,9 @@ import { MODELS } from './models';
 const base = new URL(import.meta.env.BASE_URL, self.location.origin).href;
 env.allowRemoteModels = false;
 env.allowLocalModels = true;
-env.localModelPath = `${base}models/`;
+// A site path, not a full URL: Transformers.js only looks for optional files (like the tokenizer)
+// in "local" paths, and treats full http(s) URLs as remote, which are disabled here.
+env.localModelPath = `${import.meta.env.BASE_URL}models/`;
 env.useBrowserCache = true;
 const wasm = env.backends.onnx.wasm!;
 wasm.wasmPaths = { mjs: `${base}ort/ort-wasm-simd-threaded.asyncify.mjs`, wasm: `${base}ort/ort-wasm-simd-threaded.asyncify.wasm` };
@@ -34,14 +36,20 @@ function onProgress(p: { status: string; file?: string; name?: string; loaded?: 
 }
 
 async function load(wantLlm: boolean) {
-  embedder ??= (await pipeline('feature-extraction', MODELS.embed.id, { dtype: MODELS.embed.dtype, device: 'wasm', progress_callback: onProgress })) as FeatureExtractionPipeline;
+  if (!embedder) {
+    const p = (await pipeline('feature-extraction', MODELS.embed.id, { dtype: MODELS.embed.dtype, device: 'wasm', progress_callback: onProgress })) as FeatureExtractionPipeline;
+    if (!p.tokenizer) throw new Error('The embedding model loaded without its tokenizer.');
+    embedder = p;
+  }
   let llmError: string | undefined;
   if (wantLlm && !generator) {
     const gpu = (self.navigator as Navigator & { gpu?: { requestAdapter(): Promise<unknown> } }).gpu;
     if (!gpu || !(await gpu.requestAdapter().catch(() => null))) llmError = 'WebGPU is not available in this browser.';
     else {
       try {
-        generator = (await pipeline('text-generation', MODELS.llm.id, { dtype: MODELS.llm.dtype, device: 'webgpu', progress_callback: onProgress })) as TextGenerationPipeline;
+        const g = (await pipeline('text-generation', MODELS.llm.id, { dtype: MODELS.llm.dtype, device: 'webgpu', progress_callback: onProgress })) as TextGenerationPipeline;
+        if (!g.tokenizer) throw new Error('The language model loaded without its tokenizer.');
+        generator = g;
       } catch (e) {
         llmError = e instanceof Error ? e.message : String(e);
       }
