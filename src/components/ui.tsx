@@ -2,6 +2,7 @@ import type { ComponentChildren, JSX } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import type { Category, Cents } from '../types';
 import { formatMoney } from '../lib/money';
+import { useNav } from '../nav';
 
 export function Sheet(props: {
   title: string;
@@ -154,23 +155,46 @@ export function Toggle(props: { checked: boolean; onChange: (v: boolean) => void
   );
 }
 
+const NEW_CATEGORY = '__new_category__';
+
+/**
+ * Category picker grouped by kind. Hidden categories are left out (unless already chosen), and
+ * "New Category…" creates one on the spot and selects it.
+ */
 export function CategorySelect(props: {
   categories: Category[];
   value: string;
   onChange: (id: string) => void;
+  /** Offer "New Category…" (on by default). */
+  allowNew?: boolean;
 } & Omit<JSX.HTMLAttributes<HTMLSelectElement>, 'value' | 'onChange'>) {
-  const { categories, value, onChange, ...rest } = props;
+  const { categories, value, onChange, allowNew = true, ...rest } = props;
+  const nav = useNav();
   const groups: [string, Category['group']][] = [
     ['Spending', 'expense'],
     ['Income', 'income'],
     ['Transfers', 'transfer'],
   ];
+  const create = () =>
+    void import('../screens/Categories').then(({ CategoryEditor }) =>
+      nav.present((close) => <CategoryEditor onClose={close} onCreated={(id) => onChange(id)} />),
+    );
   return (
-    <select {...rest} value={value} onChange={(e) => onChange((e.target as HTMLSelectElement).value)}>
+    <select
+      {...rest}
+      value={value}
+      onChange={(e) => {
+        const el = e.target as HTMLSelectElement;
+        if (el.value === NEW_CATEGORY) {
+          el.value = value;
+          create();
+        } else onChange(el.value);
+      }}
+    >
       {groups.map(([label, group]) => (
         <optgroup label={label}>
           {categories
-            .filter((c) => c.group === group)
+            .filter((c) => c.group === group && (!c.hidden || c.id === value))
             .map((c) => (
               <option value={c.id}>
                 {c.emoji} {c.name}
@@ -178,6 +202,7 @@ export function CategorySelect(props: {
             ))}
         </optgroup>
       ))}
+      {allowNew && nav && <option value={NEW_CATEGORY}>＋ New Category…</option>}
     </select>
   );
 }

@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import type { Account, Budget, Category, CsvMapping, Goal, MetaEntry, Recurring, Rule, Transaction, Valuation } from './types';
-import { CARD_PAYMENT, DEFAULT_CATEGORIES, TRANSFER } from './lib/categories';
+import { ADDED_IN_V6, CARD_PAYMENT, DEFAULT_CATEGORIES, TRANSFER } from './lib/categories';
 import { keywordCategory } from './lib/categorize';
 
 export class FinanceDB extends Dexie {
@@ -57,6 +57,16 @@ export class FinanceDB extends Dexie {
           .modify((r: Recurring) => {
             r.categoryId = CARD_PAYMENT;
           });
+      });
+    // v6: split transactions, tags (indexed so a tag's transactions load fast), hidden categories,
+    // and more built-in categories.
+    this.version(6)
+      .stores({ transactions: 'id, accountId, date, categoryId, importId, [accountId+date], *tags' })
+      .upgrade(async (tx) => {
+        const table = tx.table('categories');
+        for (const id of ADDED_IN_V6) if (!(await table.get(id))) await table.add(DEFAULT_CATEGORIES.find((c) => c.id === id)!);
+        // Charity has its own category now; rename "Gifts & Donations" unless you renamed it yourself.
+        await table.filter((c: Category) => c.id === 'gifts' && c.name === 'Gifts & Donations').modify({ name: 'Gifts' });
       });
     this.on('populate', (tx) => {
       tx.table('categories').bulkAdd(DEFAULT_CATEGORIES);

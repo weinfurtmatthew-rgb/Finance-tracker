@@ -4,6 +4,7 @@
  * from your data. The model never produces numbers itself.
  */
 import type { Category, Cents, ISODate, Transaction } from '../types';
+import { lines, tagKey } from '../lib/lines';
 import { addDays, addMonths, dayInMonth, monthKey, monthLabel } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { FREQUENCIES, monthlyCost, type RecurringStatus } from '../lib/recurring';
@@ -22,6 +23,8 @@ export interface Query {
   intent: Intent;
   categoryId?: string;
   merchant?: string;
+  /** A tag like "Italy 2026": everything tagged with it. */
+  tag?: string;
   period: Period;
   source: 'rules' | 'ai';
 }
@@ -31,7 +34,32 @@ export interface AskContext {
   categories: Category[];
   /** Known payee names, for recognizing merchants in questions. */
   merchants: string[];
+  /** Tags you've used, for "how much did the Italy trip cost?". */
+  tags?: string[];
 }
+
+/** A tag named in the question: its full name, or its distinctive first word ("italy" for "Italy 2026"). */
+export function findTag(text: string, tags: string[] = []): string | undefined {
+  const t = text.toLowerCase();
+  let best: string | undefined;
+  for (const tag of tags) {
+    const name = tagKey(tag);
+    const first = name.split(/\s+/)[0];
+    if (containsPhrase(t, name) || containsPhrase(t, `#${name}`) || (first.length >= 4 && containsPhrase(t, first))) {
+      if (!best || name.length > best.length) best = tag;
+    }
+  }
+  return best;
+}
+
+/** "the Italy trip" names the tag, not the Travel category (but "flights on the Italy trip" is Travel). */
+function withoutTripWord(categoryId: string | undefined, text: string, tag: string | undefined) {
+  if (tag && categoryId === 'travel' && !/\b(travel|flights?|hotels?|airfare)\b/i.test(text)) return undefined;
+  return categoryId;
+}
+
+/** Tags cover trips and events, so a tag question without dates means all time. */
+const allTime = (today: ISODate): Period => ({ from: '0000-01-01', to: today, label: 'overall' });
 
 // ---------------------------------------------------------------------------------------------
 // Periods
@@ -105,19 +133,31 @@ export function parsePeriod(text: string, today: ISODate): Period | null {
 // ---------------------------------------------------------------------------------------------
 
 const CATEGORY_WORDS: Record<string, string[]> = {
-  dining: ['dining', 'restaurant', 'restaurants', 'eating out', 'eat out', 'takeout', 'take out', 'take-out', 'coffee', 'fast food', 'food delivery'],
+  dining: ['dining', 'restaurant', 'restaurants', 'eating out', 'eat out', 'takeout', 'take out', 'take-out', 'fast food', 'food delivery'],
+  coffee: ['coffee', 'coffees', 'lattes', 'coffee shops', 'starbucks runs'],
+  alcohol: ['alcohol', 'drinks', 'bars', 'booze', 'beer', 'wine'],
+  clothing: ['clothes', 'clothing', 'apparel', 'shoes'],
+  electronics: ['electronics', 'gadgets', 'tech'],
+  home: ['home improvement', 'hardware', 'furniture', 'garden'],
+  pets: ['pets', 'pet', 'dog', 'cat', 'vet'],
+  kids: ['kids', 'kid', 'children', 'daycare', 'childcare', 'toys'],
+  'car-payment': ['car payment', 'car payments', 'auto loan'],
+  'car-maintenance': ['car maintenance', 'car repairs', 'oil changes', 'car repair'],
+  fitness: ['gym', 'fitness', 'workouts', 'classes'],
+  taxes: ['taxes', 'tax'],
+  charity: ['charity', 'donations', 'donated'],
   groceries: ['grocery', 'groceries', 'supermarket', 'supermarkets'],
   gas: ['gas', 'fuel', 'gasoline'],
   transport: ['transportation', 'transport', 'rides', 'rideshare', 'parking', 'tolls', 'transit'],
-  shopping: ['shopping', 'clothes', 'clothing'],
+  shopping: ['shopping'],
   bills: ['bills', 'utilities', 'utility', 'electric', 'electricity', 'internet', 'phone bill'],
   housing: ['rent', 'mortgage', 'housing'],
   entertainment: ['entertainment', 'movies', 'concerts', 'games', 'fun'],
-  health: ['health', 'medical', 'doctor', 'doctors', 'pharmacy', 'gym', 'fitness'],
+  health: ['health', 'medical', 'doctor', 'doctors', 'pharmacy'],
   travel: ['travel', 'trips', 'trip', 'flights', 'hotels', 'vacation'],
   personal: ['personal care', 'haircut', 'haircuts', 'salon'],
   education: ['education', 'school', 'tuition'],
-  gifts: ['gifts', 'donations', 'charity'],
+  gifts: ['gifts', 'presents'],
   insurance: ['insurance'],
   fees: ['fees', 'bank fees', 'interest charges'],
   'card-payment': ['credit card payment', 'credit card payments', 'card payment', 'card payments', 'paid my credit card', 'pay on my credit card', 'pay on my credit cards', 'paid off my card', 'paid on my card', 'paid on my cards'],
@@ -184,13 +224,14 @@ export function detectIntent(text: string): Intent | null {
 
 /** Understand a question with rules. Returns null when unsure (then the AI model gets a try). */
 export function parseQuestion(text: string, ctx: AskContext): Query | null {
-  const category = findCategory(text, ctx.categories);
+  const tag = findTag(text, ctx.tags);
+  const category = withoutTripWord(findCategory(text, ctx.categories), text, tag);
   const merchant = findMerchant(text, ctx.merchants);
   let intent = detectIntent(text);
-  if (!intent && (category || merchant)) intent = 'spending';
+  if (!intent && (category || merchant || tag)) intent = 'spending';
   if (!intent) return null;
-  const period = parsePeriod(text, ctx.today) ?? thisMonth(ctx.today);
-  return { intent, categoryId: category, merchant: intent === 'subscriptions' ? undefined : merchant, period, source: 'rules' };
+  const period = parsePeriod(text, ctx.today) ?? (tag ? allTime(ctx.today) : thisMonth(ctx.today));
+  return { intent, categoryId: category, merchant: intent === 'subscriptions' ? undefined : merchant, tag, period, source: 'rules' };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -252,8 +293,9 @@ export async function understand(question: string, ctx: AskContext, embed?: Embe
     intents.map((i, k) => ({ intent: i.intent, vec: vecs[1 + k] })),
   );
   if (!match || match.similarity < INTENT_THRESHOLD) return ruled;
-  let categoryId = findCategory(question, ctx.categories);
-  if (!categoryId && ['spending', 'count', 'largest', 'budget'].includes(match.intent)) {
+  const tag = findTag(question, ctx.tags);
+  let categoryId = withoutTripWord(findCategory(question, ctx.categories), question, tag);
+  if (!categoryId && !tag && ['spending', 'count', 'largest', 'budget'].includes(match.intent)) {
     let best: { id: string; sim: number } | undefined;
     seeds.forEach((s, k) => {
       const v = vecs[1 + intents.length + k];
@@ -264,7 +306,7 @@ export async function understand(question: string, ctx: AskContext, embed?: Embe
     if (best && best.sim >= CATEGORY_THRESHOLD) categoryId = best.id;
   }
   const merchant = match.intent === 'subscriptions' ? undefined : findMerchant(question, ctx.merchants);
-  return { intent: match.intent, categoryId, merchant, period: parsePeriod(question, ctx.today) ?? thisMonth(ctx.today), source: 'ai' };
+  return { intent: match.intent, categoryId, merchant, tag, period: parsePeriod(question, ctx.today) ?? (tag ? allTime(ctx.today) : thisMonth(ctx.today)), source: 'ai' };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -283,7 +325,7 @@ export interface Answer {
   items?: AnswerItem[];
   /** What the question was understood as, so you can tell if it went wrong. */
   interpretation: string;
-  filter?: { categoryId?: string; month?: string };
+  filter?: { categoryId?: string; month?: string; tag?: string };
 }
 
 export interface AnswerData {
@@ -296,7 +338,7 @@ export interface AnswerData {
 
 const money = (c: Cents) => formatMoney(c);
 /** "in August 2026" / "in 2025", but "this month", "last week", "since March", "the last 30 days" as-is. */
-const when = (p: Period) => (/^(this|last|today|yesterday|since|the )/.test(p.label) ? p.label : `in ${p.label}`);
+const when = (p: Period) => (/^(this|last|today|yesterday|since|the |overall)/.test(p.label) ? p.label : `in ${p.label}`);
 const inPeriod = (t: Transaction, p: Period) => t.date >= p.from && t.date <= p.to;
 
 function matchesMerchant(t: Transaction, merchant: string) {
@@ -305,13 +347,15 @@ function matchesMerchant(t: Transaction, merchant: string) {
 }
 
 function spendingTxns(q: Query, d: AnswerData): Transaction[] {
-  return d.txns.filter((t) => {
+  // Split transactions count once per part, each in its own category.
+  return lines(d.txns).filter((t) => {
     const cat = d.categories.get(t.categoryId);
     if (!cat || !inPeriod(t, q.period)) return false;
     // Spending means expense categories; asking about a specific non-spending category (like card
     // payments) looks at money out in that category.
     if (q.categoryId ? t.categoryId !== q.categoryId || t.amount >= 0 : cat.group !== 'expense') return false;
     if (q.merchant && !matchesMerchant(t, q.merchant)) return false;
+    if (q.tag && !t.tags?.some((x) => tagKey(x) === tagKey(q.tag!))) return false;
     return true;
   });
 }
@@ -329,11 +373,13 @@ function describe(q: Query, d: AnswerData): string {
   const parts = [q.intent.replace('_', ' ')];
   if (q.categoryId) parts.push(d.categories.get(q.categoryId)?.name ?? q.categoryId);
   if (q.merchant) parts.push(`at ${q.merchant}`);
+  if (q.tag) parts.push(`#${q.tag}`);
   if (!['subscriptions', 'net_worth', 'budget'].includes(q.intent)) parts.push(q.period.label);
   return parts.join(' · ');
 }
 
 function subject(q: Query, d: AnswerData): string {
+  if (q.tag) return ` on #${q.tag}`;
   if (q.merchant) return ` at ${q.merchant}`;
   if (q.categoryId) return ` on ${d.categories.get(q.categoryId)?.name ?? 'that'}`;
   return '';
@@ -342,7 +388,7 @@ function subject(q: Query, d: AnswerData): string {
 export function answer(q: Query, d: AnswerData): Answer {
   const interpretation = describe(q, d);
   const singleMonth = q.period.from.slice(0, 7) === q.period.to.slice(0, 7) && q.period.from.endsWith('-01') ? q.period.from.slice(0, 7) : undefined;
-  const filter = { categoryId: q.categoryId, month: singleMonth };
+  const filter = { categoryId: q.categoryId, month: singleMonth, tag: q.tag };
 
   switch (q.intent) {
     case 'spending': {
@@ -360,15 +406,17 @@ export function answer(q: Query, d: AnswerData): Answer {
     case 'count': {
       const txns = spendingTxns(q, d);
       const total = -txns.reduce((s, t) => s + t.amount, 0);
+      // Two parts of one split purchase are still one visit.
+      const times = new Set(txns.map((t) => t.id)).size;
       return {
-        headline: `${txns.length} time${txns.length === 1 ? '' : 's'}${subject(q, d)} ${when(q.period)}, ${money(Math.max(0, total))} in total.`,
-        detail: txns.length ? `That's ${money(Math.round(total / txns.length))} on average each time.` : undefined,
+        headline: `${times} time${times === 1 ? '' : 's'}${subject(q, d)} ${when(q.period)}, ${money(Math.max(0, total))} in total.`,
+        detail: times ? `That's ${money(Math.round(total / times))} on average each time.` : undefined,
         interpretation,
         filter,
       };
     }
     case 'income': {
-      const txns = d.txns.filter((t) => d.categories.get(t.categoryId)?.group === 'income' && inPeriod(t, q.period));
+      const txns = lines(d.txns).filter((t) => d.categories.get(t.categoryId)?.group === 'income' && inPeriod(t, q.period));
       const total = txns.reduce((s, t) => s + t.amount, 0);
       return {
         headline: `You received ${money(total)} in income ${when(q.period)}.`,

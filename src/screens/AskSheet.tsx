@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'preact/hooks';
+import { allTags } from '../lib/lines';
 import { byId, useBook, useCategories, useTransactions } from '../hooks';
 import { useNav } from '../nav';
 import { useRecurringModel } from '../recurringModel';
@@ -34,6 +35,7 @@ export function AskSheet(props: { onClose: () => void }) {
   const listRef = useRef<HTMLDivElement>(null);
   const today = rec.today;
   const merchants = useMemo(() => [...new Set(txns.map((t) => t.payee).filter(Boolean))], [txns]);
+  const tags = useMemo(() => allTags(txns).map((x) => x.tag), [txns]);
 
   const ask = async (question: string) => {
     const q = question.trim();
@@ -41,7 +43,7 @@ export function AskSheet(props: { onClose: () => void }) {
     setText('');
     const index = turns.length;
     setTurns((t) => [...t, { question: q, pending: true }]);
-    const ctx = { today, categories, merchants };
+    const ctx = { today, categories, merchants, tags };
     let query = null;
     try {
       query = await understand(q, ctx, ai.embed ? vectors : undefined, CATEGORY_SEEDS);
@@ -115,7 +117,7 @@ export function AskSheet(props: { onClose: () => void }) {
                 )}
                 <p class="ask-meta">
                   Understood as: {t.answer.interpretation}
-                  {t.answer.filter && (t.answer.filter.categoryId || t.answer.filter.month) && (
+                  {t.answer.filter && (t.answer.filter.categoryId || t.answer.filter.month || t.answer.filter.tag) && (
                     <>
                       {' · '}
                       <button type="button" class="link" onClick={() => nav.showActivity(t.answer!.filter!)}>

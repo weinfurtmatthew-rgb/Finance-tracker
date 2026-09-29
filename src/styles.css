@@ -1862,3 +1862,136 @@ button.hero-card {
 .balance-result .small {
   margin-top: 6px;
 }
+
+/* Split transactions */
+.split-part {
+  padding: 10px 16px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.split-part + .split-part::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  border-top: 0.5px solid var(--separator);
+}
+.split-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.split-num {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--fill);
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.split-amount {
+  width: 90px;
+  flex: none;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--fill);
+  font-variant-numeric: tabular-nums;
+}
+.split-top .chip {
+  flex: 1;
+  min-width: 0;
+}
+.split-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding-left: 30px;
+}
+.split-bottom .toggle-row {
+  padding: 0;
+  min-height: 0;
+  gap: 8px;
+  font-size: 15px;
+}
+.owed-name {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--fill);
+}
+.icon-button.small {
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+}
+
+/* Tags */
+.tag-input {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  width: 100%;
+}
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  border-radius: 14px;
+  background: var(--fill);
+  color: var(--tint);
+  font-size: 14px;
+  font-weight: 600;
+}
+.tag-chip button {
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+.field-control .tag-input input {
+  flex: 1;
+  min-width: 120px;
+  width: auto;
+}
+
+/* Categories */
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 4px;
+  padding: 8px;
+}
+.emoji-pick {
+  height: 44px;
+  font-size: 24px;
+  border-radius: 10px;
+}
+.emoji-pick.on {
+  background: var(--fill);
+  outline: 2px solid var(--tint);
+}
+.sheet-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 20px 0;
+}
+.check-row {
+  gap: 10px;
+}
+.check-row input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  accent-color: var(--tint);
+}

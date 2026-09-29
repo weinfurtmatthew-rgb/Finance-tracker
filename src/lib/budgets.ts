@@ -1,4 +1,5 @@
 import type { Budget, Category, Cents, ISODate, Recurring, Transaction } from '../types';
+import { lines } from './lines';
 import { addMonths, daysInMonth, dayOfMonth, monthKey } from './dates';
 import { countsAsCost, matchesRecurring } from './recurring';
 
@@ -25,7 +26,8 @@ export interface MonthSpending {
 export function spendingByMonth(txns: Transaction[], categories: Map<string, Category>, recurring: Recurring[]): Map<string, MonthSpending> {
   const months = new Map<string, MonthSpending>();
   const costs = recurring.filter(countsAsCost);
-  for (const t of txns) {
+  // Split transactions count once per part, each in its own category.
+  for (const t of lines(txns)) {
     const cat = categories.get(t.categoryId);
     if (!cat || cat.group === 'transfer') continue;
     const key = monthKey(t.date);

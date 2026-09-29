@@ -1,4 +1,5 @@
 import type { Category, Cents, Transaction } from '../types';
+import { lines } from './lines';
 import { monthKey } from './dates';
 
 export interface MonthSummary {
@@ -12,7 +13,7 @@ export function summarizeMonth(txns: Transaction[], categories: Map<string, Cate
   let spent = 0;
   let income = 0;
   const per = new Map<string, number>();
-  for (const t of txns) {
+  for (const t of lines(txns)) {
     if (monthKey(t.date) !== month) continue;
     const cat = categories.get(t.categoryId);
     if (!cat || cat.group === 'transfer') continue;

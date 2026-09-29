@@ -27,6 +27,18 @@ export interface Account {
   checkedOn?: ISODate;
 }
 
+export interface Split {
+  id: string;
+  /** Signed like transactions; all parts add up to the transaction's amount. */
+  amount: Cents;
+  categoryId: string;
+  note?: string;
+  /** This part was for someone else: who owes it back. */
+  owedBy?: string;
+  /** When it was paid back: the repayment's transaction id, or 'untracked'. */
+  settledBy?: string;
+}
+
 export type TransactionSource = 'manual' | 'csv' | 'ofx';
 
 /**
@@ -47,6 +59,17 @@ export interface Transaction {
   categoryId: string;
   /** Missing on transactions from before this was tracked. */
   categorySource?: CategorySource;
+  /**
+   * Parts of this transaction, each with its own category (they add up to `amount`). A part paid for
+   * someone else has `owedBy` and doesn't count as your spending.
+   */
+  splits?: Split[];
+  /** Trips, events, anything: e.g. ["Italy 2026"]. */
+  tags?: string[];
+  /** The whole transaction was for someone else (category "Owed to Me"): who owes it. */
+  owedBy?: string;
+  /** When what's owed was paid back: the repayment's transaction id, or 'untracked' (cash etc.). */
+  settledBy?: string;
   notes: string;
   source: TransactionSource;
   /** Stable identifier used to skip duplicates when re-importing overlapping files. */
@@ -63,6 +86,8 @@ export interface Category {
   color: string;
   group: CategoryGroup;
   order: number;
+  /** Hidden from pickers (existing transactions keep it). */
+  hidden?: boolean;
 }
 
 export interface Rule {

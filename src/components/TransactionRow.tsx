@@ -14,7 +14,8 @@ export function TransactionRow(props: { txn: Transaction; category?: Category; a
         <span class="row-title">{txn.payee || txn.description}</span>
         <span class="row-subtitle">
           {txn.categorySource === 'ai' && <span title="Categorized by on-device AI, not reviewed yet">✨ </span>}
-          {props.category?.name ?? 'Uncategorized'}
+          {txn.splits?.length ? `Split · ${txn.splits.length} parts` : txn.owedBy ? `Owed by ${txn.owedBy}${txn.settledBy ? ' ✓' : ''}` : (props.category?.name ?? 'Uncategorized')}
+          {txn.tags?.length ? ` · #${txn.tags[0]}${txn.tags.length > 1 ? ` +${txn.tags.length - 1}` : ''}` : ''}
           {props.account ? ` · ${props.account.name}` : ''}
         </span>
       </span>
