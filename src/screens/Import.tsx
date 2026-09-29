@@ -84,6 +84,9 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
     setError(undefined);
     try {
       const text = await file.text();
+      // Read accounts now rather than from the live list, which may not have loaded yet if a file is
+      // picked the moment the sheet opens (the file would then look like it's for a new account).
+      const known = await db.accounts.toArray();
       const ofxLike = /\.(ofx|qfx|qbo)$/i.test(file.name) || looksLikeOfx(text);
       let nextAccount = props.accountId;
       if (ofxLike) {
@@ -92,7 +95,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
         const st = statements[0];
         setParsed({ kind: 'ofx', statements, index: 0, fileName: file.name });
         const last4 = st.accountNumber?.replace(/\D/g, '').slice(-4);
-        nextAccount ??= accounts?.find((a) => last4 && a.last4 === last4)?.id;
+        nextAccount ??= known.find((a) => last4 && a.last4 === last4)?.id;
         setNewType(guessAccountType('', st));
         setNewInstitution(guessInstitution('', file.name));
         setNewName(`${guessInstitution('', file.name) || 'Bank'} ${ACCOUNT_TYPES.find((t) => t.value === guessAccountType('', st))?.label ?? ''}`.trim());
@@ -100,7 +103,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
         const table = readCsv(text);
         if (table.headerIndex < 0) throw new Error("This doesn't look like a transactions file.");
         const saved = await db.csvMappings.get(headerSignature(table.headers));
-        const detected = detectFormat(table, accounts?.find((a) => a.id === (nextAccount ?? saved?.accountId))?.type);
+        const detected = detectFormat(table, known.find((a) => a.id === (nextAccount ?? saved?.accountId))?.type);
         setParsed({
           kind: 'csv',
           table,
@@ -110,7 +113,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
           saved: !!saved,
           fileName: file.name,
         });
-        nextAccount ??= saved?.accountId && accounts?.some((a) => a.id === saved.accountId) ? saved.accountId : undefined;
+        nextAccount ??= saved?.accountId && known.some((a) => a.id === saved.accountId) ? saved.accountId : undefined;
         const inst = guessInstitution(detected.format, file.name);
         const type = guessAccountType(detected.format);
         setNewType(type);
