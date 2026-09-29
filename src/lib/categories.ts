@@ -2,6 +2,8 @@ import type { Category } from '../types';
 
 export const UNCATEGORIZED = 'uncategorized';
 export const TRANSFER = 'transfer';
+/** Paying off a credit card: not spending (the purchases already were), not income. */
+export const CARD_PAYMENT = 'card-payment';
 
 const c = (id: string, name: string, emoji: string, color: string, group: Category['group'], order: number): Category => ({
   id, name, emoji, color, group, order,
@@ -28,11 +30,12 @@ export const DEFAULT_CATEGORIES: Category[] = [
   c('fees', 'Fees & Interest', '🧾', '#8e8e93', 'expense', 25),
   c('other', 'Other', '📦', '#8e8e93', 'expense', 26),
   c(UNCATEGORIZED, 'Uncategorized', '❔', '#c7c7cc', 'expense', 27),
+  c(CARD_PAYMENT, 'Credit Card Payment', '💳', '#8e8e93', 'transfer', 29),
   c(TRANSFER, 'Transfer', '🔄', '#8e8e93', 'transfer', 30),
   c('investments', 'Investments', '📊', '#30b0c7', 'transfer', 31),
 ];
 
-/** Categories that should not count as spending or income (moving your own money around). */
+/** Categories that should not count as spending or income (card payments, moving your own money around). */
 export function isTransferGroup(cat: Pick<Category, 'group'> | undefined): boolean {
   return cat?.group === 'transfer';
 }

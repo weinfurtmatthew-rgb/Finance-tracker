@@ -1,5 +1,5 @@
 import type { Rule } from '../types';
-import { TRANSFER, UNCATEGORIZED } from './categories';
+import { CARD_PAYMENT, TRANSFER, UNCATEGORIZED } from './categories';
 
 /** 'in' keywords only match money coming in (e.g. "dividend"). */
 type Sign = 'out' | 'in' | 'any';
@@ -7,9 +7,10 @@ type Keyword = [category: string, sign: Sign, needles: string[]];
 
 /** Built-in keyword guesses, used when neither your rules nor the bank's category decide. */
 const KEYWORDS: Keyword[] = [
-  [TRANSFER, 'any', ['payment thank you', 'crcardpmt', 'credit card payment', 'card payment', 'cc payment', 'transfer to', 'transfer from', 'online transfer', 'xfer', 'electronic funds transfer', 'transferred from', 'transferred to', 'directpay']],
+  [CARD_PAYMENT, 'any', ['payment thank you', 'crcardpmt', 'credit card payment', 'card payment', 'cc payment', 'directpay']],
   // On a credit card, money coming in labelled as a payment is you paying the card.
-  [TRANSFER, 'in', ['autopay', 'auto pay', 'online payment', 'internet payment', 'mobile pymt', 'mobile payment', 'e-payment', 'epayment', 'payment received']],
+  [CARD_PAYMENT, 'in', ['autopay', 'auto pay', 'online payment', 'internet payment', 'mobile pymt', 'mobile payment', 'e-payment', 'epayment', 'payment received']],
+  [TRANSFER, 'any', ['transfer to', 'transfer from', 'online transfer', 'xfer', 'electronic funds transfer', 'transferred from', 'transferred to']],
   ['investments', 'any', ['you bought', 'you sold', 'reinvestment']],
   ['interest', 'in', ['dividend', 'interest paid', 'interest earned', 'int earned', 'interest payment']],
   ['income', 'in', ['payroll', 'direct dep', 'dir dep', 'salary', 'paycheck']],
@@ -32,7 +33,7 @@ const KEYWORDS: Keyword[] = [
 /** Map the category text some banks include (Discover, Capital One) onto ours. */
 const BANK_CATEGORIES: [RegExp, string][] = [
   [/award|rebate|cash ?back/i, 'income'],
-  [/payment|credits?$/i, TRANSFER],
+  [/payment|credits?$/i, CARD_PAYMENT],
   [/supermarket|grocer/i, 'groceries'],
   [/restaurant|dining/i, 'dining'],
   [/gas(oline)?|fuel/i, 'gas'],
@@ -63,12 +64,12 @@ function containsWord(text: string, needle: string): boolean {
 }
 
 /** Paying a card from checking: "DISCOVER E-PAYMENT", "CAPITAL ONE MOBILE PYMT", "CHASE CREDIT CRD AUTOPAY". */
-const CARD_PAYMENT = /\b(discover|capital one|chase|citi|citibank|amex|american express|barclays|synchrony|applecard|apple card|bk of amer|bank of america|wells fargo card|us bank|fidelity rewards)\b.*\b(pay|pymt|pmt|payment|autopay|epay|e-payment)\b/;
+const CARD_PAYMENT_RE = /\b(discover|capital one|chase|citi|citibank|amex|american express|barclays|synchrony|applecard|apple card|bk of amer|bank of america|wells fargo card|us bank|fidelity rewards)\b.*\b(pay|pymt|pmt|payment|autopay|epay|e-payment)\b/;
 
 /** Category from built-in merchant keywords, or null when nothing matches. */
 export function keywordCategory(description: string, amount: number): string | null {
   const text = ` ${description.toLowerCase().replace(/\s+/g, ' ')} `;
-  if (CARD_PAYMENT.test(text)) return TRANSFER;
+  if (CARD_PAYMENT_RE.test(text)) return CARD_PAYMENT;
   for (const [category, sign, needles] of KEYWORDS) {
     // 'out' keywords also match money coming back (refunds), so a refund offsets that category's spending.
     if (sign === 'in' && amount < 0) continue;
@@ -107,7 +108,7 @@ export function categorize(
   // Order: the bank's payment/reward labels, then specific merchant keywords, then the bank's broad
   // category (refunds keep it, so they offset that category's spending), then a fallback.
   const fromBank = categoryFromBank(input.bankCategory);
-  if (fromBank === TRANSFER || fromBank === 'income') return { payee, categoryId: fromBank };
+  if (fromBank === CARD_PAYMENT || fromBank === 'income') return { payee, categoryId: fromBank };
   const fromKeywords = keywordCategory(input.description, input.amount);
   return { payee, categoryId: fromKeywords ?? fromBank ?? guessCategory(input.description, input.amount) };
 }

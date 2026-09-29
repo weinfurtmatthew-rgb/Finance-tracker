@@ -8,7 +8,7 @@ import { useSpending } from '../spendingModel';
 import { addDays, addMonths, dayInMonth, daysInMonth, dayOfMonth, monthKey, monthLabel } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { budgetProgress, monthElapsed } from '../lib/budgets';
-import { isOutflow } from '../lib/recurring';
+import { countsAsCost } from '../lib/recurring';
 import { Empty, Money, Section } from '../components/ui';
 import { ColumnChart, RankedBars, compactMoney } from '../components/charts';
 
@@ -59,7 +59,8 @@ export function Home() {
   const budgeted = new Set(budgets.map((b) => b.categoryId));
   const otherFlexible = [...(m?.byCategory ?? [])].filter(([id]) => !budgeted.has(id)).reduce((s, [, v]) => s + Math.max(0, v), 0);
   const warnings = isCurrent ? progress.filter((p) => p.state !== 'ok' || p.offPace) : [];
-  const stillDue = isCurrent ? rec.upcomingItems.filter((i) => isOutflow(i.status.rec) && monthKey(i.date) === month).reduce((s, i) => s + Math.abs(i.amount), 0) : 0;
+  // Card payments aren't bills: the purchases they pay for are already counted as spending.
+  const stillDue = isCurrent ? rec.upcomingItems.filter((i) => countsAsCost(i.status.rec) && monthKey(i.date) === month).reduce((s, i) => s + Math.abs(i.amount), 0) : 0;
   const soon = isCurrent ? rec.upcomingItems.filter((i) => i.late || i.date <= addDays(today, rec.settings.reminderDays)) : [];
   const uncategorized = txns.filter((t) => t.categoryId === 'uncategorized').length;
   const backupDue = txns.length > 0 && (!lastBackup || Date.now() - lastBackup > 14 * 86_400_000);
