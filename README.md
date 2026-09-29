@@ -30,6 +30,28 @@ skips transactions you already have.
 
 ## Features
 
+### Splits, owed money, categories & tags
+
+- **Split a transaction** into parts that add up to the total, each with its own category (a Target run: $80
+  Groceries + $40 Household). Budgets, charts, Ask and the calculators count each part in its category.
+- **Paid for someone else:** mark a whole transaction, or one part of a split, as owed by a person. It's not your
+  spending; it shows on **Owed to you** (Overview and Settings) until you mark it paid back, picking the Venmo or
+  deposit that repaid you (that repayment isn't counted as income) or "paid in cash".
+- **More built-in categories:** Coffee, Alcohol & Bars, Clothing, Electronics, Home & Garden, Pets, Kids, Car Payment,
+  Car Maintenance, Fitness, Taxes, Charity (plus Owed to Me), with import keywords for common stores.
+- **Your own categories:** create one right from any category picker, pick an emoji and color, reorder, hide ones you
+  don't use, or merge two (moves transactions, split parts, rules, bills and budgets).
+- **Tags** for trips and events: add them on any transaction, or **Tag a Trip** by date range. Each tag shows what it
+  cost by category; filter Activity by tag, or ask "how much did the Italy trip cost?".
+
+### Balance check & tidy-up
+
+- After a CSV import, type what your bank shows; OFX/QFX files are checked automatically. Differences are explained
+  (possible duplicates, a missing date range, pending charges, a never-set starting balance) with a fix for each.
+  Accounts show when they last matched.
+- **Tidy up old categories** (Settings → Organize): a one-time review of older guessed categories, with confident AI
+  picks filled in.
+
 ### Plan: financial calculators
 
 Tap the calculator button on the Overview. Every calculator starts from your own numbers (cash, 3-month average

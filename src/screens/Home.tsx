@@ -28,6 +28,8 @@ import { Plan } from './plan/Plan';
 import { SuggestCategories } from './SuggestCategories';
 import { ReviewAiPicks } from './ReviewAiPicks';
 import { TidyUp, useOldGuesses } from './TidyUp';
+import { OwedSheet } from './Owed';
+import { owedByPerson, owedItems } from '../lib/lines';
 import { SummaryCard } from '../components/SummaryCard';
 import { useAi } from '../ai/client';
 
@@ -70,6 +72,8 @@ export function Home() {
   // One-time nudge to review old guessed categories (also always in Settings → Organize).
   const oldGuesses = useOldGuesses()?.length ?? 0;
   const tidyDone = useMeta<number>('tidyUpDone');
+  const owed = useMemo(() => owedByPerson(owedItems(txns)), [txns]);
+  const owedTotal = owed.reduce((sum, p) => sum + p.total, 0);
   const backupDue = txns.length > 0 && (!lastBackup || Date.now() - lastBackup > 14 * 86_400_000);
   const [y, mo] = month.split('-').map(Number);
   const daysLeft = isCurrent ? daysInMonth(y, mo) - dayOfMonth(today) + 1 : 0;
@@ -326,6 +330,19 @@ export function Home() {
                 )}
               </Section>
             </>
+          )}
+
+          {owed.length > 0 && (
+            <button type="button" class="callout" onClick={() => nav.present((close) => <OwedSheet onClose={close} />)}>
+              <strong>🤝 {formatMoney(owedTotal)} owed to you</strong>
+              <p>
+                {owed
+                  .slice(0, 3)
+                  .map((p) => `${p.who} ${formatMoney(p.total)}`)
+                  .join(' · ')}
+                {owed.length > 3 ? ` · +${owed.length - 3} more` : ''}. Tap when you’re paid back.
+              </p>
+            </button>
           )}
 
           {oldGuesses > 0 && !tidyDone && (

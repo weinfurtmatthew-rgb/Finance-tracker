@@ -7,6 +7,7 @@ export interface ActivityFilter {
   accountId?: string;
   categoryId?: string;
   month?: string;
+  tag?: string;
 }
 
 export interface Nav {

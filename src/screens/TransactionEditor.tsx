@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useMemo, useState } from 'preact/hooks';
 import { db, newId, setMeta } from '../db';
 import { isTrusted, payeeKey } from '../lib/categorize';
 import { useLoaded } from '../hooks';
@@ -6,7 +6,11 @@ import { useNav } from '../nav';
 import type { Account, Category, Transaction } from '../types';
 import { centsToInput, formatMoney, parseUserAmount } from '../lib/money';
 import { todayISO } from '../lib/dates';
-import { UNCATEGORIZED } from '../lib/categories';
+import { OWED, UNCATEGORIZED } from '../lib/categories';
+import { allTags, owedItems, splitProblem } from '../lib/lines';
+import { SplitEditor, partCents, type PartDraft } from '../components/SplitEditor';
+import { TagInput } from '../components/TagInput';
+import { SettleSheet } from './Owed';
 import { ActionSheet, CategorySelect, Field, Section, Segmented, Sheet, Toggle } from '../components/ui';
 import { ExplainPanel } from '../components/ExplainPanel';
 
@@ -34,9 +38,23 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
   const [notes, setNotes] = useState(t?.notes ?? '');
   const [ask, setAsk] = useState<null | 'delete'>(null);
   const [alsoOthers, setAlsoOthers] = useState(true);
+  const [parts, setParts] = useState<PartDraft[] | null>(() =>
+    t?.splits?.length
+      ? t.splits.map((p) => ({ id: p.id, amount: centsToInput(p.amount), categoryId: p.categoryId, forSomeone: !!p.owedBy, owedBy: p.owedBy ?? '', settledBy: p.settledBy }))
+      : null,
+  );
+  const [forSomeone, setForSomeone] = useState(!!t?.owedBy);
+  const [owedBy, setOwedBy] = useState(t?.owedBy ?? '');
+  const [tags, setTags] = useState<string[]>(t?.tags ?? []);
+  const knownTags = useMemo(() => allTags(props.txns).map((x) => x.tag), [props.txns]);
+  const people = useMemo(() => [...new Set(owedItems(props.txns).map((i) => i.who))], [props.txns]);
+  const owedHere = t ? owedItems([t]) : [];
 
   const cents = parseUserAmount(amount);
-  const valid = cents != null && cents > 0 && !!date && !!accountId && !!payee.trim();
+  const sign = direction === 'out' ? -1 : 1;
+  const splitError = parts ? splitProblem(cents ?? 0, parts.map((p) => ({ amount: partCents(p), categoryId: p.categoryId }))) : null;
+  const owedMissing = (forSomeone && !parts && !owedBy.trim()) || !!parts?.some((p) => p.forSomeone && !p.owedBy.trim());
+  const valid = cents != null && cents > 0 && !!date && !!accountId && !!payee.trim() && !splitError && !owedMissing;
   const changed = !!t && t.categoryId !== categoryId && categoryId !== UNCATEGORIZED;
   // Same payee, same direction of money, still on a guessed category: fixing one fixes them all.
   const others = changed
@@ -45,9 +63,23 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
       )
     : [];
 
+  const startSplit = () =>
+    setParts([
+      { id: newId(), amount: amount || '', categoryId: categoryId === OWED ? UNCATEGORIZED : categoryId, forSomeone: false, owedBy: '' },
+      { id: newId(), amount: '', categoryId: UNCATEGORIZED, forSomeone: false, owedBy: '' },
+    ]);
+  const addPart = () => setParts([...(parts ?? []), { id: newId(), amount: '', categoryId: UNCATEGORIZED, forSomeone: false, owedBy: '' }]);
+
   const save = async () => {
     if (!valid) return;
-    const signed = direction === 'out' ? -cents! : cents!;
+    const signed = sign * cents!;
+    const whole = forSomeone && !parts && direction === 'out';
+    const splits = parts?.map((p) => ({
+      id: p.id,
+      amount: sign * partCents(p),
+      categoryId: p.forSomeone ? OWED : p.categoryId,
+      ...(p.forSomeone ? { owedBy: p.owedBy.trim(), ...(p.settledBy ? { settledBy: p.settledBy } : {}) } : {}),
+    }));
     const record: Transaction = {
       id: t?.id ?? newId(),
       accountId,
@@ -55,13 +87,17 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
       amount: signed,
       description: t?.description ?? payee.trim(),
       payee: payee.trim(),
-      categoryId,
+      // A split transaction is filed under its biggest part (the parts are what count).
+      categoryId: splits ? [...splits].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))[0].categoryId : whole ? OWED : categoryId,
       // Choosing (or re-saving) a category yourself makes it one the AI learns from most.
       categorySource: categoryId === UNCATEGORIZED ? undefined : !t || changed || t.categorySource === 'ai' ? 'user' : t.categorySource,
       notes: notes.trim(),
       source: t?.source ?? 'manual',
       importId: t?.importId,
       createdAt: t?.createdAt ?? Date.now(),
+      ...(splits ? { splits } : {}),
+      ...(tags.length ? { tags } : {}),
+      ...(whole ? { owedBy: owedBy.trim(), ...(t?.settledBy ? { settledBy: t.settledBy } : {}) } : {}),
     };
     if (!record.categorySource) delete record.categorySource;
     await db.transactions.put(record);
@@ -114,9 +150,27 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
         <Field label="Payee">
           <input value={payee} placeholder="Who was it?" onInput={(e) => setPayee((e.target as HTMLInputElement).value)} />
         </Field>
-        <Field label="Category">
-          <CategorySelect categories={categories} value={categoryId} onChange={setCategoryId} />
-        </Field>
+        {!parts && !(forSomeone && direction === 'out') && (
+          <Field label="Category">
+            <CategorySelect categories={categories} value={categoryId} onChange={setCategoryId} />
+          </Field>
+        )}
+        {!parts && direction === 'out' && <Toggle checked={forSomeone} onChange={setForSomeone} label="Paid for someone else" />}
+        {!parts && forSomeone && direction === 'out' && (
+          <Field label="Who owes you">
+            <input list="owed-people-main" value={owedBy} placeholder="e.g. Alex, Work" onInput={(e) => setOwedBy((e.target as HTMLInputElement).value)} />
+            <datalist id="owed-people-main">
+              {people.map((p) => (
+                <option value={p} />
+              ))}
+            </datalist>
+          </Field>
+        )}
+        {!parts && (
+          <button type="button" class="row link-row" onClick={startSplit}>
+            Split into parts…
+          </button>
+        )}
         <Field label="Date">
           <input type="date" value={date} onInput={(e) => setDate((e.target as HTMLInputElement).value)} />
         </Field>
@@ -130,7 +184,38 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
         <Field label="Notes">
           <input value={notes} placeholder="Optional" onInput={(e) => setNotes((e.target as HTMLInputElement).value)} />
         </Field>
+        <Field label="Tags">
+          <TagInput tags={tags} known={knownTags} onChange={setTags} />
+        </Field>
       </Section>
+      {parts && (
+        <SplitEditor
+          total={cents ?? 0}
+          parts={parts}
+          onChange={setParts}
+          onAddPart={addPart}
+          onRemoveSplit={() => setParts(null)}
+          categories={categories}
+          people={people}
+          money={direction}
+        />
+      )}
+      {parts && splitError && !splitError.startsWith('Parts add up') && <p class="section-footer intro warn-text">{splitError}</p>}
+      {owedHere.length > 0 && (
+        <Section title="Paid back?">
+          {owedHere.map((i) => (
+            <button type="button" class="row" onClick={() => nav.present((close) => <SettleSheet item={i} onClose={close} />)}>
+              <span class="row-main">
+                <span class="row-title">
+                  {i.who} · {formatMoney(i.amount)}
+                </span>
+                <span class="row-subtitle">{i.settledBy ? 'Paid back ✓' : 'Not paid back yet'}</span>
+              </span>
+              <span class="row-detail">{i.settledBy ? 'Change' : 'Mark paid back'}</span>
+            </button>
+          ))}
+        </Section>
+      )}
       {others.length > 0 && (
         <Section footer={`Future imports from ${t!.payee} will use ${categories.find((c) => c.id === categoryId)?.name ?? 'it'} too.`}>
           <Toggle

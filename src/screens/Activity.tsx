@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'preact/hooks';
+import { allTags, categoriesOf, tagKey } from '../lib/lines';
 import { byId, useAccounts, useCategories, useTransactions } from '../hooks';
 import { useNav } from '../nav';
 import { formatDay, monthLabel, monthKey } from '../lib/dates';
@@ -30,9 +31,11 @@ export function Activity() {
     return txns.filter(
       (t) =>
         (!f.accountId || t.accountId === f.accountId) &&
-        (!f.categoryId || t.categoryId === f.categoryId) &&
+        (!f.categoryId || categoriesOf(t).includes(f.categoryId)) &&
         (!f.month || monthKey(t.date) === f.month) &&
+        (!f.tag || !!t.tags?.some((x) => tagKey(x) === tagKey(f.tag!))) &&
         (!q ||
+          !!t.tags?.some((x) => tagKey(x).includes(q.replace(/^#/, ''))) ||
           t.payee.toLowerCase().includes(q) ||
           t.description.toLowerCase().includes(q) ||
           t.notes.toLowerCase().includes(q) ||
@@ -51,7 +54,8 @@ export function Activity() {
     return out;
   }, [filtered, limit]);
 
-  const hasFilter = !!(f.accountId || f.categoryId || f.month);
+  const hasFilter = !!(f.accountId || f.categoryId || f.month || f.tag);
+  const tags = useMemo(() => allTags(txns), [txns]);
   const setFilter = (patch: Partial<typeof f>) => nav.setActivityFilter({ ...f, ...patch });
 
   return (
@@ -87,10 +91,19 @@ export function Activity() {
           <CategorySelect
             class={f.categoryId ? 'chip on' : 'chip'}
             aria-label="Filter by category"
+            allowNew={false}
             categories={[{ id: '', name: 'All categories', emoji: '', color: '', group: 'expense', order: -1 }, ...categories]}
             value={f.categoryId ?? ''}
             onChange={(id) => setFilter({ categoryId: id || undefined })}
           />
+          {tags.length > 0 && (
+            <select class={f.tag ? 'chip on' : 'chip'} value={f.tag ?? ''} aria-label="Filter by tag" onChange={(e) => setFilter({ tag: (e.target as HTMLSelectElement).value || undefined })}>
+              <option value="">All tags</option>
+              {tags.map((t) => (
+                <option value={t.tag}>#{t.tag}</option>
+              ))}
+            </select>
+          )}
           {f.month && (
             <button type="button" class="chip on" onClick={() => setFilter({ month: undefined })}>
               {monthLabel(f.month, { short: true })} ✕

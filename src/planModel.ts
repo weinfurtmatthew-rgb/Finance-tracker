@@ -1,4 +1,5 @@
 import { useMemo } from 'preact/hooks';
+import { lines } from './lib/lines';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from './db';
 import { byId } from './hooks';
@@ -66,7 +67,7 @@ export function usePlanData(): PlanData | undefined {
     const inMonths = new Set(snap.averagedMonths);
     const tracked = rec.statuses.map((s) => s.rec.name.toLowerCase());
     const byPayee = new Map<string, { total: Cents; count: number }>();
-    for (const t of raw.txns) {
+    for (const t of lines(raw.txns)) {
       if (!inMonths.has(t.date.slice(0, 7)) || cats.get(t.categoryId)?.group !== 'expense' || t.amount >= 0) continue;
       const p = byPayee.get(t.payee) ?? { total: 0, count: 0 };
       p.total -= t.amount;
