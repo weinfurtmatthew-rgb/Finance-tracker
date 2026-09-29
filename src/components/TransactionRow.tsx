@@ -13,6 +13,7 @@ export function TransactionRow(props: { txn: Transaction; category?: Category; a
       <span class="row-main">
         <span class="row-title">{txn.payee || txn.description}</span>
         <span class="row-subtitle">
+          {txn.categorySource === 'ai' && <span title="Categorized by on-device AI, not reviewed yet">✨ </span>}
           {props.category?.name ?? 'Uncategorized'}
           {props.account ? ` · ${props.account.name}` : ''}
         </span>

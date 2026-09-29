@@ -30,7 +30,10 @@ function RuleEditor(props: { rule?: Rule; onClose: () => void }) {
         .filter((t) => `${t.description}\n${t.payee}`.toLowerCase().includes(needle))
         .modify((t) => {
           if (rule.payee) t.payee = rule.payee;
-          if (rule.categoryId) t.categoryId = rule.categoryId;
+          if (rule.categoryId) {
+            t.categoryId = rule.categoryId;
+            t.categorySource = 'rule';
+          }
           n++;
         });
     }

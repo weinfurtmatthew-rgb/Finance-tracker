@@ -26,6 +26,7 @@ import { CategoryDetail } from './CategoryDetail';
 import { AskSheet } from './AskSheet';
 import { Plan } from './plan/Plan';
 import { SuggestCategories } from './SuggestCategories';
+import { ReviewAiPicks } from './ReviewAiPicks';
 import { SummaryCard } from '../components/SummaryCard';
 import { useAi } from '../ai/client';
 
@@ -64,6 +65,7 @@ export function Home() {
   const stillDue = isCurrent ? rec.upcomingItems.filter((i) => countsAsCost(i.status.rec) && monthKey(i.date) === month).reduce((s, i) => s + Math.abs(i.amount), 0) : 0;
   const soon = isCurrent ? rec.upcomingItems.filter((i) => i.late || i.date <= addDays(today, rec.settings.reminderDays)) : [];
   const uncategorized = txns.filter((t) => t.categoryId === 'uncategorized').length;
+  const aiPicks = txns.filter((t) => t.categorySource === 'ai').length;
   const backupDue = txns.length > 0 && (!lastBackup || Date.now() - lastBackup > 14 * 86_400_000);
   const [y, mo] = month.split('-').map(Number);
   const daysLeft = isCurrent ? daysInMonth(y, mo) - dayOfMonth(today) + 1 : 0;
@@ -320,6 +322,15 @@ export function Home() {
                 )}
               </Section>
             </>
+          )}
+
+          {aiPicks > 0 && (
+            <button type="button" class="callout" onClick={() => nav.present((close) => <ReviewAiPicks onClose={close} />)}>
+              <strong>
+                ✨ {aiPicks} AI-categorized transaction{aiPicks === 1 ? '' : 's'} to check
+              </strong>
+              <p>The on-device AI filed these at import. A quick look confirms them, and any fixes teach it.</p>
+            </button>
           )}
 
           {uncategorized > 0 && (

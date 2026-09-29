@@ -20,7 +20,7 @@ export function ExplainPanel(props: { txn: Transaction; categories: Category[]; 
     if (!ai.embed) return;
     const all = await db.transactions.toArray();
     suggestFor(t, all, props.categories)
-      .then((s) => s && s.similarity > 0.35 && setAiCategory(s.categoryId))
+      .then((s) => s && (s.confident || s.similarity > 0.45) && setAiCategory(s.categoryId))
       .catch(() => {});
   };
 
