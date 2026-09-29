@@ -58,10 +58,8 @@ export function App() {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [lockState]);
 
-  const {
-    needRefresh: [needRefresh],
-    updateServiceWorker,
-  } = useRegisterSW();
+  // Registers the offline service worker; updates install and reload automatically.
+  useRegisterSW();
 
   const toast = useCallback((message: string) => {
     setToastMsg(message);
@@ -116,14 +114,6 @@ export function App() {
       {sheets.map((s) => (
         <div key={s.id}>{s.render(() => setSheets((all) => all.filter((x) => x.id !== s.id)))}</div>
       ))}
-      {needRefresh && (
-        <div class="update-banner">
-          <span>A new version is ready.</span>
-          <button type="button" class="link strong" onClick={() => updateServiceWorker(true)}>
-            Update
-          </button>
-        </div>
-      )}
       {toastMsg && (
         <div class="toast" role="status">
           {toastMsg}

@@ -35,34 +35,34 @@ function onProgress(p: { status: string; file?: string; name?: string; loaded?: 
   self.postMessage({ type: 'progress', loaded, total });
 }
 
-async function load(wantLlm: boolean) {
-  if (!embedder) {
-    const p = (await pipeline('feature-extraction', MODELS.embed.id, { dtype: MODELS.embed.dtype, device: 'wasm', progress_callback: onProgress })) as FeatureExtractionPipeline;
-    if (!p.tokenizer) throw new Error('The embedding model loaded without its tokenizer.');
-    embedder = p;
+async function loadEmbed() {
+  if (embedder) return;
+  const p = (await pipeline('feature-extraction', MODELS.embed.id, { dtype: MODELS.embed.dtype, device: 'wasm', progress_callback: onProgress })) as FeatureExtractionPipeline;
+  if (!p.tokenizer) throw new Error('The embedding model loaded without its tokenizer.');
+  embedder = p;
+}
+
+async function loadLlm(): Promise<{ llm: boolean; llmError?: string }> {
+  if (generator) return { llm: true };
+  files.clear();
+  const gpu = (self.navigator as Navigator & { gpu?: { requestAdapter(): Promise<unknown> } }).gpu;
+  if (!gpu || !(await gpu.requestAdapter().catch(() => null))) return { llm: false, llmError: 'WebGPU is not available in this browser.' };
+  try {
+    const g = (await pipeline('text-generation', MODELS.llm.id, { dtype: MODELS.llm.dtype, device: 'webgpu', progress_callback: onProgress })) as TextGenerationPipeline;
+    if (!g.tokenizer) throw new Error('The language model loaded without its tokenizer.');
+    generator = g;
+    return { llm: true };
+  } catch (e) {
+    return { llm: false, llmError: e instanceof Error ? e.message : String(e) };
   }
-  let llmError: string | undefined;
-  if (wantLlm && !generator) {
-    const gpu = (self.navigator as Navigator & { gpu?: { requestAdapter(): Promise<unknown> } }).gpu;
-    if (!gpu || !(await gpu.requestAdapter().catch(() => null))) llmError = 'WebGPU is not available in this browser.';
-    else {
-      try {
-        const g = (await pipeline('text-generation', MODELS.llm.id, { dtype: MODELS.llm.dtype, device: 'webgpu', progress_callback: onProgress })) as TextGenerationPipeline;
-        if (!g.tokenizer) throw new Error('The language model loaded without its tokenizer.');
-        generator = g;
-      } catch (e) {
-        llmError = e instanceof Error ? e.message : String(e);
-      }
-    }
-  }
-  return { embed: !!embedder, llm: !!generator, llmError };
 }
 
 self.onmessage = async (e: MessageEvent<{ id: number; type: string; payload?: any }>) => {
   const { id, type, payload } = e.data;
   try {
     let result: unknown;
-    if (type === 'load') result = await load(payload.llm);
+    if (type === 'load') result = await loadEmbed();
+    else if (type === 'loadLlm') result = await loadLlm();
     else if (type === 'embed') {
       if (!embedder) throw new Error('Embedding model not loaded');
       const out = await embedder(payload.texts, { pooling: 'mean', normalize: true });

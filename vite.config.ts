@@ -45,7 +45,8 @@ export default defineConfig({
     preact(),
     selfHostOrt(),
     VitePWA({
-      registerType: 'prompt',
+      // Updates install on their own (a crash-looping page couldn't reach an "Update" button).
+      registerType: 'autoUpdate',
       includeAssets: ['apple-touch-icon.png', 'icon.svg'],
       manifest: {
         name: 'Finance Tracker',
