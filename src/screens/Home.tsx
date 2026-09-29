@@ -29,6 +29,7 @@ import { SuggestCategories } from './SuggestCategories';
 import { ReviewAiPicks } from './ReviewAiPicks';
 import { TidyUp, useOldGuesses } from './TidyUp';
 import { OwedSheet } from './Owed';
+import { usePaymentAppNudges, WhatWasThis } from './People';
 import { RecapPage, RecapStories, RecapTeaser } from './Recap';
 import { autoRecapYear, yearPeriod } from '../lib/recap';
 import { db, setMeta } from '../db';
@@ -80,6 +81,7 @@ export function Home() {
   const oldGuesses = useOldGuesses()?.length ?? 0;
   const tidyDone = useMeta<number>('tidyUpDone');
   const owed = useMemo(() => owedByPerson(owedItems(txns)), [txns]);
+  const appNudges = usePaymentAppNudges();
   // The year in review opens by itself once: in December (this year) or early January (last year),
   // when the app starts (never in the middle of something, like an import).
   const recapYear = autoRecapYear(today);
@@ -366,6 +368,27 @@ export function Home() {
                   .map((p) => `${p.who} ${formatMoney(p.total)}`)
                   .join(' · ')}
                 {owed.length > 3 ? ` · +${owed.length - 3} more` : ''}. Tap when you’re paid back.
+              </p>
+            </button>
+          )}
+
+          {(appNudges.paybacks.length > 0 || appNudges.unexplained.length > 0) && (
+            <button type="button" class="callout" onClick={() => nav.present((close) => <WhatWasThis onClose={close} />)}>
+              <strong>
+                💸{' '}
+                {appNudges.paybacks.length > 0
+                  ? appNudges.paybacks.length === 1
+                    ? `${appNudges.paybacks[0].who} paid you back ${formatMoney(appNudges.paybacks[0].txn.amount)}?`
+                    : `${appNudges.paybacks.length} friends paid you back?`
+                  : appNudges.unexplained.length === 1
+                    ? 'What was this payment?'
+                    : `What were these ${appNudges.unexplained.length} payments?`}
+              </strong>
+              <p>
+                {appNudges.paybacks.length > 0
+                  ? 'Money from friends that matches what they owe you. One tap marks it paid back.'
+                  : 'Venmo, Cash App or Apple Cash payments with no clue about what they were for.'}
+                {appNudges.paybacks.length > 0 && appNudges.unexplained.length > 0 ? ` Plus ${appNudges.unexplained.length} payment${appNudges.unexplained.length === 1 ? '' : 's'} to explain.` : ''}
               </p>
             </button>
           )}

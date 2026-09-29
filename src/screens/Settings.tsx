@@ -8,6 +8,7 @@ import { ActionSheet, Field, Row, Section, Sheet } from '../components/ui';
 import { TidyUp, useOldGuesses } from './TidyUp';
 import { OwedSheet } from './Owed';
 import { TagsSheet } from './Tags';
+import { PeopleSheet } from './People';
 import { SetPasscode } from './Lock';
 import { CategoriesSheet } from './Categories';
 import { RulesSheet } from './Rules';
@@ -145,6 +146,7 @@ export function Settings() {
         <Row title="Rules" subtitle="Auto-rename and categorize imports" detail={rules.length} onClick={() => nav.present((close) => <RulesSheet onClose={close} />)} />
         <Row title="Tags" subtitle="Trips, events and what they cost" onClick={() => nav.present((close) => <TagsSheet onClose={close} />)} />
         <Row title="Owed to you" subtitle="Things you paid for someone else" onClick={() => nav.present((close) => <OwedSheet onClose={close} />)} />
+        <Row title="People" subtitle="Venmo, Cash App & Apple Cash: who you pay and who pays you" onClick={() => nav.present((close) => <PeopleSheet onClose={close} />)} />
         <Row
           title="Tidy up old categories"
           subtitle="Review transactions filed by a guess"

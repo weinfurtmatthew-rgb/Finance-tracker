@@ -4,13 +4,14 @@
  * from your data. The model never produces numbers itself.
  */
 import type { Category, Cents, ISODate, Transaction } from '../types';
-import { lines, tagKey } from '../lib/lines';
+import { lines, owedByPerson, owedItems, tagKey } from '../lib/lines';
+import { people, samePerson } from '../lib/p2p';
 import { addDays, addMonths, dayInMonth, monthKey, monthLabel } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { FREQUENCIES, monthlyCost, type RecurringStatus } from '../lib/recurring';
 import type { BudgetProgress } from '../lib/budgets';
 
-export const INTENTS = ['spending', 'income', 'top_categories', 'top_merchants', 'subscriptions', 'net_worth', 'budget', 'largest', 'count'] as const;
+export const INTENTS = ['spending', 'income', 'top_categories', 'top_merchants', 'subscriptions', 'net_worth', 'budget', 'largest', 'count', 'owed', 'person'] as const;
 export type Intent = (typeof INTENTS)[number];
 
 export interface Period {
@@ -25,6 +26,8 @@ export interface Query {
   merchant?: string;
   /** A tag like "Italy 2026": everything tagged with it. */
   tag?: string;
+  /** A friend you pay through Venmo & co, or who owes you. */
+  person?: string;
   period: Period;
   source: 'rules' | 'ai';
 }
@@ -36,6 +39,27 @@ export interface AskContext {
   merchants: string[];
   /** Tags you've used, for "how much did the Italy trip cost?". */
   tags?: string[];
+  /** People you pay or who owe you, for "how much have I sent Alex?". */
+  people?: string[];
+}
+
+const COMMON_WORDS = new Set(['will', 'may', 'june', 'april', 'august', 'mark', 'bill', 'pat', 'rich', 'sue', 'grace', 'joy', 'hope', 'art', 'max', 'amazon', 'target']);
+
+/** A person named in the question: full name, or first name ("Alex" for "Alex Smith"). */
+export function findPerson(text: string, names: string[] = []): string | undefined {
+  const t = text.toLowerCase();
+  let best: string | undefined;
+  for (const n of names) {
+    const name = n.toLowerCase().trim();
+    const first = name.split(/\s+/)[0];
+    // First names that are also everyday words only count in full.
+    const vague = first.length < 3 || COMMON_WORDS.has(first);
+    if (vague && !containsPhrase(t, name)) continue;
+    if (containsPhrase(t, name) || containsPhrase(t, first) || containsPhrase(t, `${first}'s`)) {
+      if (!best || name.length > best.length) best = n;
+    }
+  }
+  return best;
 }
 
 /** A tag named in the question: its full name, or its distinctive first word ("italy" for "Italy 2026"). */
@@ -203,6 +227,7 @@ export function detectIntentWithStrength(text: string): { intent: Intent; strong
   const strong = (intent: Intent) => ({ intent, strong: true });
   const weak = (intent: Intent) => ({ intent, strong: false });
   if (/net ?worth|how much am i worth|what am i worth/.test(t)) return strong('net_worth');
+  if (/\bowes? me\b|\bowed to me\b|\bowe me\b|paid me back|pay me back|owe(s)? (you|me) money/.test(t)) return strong('owed');
   if (/subscription|recurring|streaming|membership|what bills|which bills|my bills/.test(t)) return strong('subscriptions');
   if (/budget|left to spend|over(spent| budget)|\blimits?\b/.test(t)) return strong('budget');
   if (/(biggest|largest|most expensive|highest|priciest)\s+(single\s+)?(purchase|transaction|expense|charge|payment|thing|item)s?|(priciest|most expensive) (thing|item|purchase)/.test(t)) return strong('largest');
@@ -226,12 +251,16 @@ export function detectIntent(text: string): Intent | null {
 export function parseQuestion(text: string, ctx: AskContext): Query | null {
   const tag = findTag(text, ctx.tags);
   const category = withoutTripWord(findCategory(text, ctx.categories), text, tag);
-  const merchant = findMerchant(text, ctx.merchants);
+  const person = findPerson(text, ctx.people);
   let intent = detectIntent(text);
+  // "How much have I sent Alex?", "what did Jordan pay me?", "how much did I venmo Casey?"
+  if (person && !category && intent !== 'owed' && (intent === null || /\b(sent|send|sending|venmo'?e?d?|cash ?app'?e?d?|paid|pay|gave|give|received|got|transferred)\b/i.test(text))) intent = 'person';
+  const merchant = intent === 'person' || intent === 'owed' ? undefined : findMerchant(text, ctx.merchants);
   if (!intent && (category || merchant || tag)) intent = 'spending';
   if (!intent) return null;
-  const period = parsePeriod(text, ctx.today) ?? (tag ? allTime(ctx.today) : thisMonth(ctx.today));
-  return { intent, categoryId: category, merchant: intent === 'subscriptions' ? undefined : merchant, tag, period, source: 'rules' };
+  const everything = tag || intent === 'person' || intent === 'owed';
+  const period = parsePeriod(text, ctx.today) ?? (everything ? allTime(ctx.today) : thisMonth(ctx.today));
+  return { intent, categoryId: category, merchant: intent === 'subscriptions' ? undefined : merchant, tag, person: intent === 'person' || intent === 'owed' ? person : undefined, period, source: 'rules' };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -249,6 +278,8 @@ export const INTENT_EXAMPLES: Record<Intent, string[]> = {
   budget: ['am i over budget', 'how much is left in my budget', 'am i on track with my budget', 'how is my budget looking'],
   largest: ['what was my biggest purchase', 'what is the most expensive thing i bought', 'my largest single expense', 'what was my priciest purchase'],
   count: ['how many times did i go there', 'how often do i buy this', 'number of visits', 'how many purchases did i make there'],
+  owed: ['who owes me money', 'who still has to pay me back', 'how much am i owed', 'what do my friends owe me'],
+  person: ['how much have i sent my friend', 'how much did i venmo them', 'how much has my roommate paid me', 'money between me and a friend'],
 };
 
 export interface IntentMatch {
@@ -305,8 +336,11 @@ export async function understand(question: string, ctx: AskContext, embed?: Embe
     });
     if (best && best.sim >= CATEGORY_THRESHOLD) categoryId = best.id;
   }
-  const merchant = match.intent === 'subscriptions' ? undefined : findMerchant(question, ctx.merchants);
-  return { intent: match.intent, categoryId, merchant, tag, period: parsePeriod(question, ctx.today) ?? (tag ? allTime(ctx.today) : thisMonth(ctx.today)), source: 'ai' };
+  const person = match.intent === 'person' || match.intent === 'owed' ? findPerson(question, ctx.people) : undefined;
+  if (match.intent === 'person' && !person) return ruled;
+  const merchant = match.intent === 'subscriptions' || person ? undefined : findMerchant(question, ctx.merchants);
+  const everything = tag || match.intent === 'person' || match.intent === 'owed';
+  return { intent: match.intent, categoryId, merchant, tag, person, period: parsePeriod(question, ctx.today) ?? (everything ? allTime(ctx.today) : thisMonth(ctx.today)), source: 'ai' };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -374,7 +408,8 @@ function describe(q: Query, d: AnswerData): string {
   if (q.categoryId) parts.push(d.categories.get(q.categoryId)?.name ?? q.categoryId);
   if (q.merchant) parts.push(`at ${q.merchant}`);
   if (q.tag) parts.push(`#${q.tag}`);
-  if (!['subscriptions', 'net_worth', 'budget'].includes(q.intent)) parts.push(q.period.label);
+  if (q.person) parts.push(q.person);
+  if (!['subscriptions', 'net_worth', 'budget', 'owed'].includes(q.intent)) parts.push(q.period.label);
   return parts.join(' · ');
 }
 
@@ -468,6 +503,30 @@ export function answer(q: Query, d: AnswerData): Answer {
         interpretation,
       };
     }
+    case 'owed': {
+      const all = owedByPerson(owedItems(d.txns));
+      const list = q.person ? all.filter((p) => samePerson(p.who, q.person)) : all;
+      const total = list.reduce((s, p) => s + p.total, 0);
+      if (!list.length)
+        return { headline: q.person ? `${q.person} doesn't owe you anything.` : `Nobody owes you money right now.`, detail: 'Mark a purchase as “Paid for someone else” to track it.', interpretation };
+      return {
+        headline: q.person ? `${list[0].who} owes you ${money(total)}.` : `${list.length === 1 ? `${list[0].who} owes` : `${list.length} people owe`} you ${money(total)}.`,
+        items: q.person ? list[0].items.map((i) => ({ label: i.txn.payee, value: i.amount, note: i.date })) : list.map((p) => ({ label: p.who, value: p.total, note: `${p.items.length} thing${p.items.length === 1 ? '' : 's'}` })),
+        interpretation,
+      };
+    }
+    case 'person': {
+      const p = people(d.txns, q.period).find((x) => samePerson(x.name, q.person));
+      const name = p?.name ?? q.person ?? 'them';
+      if (!p || (!p.sent && !p.received)) return { headline: `No payments with ${name} ${when(q.period)}.`, interpretation };
+      const net = p.received - p.sent;
+      return {
+        headline: `You sent ${name} ${money(p.sent)} and received ${money(p.received)} ${when(q.period)}.`,
+        detail: `${p.txns.length} payment${p.txns.length === 1 ? '' : 's'}. ${net === 0 ? 'You’re even.' : net < 0 ? `On balance you paid ${money(-net)} more.` : `On balance they paid ${money(net)} more.`}`,
+        items: p.txns.slice(0, 6).map((t) => ({ label: t.p2p?.note || t.payee, value: Math.abs(t.amount), note: `${t.amount < 0 ? 'sent' : 'received'} ${t.date}` })),
+        interpretation,
+      };
+    }
     case 'net_worth':
       return {
         headline: `Your net worth is ${money(d.netWorth.net)}.`,
@@ -497,4 +556,5 @@ export const EXAMPLES = [
   'How many times did I go to Starbucks this year?',
   'What was my biggest purchase in August?',
   'Am I over budget?',
+  'Who owes me money?',
 ];

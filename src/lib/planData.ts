@@ -149,7 +149,7 @@ export function planSnapshot(args: {
   }
 
   return {
-    cash: sum(['checking', 'savings', 'cash']),
+    cash: sum(['checking', 'savings', 'cash', 'wallet']),
     savings: sum(['savings']),
     savingsMonthly,
     invested: sum(['brokerage']),

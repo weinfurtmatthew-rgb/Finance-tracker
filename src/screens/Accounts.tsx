@@ -19,7 +19,7 @@ import { UpdateValues } from './UpdateValues';
 import { GoalEditor } from './GoalEditor';
 
 const GROUPS: { title: string; types: AccountType[]; icon: string }[] = [
-  { title: 'Cash', types: ['checking', 'savings', 'cash'], icon: '🏦' },
+  { title: 'Cash', types: ['checking', 'savings', 'cash', 'wallet'], icon: '🏦' },
   { title: 'Investments', types: ['brokerage'], icon: '📈' },
   { title: 'Vehicles', types: ['vehicle'], icon: '🚗' },
   { title: 'Credit cards', types: ['credit'], icon: '💳' },

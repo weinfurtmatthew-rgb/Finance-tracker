@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'preact/hooks';
 import { allTags } from '../lib/lines';
+import { people } from '../lib/p2p';
 import { byId, useBook, useCategories, useTransactions } from '../hooks';
 import { useNav } from '../nav';
 import { useRecurringModel } from '../recurringModel';
@@ -36,6 +37,7 @@ export function AskSheet(props: { onClose: () => void }) {
   const today = rec.today;
   const merchants = useMemo(() => [...new Set(txns.map((t) => t.payee).filter(Boolean))], [txns]);
   const tags = useMemo(() => allTags(txns).map((x) => x.tag), [txns]);
+  const peopleNames = useMemo(() => [...people(txns).map((p) => p.name)], [txns]);
 
   const ask = async (question: string) => {
     const q = question.trim();
@@ -43,7 +45,7 @@ export function AskSheet(props: { onClose: () => void }) {
     setText('');
     const index = turns.length;
     setTurns((t) => [...t, { question: q, pending: true }]);
-    const ctx = { today, categories, merchants, tags };
+    const ctx = { today, categories, merchants, tags, people: peopleNames };
     let query = null;
     try {
       query = await understand(q, ctx, ai.embed ? vectors : undefined, CATEGORY_SEEDS);

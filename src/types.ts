@@ -4,7 +4,29 @@ export type Cents = number;
 /** Calendar date as 'YYYY-MM-DD' (no time zone surprises). */
 export type ISODate = string;
 
-export type AccountType = 'checking' | 'savings' | 'credit' | 'brokerage' | 'vehicle' | 'cash' | 'loan' | 'other';
+/** 'wallet' is a payment app's balance: Venmo, Cash App, Apple Cash. */
+export type AccountType = 'checking' | 'savings' | 'credit' | 'brokerage' | 'vehicle' | 'cash' | 'wallet' | 'loan' | 'other';
+
+export type PaymentApp = 'venmo' | 'cashapp' | 'applecash';
+
+/** Details from a payment app (Venmo, Cash App, Apple Cash). */
+export interface TxnP2P {
+  app: PaymentApp;
+  /** The friend (or shop) on the other side. */
+  person?: string;
+  note?: string;
+  kind?: 'payment' | 'transfer' | 'purchase' | 'reward' | 'other';
+  /** Paid straight from a bank or card instead of the app balance. */
+  fundedFrom?: string;
+  /**
+   * Waiting for the bank's line: the payment and the money in from the bank sit in the app account as
+   * a pair sharing `ref`, and merge into the bank's line once that's imported.
+   */
+  role?: 'payment' | 'funding';
+  ref?: string;
+  /** On a bank line that the app's details were merged into: that app line's import id. */
+  appImportId?: string;
+}
 
 export interface Account {
   id: string;
@@ -70,6 +92,8 @@ export interface Transaction {
   owedBy?: string;
   /** When what's owed was paid back: the repayment's transaction id, or 'untracked' (cash etc.). */
   settledBy?: string;
+  /** From a payment app, or a bank line merged with one. */
+  p2p?: TxnP2P;
   notes: string;
   source: TransactionSource;
   /** Stable identifier used to skip duplicates when re-importing overlapping files. */

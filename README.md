@@ -24,11 +24,30 @@ Download a file from your bank's **website** and import it (Overview or Activity
 | Discover | CSV (or QFX) | Purchases are positive in Discover's CSV. Detected and flipped automatically |
 | Capital One | CSV | Card (Debit/Credit columns) and 360 (Transaction Type column) formats detected. ~90 days per download |
 | Fidelity | CSV | Header row found below Fidelity's blank lines; buys/sells filed as Investments |
+| Venmo | Statement CSV | venmo.com → Statements → Download CSV, monthly. Sets the Venmo balance |
+| Cash App | Activity CSV | cash.app → Activity / Statements → Export CSV |
+| Apple Cash | (no export) | Card-funded payments show in your bank's file; use People → Log a Payment for the rest |
 
 Any other bank's CSV works through the column mapper, which is remembered per file layout. Re-importing an overlapping date range
 skips transactions you already have.
 
 ## Features
+
+### Venmo, Cash App & Apple Cash
+
+- Each app is a **Payment app** account with its own balance (counted as cash in net worth and the calculators).
+  Import a Venmo statement or Cash App export once a month; the file is recognized automatically.
+- **Nothing counts twice:** a payment paid from your bank or debit card appears in both your bank's file and the app's.
+  They become one transaction: the bank's line, with the person, note and category from the app. Import in either
+  order; a payment waits in the app account until its bank line arrives, then merges. Re-importing skips what you have.
+- **Transfers** between the app and your bank (cash out, add money, instant transfer) are filed under Transfer on both sides.
+- **Paybacks:** money from a friend that matches what they owe you asks "Alex paid you back $24?". One tap settles
+  it, and the payment isn't counted as income.
+- Payments are categorized from the note, emoji included (🍕 Dining, 🏠 Rent, 🍻 Bars…), plus your history with that
+  person and the on-device AI. Money from friends is never guessed as income. Ones with no clue go to
+  **What was this?** (Overview).
+- **People** (Settings): what you've sent to and received from each person, and what they owe you. Ask "how much have
+  I sent Alex?" or "who owes me?". **Log a Payment** there covers Apple Cash, which has no export.
 
 ### Splits, owed money, categories & tags
 

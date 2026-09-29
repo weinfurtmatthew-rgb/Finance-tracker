@@ -18,6 +18,7 @@ export const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'brokerage', label: 'Investment' },
   { value: 'vehicle', label: 'Vehicle' },
   { value: 'cash', label: 'Cash' },
+  { value: 'wallet', label: 'Payment app (Venmo, Cash App…)' },
   { value: 'loan', label: 'Loan' },
   { value: 'other', label: 'Other' },
 ];

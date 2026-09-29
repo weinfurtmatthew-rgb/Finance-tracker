@@ -13,6 +13,20 @@ import { TagInput } from '../components/TagInput';
 import { SettleSheet } from './Owed';
 import { ActionSheet, CategorySelect, Field, Section, Segmented, Sheet, Toggle } from '../components/ui';
 import { ExplainPanel } from '../components/ExplainPanel';
+import { APP_NAMES, bankLineApp, isAppTransferLine } from '../lib/p2p';
+
+/**
+ * Keep payment-app details. On an app payment (or a bank line like "APPLE CASH SENT MONEY"), the payee
+ * you type is the person, so it shows up under People.
+ */
+function appDetails(t: Transaction | undefined, payee: string): Pick<Transaction, 'p2p'> | Record<string, never> {
+  if (!t) return {};
+  const app = t.p2p?.app ?? bankLineApp(t.description);
+  if (!app) return {};
+  const isPayment = t.p2p ? t.p2p.kind === 'payment' && t.p2p.role !== 'funding' : !isAppTransferLine(t.description);
+  if (!t.p2p && (!isPayment || payee === t.payee)) return {};
+  return { p2p: { ...(t.p2p ?? { app, kind: 'payment' }), ...(isPayment && payee ? { person: payee } : {}) } };
+}
 
 type Props = { txn?: Transaction; accountId?: string; onClose: () => void };
 
@@ -47,7 +61,7 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
   const [owedBy, setOwedBy] = useState(t?.owedBy ?? '');
   const [tags, setTags] = useState<string[]>(t?.tags ?? []);
   const knownTags = useMemo(() => allTags(props.txns).map((x) => x.tag), [props.txns]);
-  const people = useMemo(() => [...new Set(owedItems(props.txns).map((i) => i.who))], [props.txns]);
+  const people = useMemo(() => [...new Set([...owedItems(props.txns).map((i) => i.who), ...props.txns.map((x) => x.p2p?.person).filter((x): x is string => !!x && !x.includes('*'))])], [props.txns]);
   const owedHere = t ? owedItems([t]) : [];
 
   const cents = parseUserAmount(amount);
@@ -97,6 +111,7 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
       createdAt: t?.createdAt ?? Date.now(),
       ...(splits ? { splits } : {}),
       ...(tags.length ? { tags } : {}),
+      ...appDetails(t, payee.trim()),
       ...(whole ? { owedBy: owedBy.trim(), ...(t?.settledBy ? { settledBy: t.settledBy } : {}) } : {}),
     };
     if (!record.categorySource) delete record.categorySource;
@@ -110,6 +125,9 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
   };
 
   const remove = async () => {
+    // A payment waiting for its bank line goes together with the money in from the bank.
+    const ref = t!.p2p?.ref;
+    if (ref) await db.transactions.bulkDelete(props.txns.filter((x) => x.p2p?.ref === ref).map((x) => x.id));
     await db.transactions.delete(t!.id);
     nav.toast('Transaction deleted');
     props.onClose();
@@ -146,6 +164,20 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
           />
         </label>
       </div>
+      {t?.p2p && t.p2p.role !== 'funding' && (
+        <p class="section-footer intro">
+          {[
+            APP_NAMES[t.p2p.app],
+            t.p2p.person,
+            t.p2p.note && `“${t.p2p.note}”`,
+            t.p2p.fundedFrom && `paid from ${t.p2p.fundedFrom}`,
+            t.p2p.appImportId && 'matched to your bank’s line',
+            t.p2p.role === 'payment' && 'waiting for your bank’s line',
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
+      )}
       <Section>
         <Field label="Payee">
           <input value={payee} placeholder="Who was it?" onInput={(e) => setPayee((e.target as HTMLInputElement).value)} />

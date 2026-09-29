@@ -6,6 +6,8 @@ import type { Account, AccountType, CsvMapping, TransactionSource } from '../typ
 import type { DraftTransaction } from '../lib/draft';
 import { csvToDrafts, detectFormat, headerSignature, readCsv, type CsvTable } from '../lib/csv';
 import { looksLikeOfx, parseOfx, type OfxStatement } from '../lib/ofx';
+import { APP_NAMES, appImportIds, linkWaitingPayments, placeAppTransactions, readPaymentApp, type AppFile } from '../lib/p2p';
+import { PaybackList, usePaymentAppNudges, WhatWasThis } from './People';
 import { prepareImport, toTransactions } from '../lib/importer';
 import { payeeHistory } from '../lib/categorize';
 import { aiState } from '../ai/client';
@@ -34,7 +36,12 @@ interface OfxState {
   index: number;
 }
 
-type Parsed = (CsvState | OfxState) & { fileName: string };
+interface AppState {
+  kind: 'app';
+  file: AppFile;
+}
+
+type Parsed = (CsvState | OfxState | AppState) & { fileName: string };
 
 const NEW = '__new__';
 
@@ -69,15 +76,17 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
   const [newInstitution, setNewInstitution] = useState('');
   const [useBalance, setUseBalance] = useState(true);
   const [busy, setBusy] = useState<false | 'import' | 'ai'>(false);
-  const [done, setDone] = useState<{ added: number; skipped: number; account: Account; balanceSet: boolean; uncategorized: number; byAi: number }>();
+  const [done, setDone] = useState<{ added: number; skipped: number; account: Account; balanceSet: boolean; uncategorized: number; byAi: number; merged: number; waiting: number }>();
   // What you've categorized yourself teaches new imports: same payee, same category.
   const allTxns = useLiveQuery(() => db.transactions.toArray(), []);
+  const nudges = usePaymentAppNudges();
   const history = useMemo(() => payeeHistory(allTxns ?? []), [allTxns]);
 
   const existingIds = useLiveQuery(async () => {
     if (accountId === NEW) return new Set<string>();
     const txns = await db.transactions.where('accountId').equals(accountId).toArray();
-    return new Set(txns.map((t) => t.importId).filter((x): x is string => !!x));
+    // App payments already merged into a bank line count as imported too.
+    return new Set([...txns.map((t) => t.importId).filter((x): x is string => !!x), ...appImportIds(await db.transactions.toArray())]);
   }, [accountId]);
 
   const onFile = async (file: File) => {
@@ -89,7 +98,16 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
       const known = await db.accounts.toArray();
       const ofxLike = /\.(ofx|qfx|qbo)$/i.test(file.name) || looksLikeOfx(text);
       let nextAccount = props.accountId;
-      if (ofxLike) {
+      const appFile = ofxLike ? null : readPaymentApp(text);
+      if (appFile) {
+        // Venmo / Cash App: its own "Payment app" account.
+        const name = APP_NAMES[appFile.app];
+        setParsed({ kind: 'app', file: appFile, fileName: file.name });
+        nextAccount ??= known.find((a) => a.type === 'wallet' && !a.archived && `${a.institution} ${a.name}`.toLowerCase().includes(name.toLowerCase()))?.id;
+        setNewType('wallet');
+        setNewInstitution(name);
+        setNewName(name);
+      } else if (ofxLike) {
         const statements = parseOfx(text);
         if (!statements.length) throw new Error('No account statement was found in this file.');
         const st = statements[0];
@@ -127,10 +145,12 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
   };
 
   const statement = parsed?.kind === 'ofx' ? parsed.statements[parsed.index] : undefined;
+  const fileBalance = statement?.balance ?? (parsed?.kind === 'app' ? parsed.file.balance : undefined);
   const accountType = accountId === NEW ? newType : accounts?.find((a) => a.id === accountId)?.type;
   const read = useMemo((): { drafts: DraftTransaction[]; skipped: number } => {
     if (!parsed) return { drafts: [], skipped: 0 };
     if (parsed.kind === 'ofx') return { drafts: parsed.statements[parsed.index].transactions, skipped: 0 };
+    if (parsed.kind === 'app') return { drafts: parsed.file.drafts, skipped: parsed.file.skipped };
     return csvToDrafts(parsed.table, parsed.mapping);
   }, [parsed]);
 
@@ -147,7 +167,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
     if (!parsed || !rules) return;
     setBusy('import');
     try {
-      const source: TransactionSource = parsed.kind;
+      const source: TransactionSource = parsed.kind === 'ofx' ? 'ofx' : 'csv';
       const result = await db.transaction('rw', [db.accounts, db.transactions, db.csvMappings], async () => {
         let account = accountId === NEW ? undefined : await db.accounts.get(accountId);
         if (!account) {
@@ -164,37 +184,53 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
           };
           await db.accounts.add(account);
         }
-        const existing = await db.transactions.where('accountId').equals(account.id).toArray();
-        const ids = new Set(existing.map((t) => t.importId).filter((x): x is string => !!x));
+        const all = await db.transactions.toArray();
+        const existing = all.filter((t) => t.accountId === account!.id);
+        const ids = new Set([...existing.map((t) => t.importId).filter((x): x is string => !!x), ...appImportIds(all)]);
         const items = prepareImport(account.id, read.drafts, ids, rules, { history, creditAccount: account.type === 'credit' });
-        const rows = toTransactions(account, items, source, newId);
+        const fresh = toTransactions(account, items, source, newId);
+        const allAccounts = await db.accounts.toArray();
+        // Payment apps: payments paid from your bank land on the bank's line (or wait for it), so
+        // nothing counts twice.
+        const placed = placeAppTransactions(fresh, all, allAccounts, newId);
+        const rows = placed.add;
         await db.transactions.bulkAdd(rows);
+        for (const u of placed.update) await db.transactions.update(u.id, u.changes);
+        // A bank file: app payments that were waiting for their bank line merge into it now.
+        const linked = linkWaitingPayments(await db.transactions.toArray(), allAccounts);
+        for (const u of linked.update) await db.transactions.update(u.id, u.changes);
+        await db.transactions.bulkDelete(linked.remove);
+        const removed = new Set(linked.remove);
+        const kept = rows.filter((r) => !removed.has(r.id));
+        const merged = placed.update.filter((u) => u.changes.p2p).length + linked.update.filter((u) => u.changes.p2p).length;
+        const waiting = kept.filter((r) => r.p2p?.role === 'payment').length;
         let balanceSet = false;
-        if (statement?.balance && useBalance) {
-          account.openingBalance = openingBalanceFor(account.id, [...existing, ...rows], statement.balance.amount, statement.balance.asOf);
+        if (fileBalance && useBalance) {
+          account.openingBalance = openingBalanceFor(account.id, [...existing.filter((t) => !removed.has(t.id)), ...kept], fileBalance.amount, fileBalance.asOf);
           // The file carries the bank's own balance, so this counts as checked.
-          account.checkedOn = statement.balance.asOf;
+          account.checkedOn = fileBalance.asOf;
           await db.accounts.put(account);
           balanceSet = true;
         }
         if (parsed.kind === 'csv') await db.csvMappings.put({ ...parsed.mapping, accountId: account.id });
-        return { added: rows.length, skipped: items.length - rows.length, account, balanceSet, rows };
+        const added = kept.filter((r) => r.p2p?.role !== 'funding').length;
+        return { added, skipped: items.length - fresh.length, account, balanceSet, rows: kept, merged, waiting };
       });
       // On-device AI: confidently categorize what the rules and keywords couldn't, marked for review.
       let byAi = 0;
       if (aiState().embed && categories && result.rows.length) {
         setBusy('ai');
         try {
-          const picks = await automaticPicks(new Set(result.rows.map((r) => r.id)), await db.transactions.toArray(), categories);
+          const picks = await automaticPicks(new Set(result.rows.filter((r) => r.p2p?.role !== 'funding').map((r) => r.id)), await db.transactions.toArray(), categories);
           await db.transactions.bulkUpdate(picks.map((p) => ({ key: p.id, changes: { categoryId: p.categoryId, categorySource: 'ai' as const } })));
           byAi = picks.length;
         } catch {
           // The import itself worked; AI is a bonus.
         }
       }
-      const fresh = await db.transactions.bulkGet(result.rows.map((r) => r.id));
-      const uncategorized = fresh.filter((t) => t?.categoryId === 'uncategorized').length;
-      setDone({ added: result.added, skipped: result.skipped, account: result.account, balanceSet: result.balanceSet, uncategorized, byAi });
+      const saved = await db.transactions.bulkGet(result.rows.map((r) => r.id));
+      const uncategorized = saved.filter((t) => t?.categoryId === 'uncategorized').length;
+      setDone({ added: result.added, skipped: result.skipped, account: result.account, balanceSet: result.balanceSet, uncategorized, byAi, merged: result.merged, waiting: result.waiting });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -203,7 +239,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
   };
 
   if (done) {
-    const { uncategorized, byAi } = done;
+    const { uncategorized, byAi, merged, waiting } = done;
     return (
       <Sheet title="Import" onClose={props.onClose}>
         <Empty icon="✅" title={`Imported ${done.added} transaction${done.added === 1 ? '' : 's'}`}>
@@ -211,6 +247,16 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
             Into <b>{done.account.name}</b>.{done.skipped > 0 && ` ${done.skipped} already-imported transaction${done.skipped === 1 ? ' was' : 's were'} skipped.`}
             {uncategorized > 0 && ` ${uncategorized} need a category.`}
           </p>
+          {merged > 0 && (
+            <p class="merge-note">
+              🔗 {merged} payment{merged === 1 ? '' : 's'} paid from your bank {merged === 1 ? 'was' : 'were'} matched to the bank’s own line{merged === 1 ? '' : 's'}, so {merged === 1 ? 'it isn’t' : 'they aren’t'} counted twice.
+            </p>
+          )}
+          {waiting > 0 && (
+            <p>
+              {waiting} payment{waiting === 1 ? '' : 's'} paid from your bank will be matched when you import that bank’s file.
+            </p>
+          )}
           {byAi > 0 && (
             <p>
               ✨ On-device AI categorized {byAi} more. They're marked so you can check them.
@@ -222,6 +268,11 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
                 Review AI Picks
               </button>
             )}
+            {nudges.unexplained.length > 0 && (
+              <button type="button" class="button" onClick={() => nav.present((close) => <WhatWasThis onClose={close} />)}>
+                What Were These? ({nudges.unexplained.length})
+              </button>
+            )}
             <button type="button" class={`button ${byAi > 0 ? '' : 'primary'}`} onClick={() => nav.showActivity({ accountId: done.account.id })}>
               View Transactions
             </button>
@@ -230,8 +281,9 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
             </button>
           </div>
         </Empty>
+        <PaybackList paybacks={nudges.paybacks} />
         {done.balanceSet ? (
-          <p class="section-footer intro">✓ Balance set from your bank's file.</p>
+          <p class="section-footer intro">✓ Balance set from {parsed?.kind === 'app' ? `${APP_NAMES[parsed.file.app]}'s statement` : "your bank's file"}.</p>
         ) : (
           !isValued(done.account) && (
             <BalanceCheck
@@ -256,7 +308,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
             }} />
             <span class="drop-icon" aria-hidden="true">📄</span>
             <strong>Choose a File</strong>
-            <span class="muted">CSV, OFX, QFX or QBO from your bank</span>
+            <span class="muted">CSV, OFX, QFX or QBO from your bank, or a Venmo or Cash App statement</span>
           </label>
           {error && <p class="error" role="alert">{error}</p>}
         </div>
@@ -272,6 +324,18 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
           <details class="help">
             <summary>Capital One</summary>
             <p>Sign in at capitalone.com, open the card or 360 account, and choose <b>Download Transactions</b> → CSV. Capital One only lets you download about the last 90 days, so import every month or two.</p>
+          </details>
+          <details class="help">
+            <summary>Venmo</summary>
+            <p>Sign in at venmo.com in Safari, open <b>Statements</b> (under your account menu), pick a month and choose <b>Download CSV</b>. Import it once a month. Payments paid from your bank or debit card are matched to your bank’s own line so nothing counts twice, and money from friends is matched to what they owe you.</p>
+          </details>
+          <details class="help">
+            <summary>Cash App</summary>
+            <p>Sign in at cash.app in Safari, open <b>Activity</b> or <b>Statements</b> and choose <b>Export CSV</b>. It works like Venmo: payments from your debit card match your bank’s line, and cash-outs are filed as transfers.</p>
+          </details>
+          <details class="help">
+            <summary>Apple Cash</summary>
+            <p>Apple doesn’t offer a download of Apple Cash activity. Payments paid from your debit card still show in your bank’s file (“APPLE CASH SENT MONEY”), and the app asks what they were for. For payments from your Apple Cash balance, use <b>People → Log a Payment</b>. It takes a few seconds.</p>
           </details>
           <details class="help">
             <summary>Fidelity</summary>
@@ -308,13 +372,27 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
     >
       <Section
         title="File"
-        footer={parsed.kind === 'csv' ? (parsed.saved ? 'Using the column layout you confirmed last time for this bank.' : parsed.note) : undefined}
+        footer={
+          parsed.kind === 'csv'
+            ? parsed.saved
+              ? 'Using the column layout you confirmed last time for this bank.'
+              : parsed.note
+            : parsed.kind === 'app'
+              ? 'Payments paid from your bank or debit card are matched to the bank’s own line, so they aren’t counted twice. Transfers to and from your bank are filed under Transfer.'
+              : undefined
+        }
       >
         <div class="row">
           <span class="row-main">
             <span class="row-title">{parsed.fileName}</span>
             <span class="row-subtitle">
-              {parsed.kind === 'csv' ? `${parsed.format}${parsed.saved ? ' · saved layout' : ''}` : statement?.kind === 'credit' ? 'OFX · credit card' : `OFX · ${statement?.bankAccountType?.toLowerCase() ?? 'bank'} account`}
+              {parsed.kind === 'app'
+                ? `${APP_NAMES[parsed.file.app]} ${parsed.file.app === 'venmo' ? 'statement' : 'activity'}`
+                : parsed.kind === 'csv'
+                  ? `${parsed.format}${parsed.saved ? ' · saved layout' : ''}`
+                  : statement?.kind === 'credit'
+                    ? 'OFX · credit card'
+                    : `OFX · ${statement?.bankAccountType?.toLowerCase() ?? 'bank'} account`}
               {statement?.accountNumber && ` · ••••${statement.accountNumber.replace(/\D/g, '').slice(-4)}`}
             </span>
           </span>
@@ -358,11 +436,11 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
             </Field>
           </>
         )}
-        {statement?.balance && (
+        {fileBalance && (
           <Toggle
             checked={useBalance}
             onChange={setUseBalance}
-            label={`Set balance to ${formatMoney(statement.balance.amount)} (as of ${formatDay(statement.balance.asOf)})`}
+            label={`Set balance to ${formatMoney(fileBalance.amount)} (as of ${formatDay(fileBalance.asOf)})`}
           />
         )}
       </Section>
@@ -429,6 +507,8 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
                 <span class="row-title">{p.payee}</span>
                 <span class="row-subtitle">
                   {formatDay(p.draft.date)} · {cats.get(p.categoryId)?.name}
+                  {p.draft.p2p?.note ? ` · “${p.draft.p2p.note}”` : ''}
+                  {p.draft.p2p?.fundedFrom ? ` · from ${p.draft.p2p.fundedFrom}` : ''}
                 </span>
               </span>
               <span class="row-detail">
