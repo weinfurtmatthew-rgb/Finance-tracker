@@ -72,7 +72,8 @@ describe('detectRecurring', () => {
       ...monthly('Apple', -299, 5, MONTHS),
       ...monthly('Apple', -1099, 19, MONTHS),
       ...['2026-07-03', '2026-07-17', '2026-07-31', '2026-08-14', '2026-08-28', '2026-09-11', '2026-09-25'].map((d) => tx(d, 240000, 'Acme Corp Payroll', 'income')),
-      ...monthly('Discover E-Payment', -41233, 20, MONTHS, 'transfer'),
+      ...monthly('Discover E-Payment', -41233, 20, MONTHS, 'card-payment'),
+      ...monthly('Transfer To Savings', -30000, 3, MONTHS, 'transfer'), // not a bill
       ...monthly('Eversource', -9000, 12, MONTHS.slice(0, 2), 'bills'),
       tx('2026-06-12', -14000, 'Eversource', 'bills'), // variable amounts still one bill
       tx('2026-07-12', -6000, 'Eversource', 'bills'),

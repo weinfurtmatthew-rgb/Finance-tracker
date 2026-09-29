@@ -27,9 +27,10 @@ describe('guessCategory', () => {
     ['WHOLEFDS CAM 10234', -8217, 'groceries'],
     ['SHELL OIL 57444281508', -4102, 'gas'],
     ['T-MOBILE AUTOPAY', -7000, 'bills'],
-    ['DISCOVER E-PAYMENT 1234', -41233, 'transfer'],
-    ['CAPITAL ONE MOBILE PYMT', -25000, 'transfer'],
-    ['AUTOPAY PAYMENT - THANK YOU', 25000, 'transfer'],
+    ['DISCOVER E-PAYMENT 1234', -41233, 'card-payment'],
+    ['CAPITAL ONE MOBILE PYMT', -25000, 'card-payment'],
+    ['AUTOPAY PAYMENT - THANK YOU', 25000, 'card-payment'],
+    ['ONLINE TRANSFER TO SAVINGS', -50000, 'transfer'],
     ['T-MOBILE *POSTPAID', -7000, 'bills'],
     ['BEST BUY 00012', -19999, 'shopping'],
     ['CURRENT ACCOUNT FEE', -500, 'uncategorized'],
@@ -61,7 +62,7 @@ describe('categorize', () => {
   });
   it('then the bank category', () => {
     expect(categorize({ description: 'XYZ', payee: 'Xyz', amount: -100, bankCategory: 'Supermarkets' }, [])).toEqual({ payee: 'Xyz', categoryId: 'groceries' });
-    expect(categorize({ description: 'DIRECTPAY', payee: 'Directpay', amount: 41233, bankCategory: 'Payments and Credits' }, []).categoryId).toBe('transfer');
+    expect(categorize({ description: 'DIRECTPAY', payee: 'Directpay', amount: 41233, bankCategory: 'Payments and Credits' }, []).categoryId).toBe('card-payment');
     expect(categorize({ description: 'CASHBACK', payee: 'Cashback', amount: 1250, bankCategory: 'Awards and Rebate Credits' }, []).categoryId).toBe('income');
   });
   it('refunds keep the purchase category so they offset spending', () => {

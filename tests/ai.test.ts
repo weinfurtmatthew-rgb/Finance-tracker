@@ -124,6 +124,14 @@ describe('answer (exact numbers)', () => {
   it('income', () => {
     expect(ask('how much did i make in august').headline).toBe('You received $2,400.00 in income in August 2026.');
   });
+  it('card payments are their own category and not spending', () => {
+    const q = parseQuestion('how much did i pay on my credit cards in august', ctx)!;
+    expect(q).toMatchObject({ intent: 'spending', categoryId: 'card-payment' });
+    const withPayment = { ...data, txns: [...txns, { ...txns[4], id: 'cp', categoryId: 'card-payment' }] };
+    expect(answer(q, withPayment).headline).toBe('You spent $400.00 on Credit Card Payment in August 2026.');
+    // ...and a general spending question doesn't include it.
+    expect(answer(parseQuestion('how much did i spend in august', ctx)!, withPayment).headline).toBe('You spent $173.50 in August 2026.');
+  });
 });
 
 describe('summary', () => {

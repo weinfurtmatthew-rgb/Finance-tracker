@@ -26,7 +26,8 @@ export const CATEGORY_SEEDS: Record<string, string[]> = {
   gifts: ['charity donation', 'gift shop'],
   insurance: ['insurance premium', 'auto insurance'],
   fees: ['bank fee', 'interest charge', 'late fee'],
-  transfer: ['transfer between accounts', 'credit card payment'],
+  'card-payment': ['credit card payment', 'card autopay payment'],
+  transfer: ['transfer between accounts', 'transfer to savings'],
   investments: ['brokerage', 'stock purchase'],
 };
 

@@ -313,7 +313,7 @@ function clusterPair(values: number[]): [number, number] | null {
 function guessKind(t: Transaction, categories: Map<string, Category>, frequency: Frequency): RecurringKind {
   const cat = categories.get(t.categoryId);
   if (t.amount > 0) return 'income';
-  if (cat?.group === 'transfer') return 'card-payment';
+  if (t.categoryId === 'card-payment' || cat?.group === 'transfer') return 'card-payment';
   const text = `${t.description} ${t.payee}`;
   if (t.categoryId === 'housing' || LOAN.test(text)) return 'loan';
   if (t.categoryId === 'subscriptions' || t.categoryId === 'entertainment') return 'subscription';
@@ -327,7 +327,8 @@ function eligible(t: Transaction, categories: Map<string, Category>): boolean {
   const cat = categories.get(t.categoryId);
   if (t.categoryId === 'investments' || t.categoryId === 'interest') return false;
   if (t.amount > 0) return cat?.group === 'income';
-  if (cat?.group === 'transfer') return /pay|pymt|pmt/i.test(t.description);
+  // Paying your cards is worth tracking for cash flow; other transfers aren't.
+  if (cat?.group === 'transfer') return t.categoryId === 'card-payment';
   return true;
 }
 

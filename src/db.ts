@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 import type { Account, Budget, Category, CsvMapping, Goal, MetaEntry, Recurring, Rule, Transaction, Valuation } from './types';
-import { DEFAULT_CATEGORIES } from './lib/categories';
+import { CARD_PAYMENT, DEFAULT_CATEGORIES, TRANSFER } from './lib/categories';
+import { keywordCategory } from './lib/categorize';
 
 export class FinanceDB extends Dexie {
   accounts!: Table<Account, string>;
@@ -37,6 +38,26 @@ export class FinanceDB extends Dexie {
       valuations: 'id, accountId, date',
       goals: 'id',
     });
+    // v5: credit card payments get their own category (they were filed under Transfer).
+    this.version(5)
+      .stores({})
+      .upgrade(async (tx) => {
+        const cardCategory = DEFAULT_CATEGORIES.find((c) => c.id === CARD_PAYMENT)!;
+        if (!(await tx.table('categories').get(CARD_PAYMENT))) await tx.table('categories').add(cardCategory);
+        await tx
+          .table('transactions')
+          .where('categoryId')
+          .equals(TRANSFER)
+          .modify((t: Transaction) => {
+            if (keywordCategory(t.description, t.amount) === CARD_PAYMENT) t.categoryId = CARD_PAYMENT;
+          });
+        await tx
+          .table('recurring')
+          .filter((r: Recurring) => r.kind === 'card-payment' && r.categoryId === TRANSFER)
+          .modify((r: Recurring) => {
+            r.categoryId = CARD_PAYMENT;
+          });
+      });
     this.on('populate', (tx) => {
       tx.table('categories').bulkAdd(DEFAULT_CATEGORIES);
     });

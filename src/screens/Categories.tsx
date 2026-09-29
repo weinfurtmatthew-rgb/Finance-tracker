@@ -3,10 +3,10 @@ import { db, newId } from '../db';
 import { useCategories, useTransactions } from '../hooks';
 import { useNav } from '../nav';
 import type { Category, CategoryGroup } from '../types';
-import { TRANSFER, UNCATEGORIZED } from '../lib/categories';
+import { CARD_PAYMENT, TRANSFER, UNCATEGORIZED } from '../lib/categories';
 import { ActionSheet, CategoryIcon, Field, Row, Section, Segmented, Sheet } from '../components/ui';
 
-const PROTECTED = new Set([UNCATEGORIZED, TRANSFER]);
+const PROTECTED = new Set([UNCATEGORIZED, TRANSFER, CARD_PAYMENT]);
 const COLORS = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#30b0c7', '#007aff', '#5856d6', '#af52de', '#ff2d55', '#a2845e', '#8e8e93'];
 
 function CategoryEditor(props: { category?: Category; onClose: () => void }) {
@@ -46,7 +46,7 @@ function CategoryEditor(props: { category?: Category; onClose: () => void }) {
         </Field>
       </Section>
       {!locked && (
-        <Section title="Type" footer="Transfers (like paying your credit card) don't count as spending or income.">
+        <Section title="Type" footer="Transfers (like moving money to savings or paying your credit card) don't count as spending or income.">
           <div class="padded-sm">
             <Segmented
               value={group}

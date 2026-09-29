@@ -120,6 +120,7 @@ const CATEGORY_WORDS: Record<string, string[]> = {
   gifts: ['gifts', 'donations', 'charity'],
   insurance: ['insurance'],
   fees: ['fees', 'bank fees', 'interest charges'],
+  'card-payment': ['credit card payment', 'credit card payments', 'card payment', 'card payments', 'paid my credit card', 'pay on my credit card', 'pay on my credit cards', 'paid off my card', 'paid on my card', 'paid on my cards'],
 };
 
 function containsPhrase(text: string, phrase: string): boolean {
@@ -130,7 +131,8 @@ export function findCategory(text: string, categories: Category[]): string | und
   const t = text.toLowerCase();
   let best: { id: string; len: number } | undefined;
   for (const c of categories) {
-    if (c.group === 'transfer') continue;
+    // Moving money between accounts is never what a question is "about", but card payments can be.
+    if (c.group === 'transfer' && c.id !== 'card-payment') continue;
     const words = [c.name.toLowerCase(), ...(CATEGORY_WORDS[c.id] ?? [])];
     for (const w of words) if (containsPhrase(t, w) && (!best || w.length > best.len)) best = { id: c.id, len: w.length };
   }
@@ -305,8 +307,10 @@ function matchesMerchant(t: Transaction, merchant: string) {
 function spendingTxns(q: Query, d: AnswerData): Transaction[] {
   return d.txns.filter((t) => {
     const cat = d.categories.get(t.categoryId);
-    if (!cat || cat.group !== 'expense' || !inPeriod(t, q.period)) return false;
-    if (q.categoryId && t.categoryId !== q.categoryId) return false;
+    if (!cat || !inPeriod(t, q.period)) return false;
+    // Spending means expense categories; asking about a specific non-spending category (like card
+    // payments) looks at money out in that category.
+    if (q.categoryId ? t.categoryId !== q.categoryId || t.amount >= 0 : cat.group !== 'expense') return false;
     if (q.merchant && !matchesMerchant(t, q.merchant)) return false;
     return true;
   });
