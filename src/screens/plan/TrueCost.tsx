@@ -1,19 +1,10 @@
-import { useState } from "preact/hooks";
-import { Section, Segmented, Sheet } from "../../components/ui";
-import { DEFAULT_RETURN, trueCost } from "../../lib/plan";
-import type { PlanData } from "../../planModel";
-import {
-  Answer,
-  DISCLAIMER,
-  MoneyField,
-  PercentField,
-  money,
-  pct,
-  useMoney,
-  usePercent,
-} from "./common";
+import { useState } from 'preact/hooks';
+import { Section, Segmented, Sheet } from '../../components/ui';
+import { DEFAULT_RETURN, trueCost } from '../../lib/plan';
+import type { PlanData } from '../../planModel';
+import { Answer, DISCLAIMER, MoneyField, PercentField, money, pct, useMoney, usePercent } from './common';
 
-type Per = "week" | "month" | "year";
+type Per = 'week' | 'month' | 'year';
 const PER_MONTH: Record<Per, number> = {
   week: 52 / 12,
   month: 1,
@@ -23,9 +14,9 @@ const PER_MONTH: Record<Per, number> = {
 /** What a habit or subscription really costs over the years, and what it could grow to if invested. */
 export function TrueCostCalc(props: { data: PlanData; onClose: () => void }) {
   const habits = props.data.habits;
-  const [picked, setPicked] = useState(habits[0]?.key ?? "");
+  const [picked, setPicked] = useState(habits[0]?.key ?? '');
   const [amount, amountText, setAmount] = useMoney(habits[0]?.monthly ?? 0);
-  const [per, setPer] = useState<Per>("month");
+  const [per, setPer] = useState<Per>('month');
   const [rate, rateText, setRate] = usePercent(DEFAULT_RETURN);
   const monthly = Math.round(amount * PER_MONTH[per]);
   const rows = trueCost(monthly, rate, [1, 5, 10, 20, 30]);
@@ -36,7 +27,7 @@ export function TrueCostCalc(props: { data: PlanData; onClose: () => void }) {
     const h = habits.find((x) => x.key === key);
     setPicked(key);
     if (h) {
-      setPer("month");
+      setPer('month');
       setAmount(String(Math.round(h.monthly / 100)));
     }
   };
@@ -45,7 +36,7 @@ export function TrueCostCalc(props: { data: PlanData; onClose: () => void }) {
     <Sheet title="True Cost" onClose={props.onClose}>
       {monthly > 0 && (
         <Answer
-          label={`${name ?? "This habit"} over 10 years`}
+          label={`${name ?? 'This habit'} over 10 years`}
           value={money(ten.spent)}
           sub={`or ${money(ten.invested)} if you invested ${money(monthly)} a month instead at ${pct(rate)}`}
         />
@@ -55,14 +46,10 @@ export function TrueCostCalc(props: { data: PlanData; onClose: () => void }) {
           <label class="field">
             <span class="field-label">Habit</span>
             <span class="field-control">
-              <select
-                value={picked}
-                onChange={(e) => choose((e.target as HTMLSelectElement).value)}
-                aria-label="Habit"
-              >
+              <select value={picked} onChange={(e) => choose((e.target as HTMLSelectElement).value)} aria-label="Habit">
                 <optgroup label="Subscriptions">
                   {habits
-                    .filter((h) => h.kind !== "merchant")
+                    .filter((h) => h.kind !== 'merchant')
                     .map((h) => (
                       <option value={h.key}>
                         {h.name} · {money(h.monthly)}/mo
@@ -71,7 +58,7 @@ export function TrueCostCalc(props: { data: PlanData; onClose: () => void }) {
                 </optgroup>
                 <optgroup label="Places you go often">
                   {habits
-                    .filter((h) => h.kind === "merchant")
+                    .filter((h) => h.kind === 'merchant')
                     .map((h) => (
                       <option value={h.key}>
                         {h.name} · {money(h.monthly)}/mo
@@ -85,26 +72,19 @@ export function TrueCostCalc(props: { data: PlanData; onClose: () => void }) {
         </Section>
       )}
       <Section title="Cost">
-        <MoneyField
-          label="Amount"
-          value={amountText}
-          set={(v) => (setAmount(v), setPicked(""))}
-        />
+        <MoneyField label="Amount" value={amountText} set={(v) => (setAmount(v), setPicked(''))} />
       </Section>
       <Segmented
         value={per}
-        onChange={(p) => (setPer(p), setPicked(""))}
+        onChange={(p) => (setPer(p), setPicked(''))}
         options={[
-          { value: "week", label: "Per week" },
-          { value: "month", label: "Per month" },
-          { value: "year", label: "Per year" },
+          { value: 'week', label: 'Per week' },
+          { value: 'month', label: 'Per month' },
+          { value: 'year', label: 'Per year' },
         ]}
       />
       {monthly > 0 && (
-        <Section
-          title="Over time"
-          footer={`“If invested” assumes ${pct(rate)} a year, compounded monthly, before inflation.`}
-        >
+        <Section title="Over time" footer={`“If invested” assumes ${pct(rate)} a year, compounded monthly, before inflation.`}>
           <div class="row plan-table-head">
             <span class="row-main">Years</span>
             <span class="row-detail">Spent</span>
@@ -114,7 +94,7 @@ export function TrueCostCalc(props: { data: PlanData; onClose: () => void }) {
             <div class="row">
               <span class="row-main">
                 <span class="row-title">
-                  {r.years} year{r.years === 1 ? "" : "s"}
+                  {r.years} year{r.years === 1 ? '' : 's'}
                 </span>
               </span>
               <span class="row-detail">{money(r.spent)}</span>
@@ -124,12 +104,7 @@ export function TrueCostCalc(props: { data: PlanData; onClose: () => void }) {
         </Section>
       )}
       <Section footer={DISCLAIMER}>
-        <PercentField
-          label="Return"
-          value={rateText}
-          set={setRate}
-          hint="A long-run stock-market average is about 7% a year before inflation"
-        />
+        <PercentField label="Return" value={rateText} set={setRate} hint="A long-run stock-market average is about 7% a year before inflation" />
       </Section>
     </Sheet>
   );

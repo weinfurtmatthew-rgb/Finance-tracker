@@ -1,20 +1,20 @@
-import { useMemo } from "preact/hooks";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "./db";
-import { byId } from "./hooks";
-import { makeBook } from "./lib/networth";
-import { spendingByMonth } from "./lib/budgets";
-import { monthlyCost } from "./lib/recurring";
-import { planSnapshot, type PlanSnapshot } from "./lib/planData";
-import { useRecurringModel } from "./recurringModel";
-import type { Cents } from "./types";
+import { useMemo } from 'preact/hooks';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from './db';
+import { byId } from './hooks';
+import { makeBook } from './lib/networth';
+import { spendingByMonth } from './lib/budgets';
+import { monthlyCost } from './lib/recurring';
+import { planSnapshot, type PlanSnapshot } from './lib/planData';
+import { useRecurringModel } from './recurringModel';
+import type { Cents } from './types';
 
 /** Something you spend on regularly, for "what does this habit really cost?". */
 export interface Habit {
   key: string;
   name: string;
   monthly: Cents;
-  kind: "subscription" | "merchant";
+  kind: 'subscription' | 'merchant';
 }
 
 export interface PlanData extends PlanSnapshot {
@@ -28,14 +28,13 @@ export interface PlanData extends PlanSnapshot {
 export function usePlanData(): PlanData | undefined {
   const rec = useRecurringModel();
   const raw = useLiveQuery(async () => {
-    const [accounts, txns, valuations, categories, recurring] =
-      await Promise.all([
-        db.accounts.toArray(),
-        db.transactions.toArray(),
-        db.valuations.toArray(),
-        db.categories.toArray(),
-        db.recurring.toArray(),
-      ]);
+    const [accounts, txns, valuations, categories, recurring] = await Promise.all([
+      db.accounts.toArray(),
+      db.transactions.toArray(),
+      db.valuations.toArray(),
+      db.categories.toArray(),
+      db.recurring.toArray(),
+    ]);
     return { accounts, txns, valuations, categories, recurring };
   }, []);
 
@@ -52,15 +51,13 @@ export function usePlanData(): PlanData | undefined {
       today: rec.today,
     });
 
-    const active = rec.statuses.filter(
-      (s) => s.rec.status === "active" && s.rec.kind === "subscription",
-    );
+    const active = rec.statuses.filter((s) => s.rec.status === 'active' && s.rec.kind === 'subscription');
     const habits: Habit[] = active
       .map((s) => ({
         key: `rec:${s.rec.id}`,
         name: s.rec.name,
         monthly: monthlyCost(s),
-        kind: "subscription" as const,
+        kind: 'subscription' as const,
       }))
       .filter((h) => h.monthly > 0)
       .sort((a, b) => b.monthly - a.monthly);
@@ -70,12 +67,7 @@ export function usePlanData(): PlanData | undefined {
     const tracked = rec.statuses.map((s) => s.rec.name.toLowerCase());
     const byPayee = new Map<string, { total: Cents; count: number }>();
     for (const t of raw.txns) {
-      if (
-        !inMonths.has(t.date.slice(0, 7)) ||
-        cats.get(t.categoryId)?.group !== "expense" ||
-        t.amount >= 0
-      )
-        continue;
+      if (!inMonths.has(t.date.slice(0, 7)) || cats.get(t.categoryId)?.group !== 'expense' || t.amount >= 0) continue;
       const p = byPayee.get(t.payee) ?? { total: 0, count: 0 };
       p.total -= t.amount;
       p.count++;
@@ -83,15 +75,12 @@ export function usePlanData(): PlanData | undefined {
     }
     const n = Math.max(1, snap.averagedMonths.length);
     const merchants = [...byPayee]
-      .filter(
-        ([name, p]) =>
-          p.count >= n * 2 && !tracked.includes(name.toLowerCase()),
-      )
+      .filter(([name, p]) => p.count >= n * 2 && !tracked.includes(name.toLowerCase()))
       .map(([name, p]) => ({
         key: `payee:${name}`,
         name,
         monthly: Math.round(p.total / n),
-        kind: "merchant" as const,
+        kind: 'merchant' as const,
       }))
       .sort((a, b) => b.monthly - a.monthly)
       .slice(0, 8);
