@@ -1750,3 +1750,92 @@ button.hero-card {
   gap: 8px;
   margin-top: 6px;
 }
+
+/* Plan (calculators) */
+.affix {
+  flex: none;
+  align-self: center;
+  color: var(--text-2);
+  padding: 0 2px;
+}
+.kpis.two {
+  grid-template-columns: repeat(2, 1fr);
+}
+.plan-answer .card-sub {
+  font-size: 15px;
+  line-height: 1.35;
+}
+.plan-answer .hero-number {
+  font-size: 40px;
+}
+.status-badge {
+  align-self: flex-start;
+  margin-top: 8px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--fill);
+  border-left: 4px solid var(--text-2);
+}
+.status-badge.good {
+  border-left-color: var(--status-good);
+}
+.status-badge.warning {
+  border-left-color: var(--status-warning);
+}
+.status-badge.critical {
+  border-left-color: var(--status-critical);
+}
+.plan-block {
+  margin-top: 12px;
+}
+.plan-note {
+  margin: 10px 4px 0;
+  font-size: 15px;
+  color: var(--text-2);
+}
+.plan-note strong {
+  color: var(--text);
+}
+.plan-progress {
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--fill);
+  overflow: hidden;
+}
+.plan-progress span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--chart-1);
+}
+.order-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--fill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+.row-detail.strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.plan-table-head {
+  font-size: 13px;
+  color: var(--text-2);
+  text-transform: uppercase;
+}
+.row .row-detail + .row-detail {
+  min-width: 84px;
+  text-align: right;
+}
+.sheet-body > .segmented {
+  margin-top: 12px;
+}

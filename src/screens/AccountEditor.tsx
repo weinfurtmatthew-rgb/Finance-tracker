@@ -45,6 +45,9 @@ function AccountForm(props: Props & { txns: Transaction[]; lastValue: Valuation 
   const [last4, setLast4] = useState(a?.last4 ?? '');
   // Liabilities are entered as "amount owed" (positive) and stored negative.
   const [balance, setBalance] = useState(a ? ((isLiability(a) ? -current : current) / 100).toFixed(2) : '');
+  const [apr, setApr] = useState(a?.apr != null ? String(Math.round(a.apr * 10000) / 100) : '');
+  const [minPayment, setMinPayment] = useState(a?.minPayment != null ? (a.minPayment / 100).toFixed(2) : '');
+  const [apy, setApy] = useState(a?.apy != null ? String(Math.round(a.apy * 10000) / 100) : '');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const liability = isLiability({ type });
   const valued = isValued({ type });
@@ -63,6 +66,17 @@ function AccountForm(props: Props & { txns: Transaction[]; lastValue: Valuation 
       archived: a?.archived ?? false,
       createdAt: a?.createdAt ?? Date.now(),
     };
+    // Rates for the Plan calculators: APR & minimum on cards and loans, APY on bank accounts.
+    const rate = (text: string) => {
+      const n = parseFloat(text.replace('%', ''));
+      return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 10000 : undefined;
+    };
+    if (liability) {
+      record.apr = rate(apr);
+      const min = parseAmount(minPayment);
+      record.minPayment = min != null ? Math.abs(min) : undefined;
+    } else if (type === 'savings' || type === 'checking') record.apy = rate(apy);
+    for (const k of ['apr', 'minPayment', 'apy'] as const) if (record[k] === undefined) delete record[k];
     if (valued) {
       // Investments & vehicles: record a dated value (a point in net worth history).
       await db.accounts.put(record);
@@ -138,6 +152,25 @@ function AccountForm(props: Props & { txns: Transaction[]; lastValue: Valuation 
           <input inputMode="decimal" value={balance} placeholder="0.00" onInput={(e) => setBalance((e.target as HTMLInputElement).value)} />
         </Field>
       </Section>
+      {liability && (
+        <Section title="Interest" footer="Optional. Used by the debt payoff and affordability calculators; without them, typical rates are assumed.">
+          <Field label="APR">
+            <input inputMode="decimal" value={apr} placeholder="e.g. 24.99" onInput={(e) => setApr((e.target as HTMLInputElement).value)} />
+            <span class="affix">%</span>
+          </Field>
+          <Field label="Minimum / mo">
+            <input inputMode="decimal" value={minPayment} placeholder="0.00" onInput={(e) => setMinPayment((e.target as HTMLInputElement).value)} />
+          </Field>
+        </Section>
+      )}
+      {(type === 'savings' || type === 'checking') && (
+        <Section title="Interest" footer="Optional. The yearly yield your bank shows (APY), used by the savings calculator.">
+          <Field label="APY">
+            <input inputMode="decimal" value={apy} placeholder="e.g. 4.10" onInput={(e) => setApy((e.target as HTMLInputElement).value)} />
+            <span class="affix">%</span>
+          </Field>
+        </Section>
+      )}
       {a && (
         <Section>
           <button type="button" class="row link-row" onClick={() => nav.showActivity({ accountId: a.id })}>

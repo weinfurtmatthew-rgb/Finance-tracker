@@ -17,6 +17,12 @@ export interface Account {
   openingBalance: Cents;
   archived: boolean;
   createdAt: number;
+  /** Credit cards & loans: yearly interest rate as a decimal (0.2299 = 22.99%). Used by the calculators. */
+  apr?: number;
+  /** Credit cards & loans: the minimum monthly payment. */
+  minPayment?: Cents;
+  /** Savings & checking: the yearly yield as a decimal (0.041 = 4.1%). */
+  apy?: number;
 }
 
 export type TransactionSource = 'manual' | 'csv' | 'ofx';

@@ -47,6 +47,12 @@ export const Icons = {
       <path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z" />
     </svg>
   ),
+  calculator: () => (
+    <svg viewBox="0 0 24 24" {...P}>
+      <rect x="4.5" y="2.5" width="15" height="19" rx="2.5" />
+      <path d="M8 7h8M8.5 12h.01M12 12h.01M15.5 12h.01M8.5 15.5h.01M12 15.5h.01M15.5 15.5h.01M8.5 19h.01M12 19h.01M15.5 19h.01" />
+    </svg>
+  ),
   search: () => (
     <svg viewBox="0 0 24 24" {...P}>
       <circle cx="11" cy="11" r="7" />
