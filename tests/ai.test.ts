@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { answer, parsePeriod, parseQuestion, understand, type AnswerData, type AskContext } from '../src/ai/ask';
-import { factSentences, numbersAreFaithful, type SummaryFacts } from '../src/ai/summary';
-import { explainDescription, parseExplain } from '../src/ai/explain';
+import { factSentences, type SummaryFacts } from '../src/ai/summary';
+import { explainDescription } from '../src/ai/explain';
 import { CATEGORY_SEEDS, nearestCategory, trainingExamples } from '../src/ai/similar';
 import { DEFAULT_CATEGORIES } from '../src/lib/categories';
 import type { Transaction } from '../src/types';
@@ -136,11 +136,6 @@ describe('summary', () => {
     expect(sentences[0]).toBe("You've spent $2,271 so far this month, 9% less than at this point last month ($2,500).");
     expect(sentences).toContain('Over budget: Dining.');
   });
-  it('rejects model text with numbers that are not in the facts', () => {
-    expect(numbersAreFaithful('You spent $2,271 so far, 9% less than last month. Dining is over budget.', sentences)).toBe(true);
-    expect(numbersAreFaithful('You spent $2,300 so far.', sentences)).toBe(false);
-    expect(numbersAreFaithful('Spending is down 12%.', sentences)).toBe(false);
-  });
 });
 
 describe('explain', () => {
@@ -150,10 +145,6 @@ describe('explain', () => {
     expect(e.notes.some((n) => n.includes('state'))).toBe(true);
     expect(e.suggestedName).toBe('Blue Door Cafe');
     expect(e.categoryId).toBe('dining');
-  });
-  it('parses the model reply defensively', () => {
-    expect(parseExplain('{"name": "Blue Door Cafe", "business": "restaurant"}')).toEqual({ name: 'Blue Door Cafe', business: 'restaurant' });
-    expect(parseExplain('I think it is a cafe')).toBeNull();
   });
 });
 

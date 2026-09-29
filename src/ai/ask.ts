@@ -26,11 +26,6 @@ export interface Query {
   source: 'rules' | 'ai';
 }
 
-export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
-
 export interface AskContext {
   today: ISODate;
   categories: Category[];
@@ -198,7 +193,7 @@ export function parseQuestion(text: string, ctx: AskContext): Query | null {
 
 // ---------------------------------------------------------------------------------------------
 // AI understanding (fallback): the small embedding model compares the question with example
-// questions for each kind of lookup. (A 0.5B language model proved unreliable at this in testing.)
+// questions for each kind of lookup. (A 0.5B language model was tried and proved unreliable at this.)
 // ---------------------------------------------------------------------------------------------
 
 export const INTENT_EXAMPLES: Record<Intent, string[]> = {

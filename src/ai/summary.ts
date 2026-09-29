@@ -1,13 +1,9 @@
-/**
- * The monthly recap: facts are computed exactly; the language model (if on) only rewords them, and its
- * text is thrown away if it contains any number that isn't in the facts.
- */
+/** The monthly recap: a few plain sentences, computed exactly from your data. */
 import type { Category, Cents, ISODate } from '../types';
 import { addMonths, dayOfMonth, monthKey, monthLabel } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import type { BudgetProgress, MonthSpending } from '../lib/budgets';
 import type { RecurringStatus } from '../lib/recurring';
-import type { ChatMessage } from './ask';
 
 export interface SummaryFacts {
   month: string;
@@ -70,7 +66,7 @@ export function summaryFacts(args: {
 const $ = (c: Cents) => formatMoney(c, { whole: true });
 const pct = (a: number, b: number) => Math.round((Math.abs(a - b) / b) * 100);
 
-/** Plain sentences, always correct. Used as-is when the model is off, and as the model's input. */
+/** Plain sentences, always correct. */
 export function factSentences(f: SummaryFacts): string[] {
   const s: string[] = [];
   const when = f.current ? 'so far this month' : `in ${f.label}`;
@@ -88,22 +84,4 @@ export function factSentences(f: SummaryFacts): string[] {
   if (f.priceIncreases.length) s.push(`Price went up: ${f.priceIncreases.join(', ')}.`);
   if (f.netWorthChange != null && f.current && f.netWorthChange !== 0) s.push(`Net worth is ${f.netWorthChange > 0 ? 'up' : 'down'} ${$(Math.abs(f.netWorthChange))} since last month.`);
   return s;
-}
-
-export function summaryMessages(sentences: string[]): ChatMessage[] {
-  return [
-    {
-      role: 'system',
-      content:
-        'You write a short, friendly recap of someone’s monthly spending in 2 or 3 sentences, second person, no greeting, no advice lists. Use ONLY the facts given. Copy every dollar amount and percentage exactly as written; do not calculate new numbers.',
-    },
-    { role: 'user', content: `Facts:\n- ${sentences.join('\n- ')}` },
-  ];
-}
-
-/** Every number in the model's text must appear verbatim in the facts; otherwise we don't show it. */
-export function numbersAreFaithful(output: string, facts: string[]): boolean {
-  const source = facts.join(' ');
-  const numbers = output.match(/\$?\d[\d,]*(\.\d+)?%?/g) ?? [];
-  return numbers.every((n) => source.includes(n));
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Downloads the on-device AI models from Hugging Face into a folder that gets published with the site
+ * Downloads the on-device AI model from Hugging Face into a folder that gets published with the site
  * (e.g. `node scripts/fetch-models.mjs dist/models`), and writes models/manifest.json with their sizes.
  * Used by CI; the app itself never contacts Hugging Face.
  */
@@ -12,7 +12,6 @@ const out = process.argv[2] ?? 'dist/models';
 const cache = process.env.MODEL_CACHE ?? '.models-cache';
 const MODELS = {
   embed: { id: 'all-MiniLM-L6-v2', repo: 'Xenova/all-MiniLM-L6-v2', onnx: 'model_quantized' },
-  llm: { id: 'Qwen2.5-0.5B-Instruct', repo: 'onnx-community/Qwen2.5-0.5B-Instruct', onnx: 'model_q4f16' },
 };
 const CONFIG = ['config.json', 'generation_config.json', 'tokenizer.json', 'tokenizer_config.json', 'special_tokens_map.json', 'preprocessor_config.json'];
 

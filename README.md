@@ -32,21 +32,23 @@ skips transactions you already have.
 
 ### On-device AI (Phase 5, optional)
 
-Turned on in **Settings → On-device AI** (a one-time download of about 500 MB from this app's own site; then it works
-offline). Two small models run in the browser with [Transformers.js](https://github.com/huggingface/transformers.js):
-all-MiniLM-L6-v2 (embeddings, WebAssembly) and Qwen2.5-0.5B-Instruct (language model, WebGPU).
+Turned on in **Settings → On-device AI**: a one-time 24 MB download from this app's own site, then it works offline.
+It uses a small embedding model (all-MiniLM-L6-v2) running in the browser with
+[Transformers.js](https://github.com/huggingface/transformers.js).
 
-- **Ask about your money:** questions are understood by rules first; when they can't, the embedding model matches the
-  question to example questions (a 0.5B language model was tested for this and was unreliable). The app then
-  **calculates the answer from your data**. AI never produces the numbers, and every answer shows how it was understood.
+- **Ask about your money:** questions are understood by rules first; when they can't, the model matches the question to
+  example questions. The app then **calculates the answer from your data**. AI never produces the numbers, and every
+  answer shows how it was understood.
 - **Smarter categorizing:** suggests categories for uncategorized payees by similarity to the ones you've
   categorized (plus short phrases for each category), and can save them as rules.
-- **Monthly recap** on the Overview: exact facts, reworded by the model; the rewording is discarded if it contains
-  any number that isn't in the facts.
-- **"What is this?"** on a transaction: decodes bank codes (TST*, SQ*, AMZN Mktp…) exactly, plus a labeled AI guess.
+- **Monthly recap** on the Overview, computed exactly from your data.
+- **"What is this?"** on a transaction: decodes bank codes (TST*, SQ*, AMZN Mktp…) and suggests a name and category.
 
-Every feature has a non-AI fallback, so the app works the same with AI off. The models aren't in git: CI downloads them
-(`scripts/fetch-models.mjs`) into the published site and runs `tests/ai-smoke.test.ts` against them.
+A 490 MB language model (Qwen2.5-0.5B) was tried and removed: it was unreliable at understanding questions, invented
+numbers in recaps, and needed more memory than Safari allows on iPhone.
+
+Every feature works with AI off. The model isn't in git: CI downloads it (`scripts/fetch-models.mjs`) into the
+published site and runs `tests/ai-smoke.test.ts` against it.
 
 ### Net worth & goals (Phase 4)
 

@@ -1,7 +1,6 @@
 /** Decode the jargon in bank descriptions ("TST* BLUE DR 0442", "SQ *", "AMZN Mktp") without guessing. */
 import { cleanPayee } from '../lib/payee';
 import { keywordCategory } from '../lib/categorize';
-import type { ChatMessage } from './ask';
 
 const CODES: [RegExp, string][] = [
   [/\bTST\s?\*/i, 'TST* = paid through Toast, a restaurant payment system: almost always a restaurant, café or bar'],
@@ -45,31 +44,4 @@ export function explainDescription(description: string, amount: number): Explana
   else if (/#\s?\d+|\b\d{4,}\b/.test(description)) notes.push('The trailing numbers are usually a store number or reference code');
   if (/\b[A-Z]{2}\s*$/.test(description.trim())) notes.push('The two letters at the end are the state');
   return { notes, suggestedName: cleanPayee(description), categoryId: keywordCategory(description, amount) ?? undefined };
-}
-
-export function explainMessages(description: string): ChatMessage[] {
-  return [
-    {
-      role: 'system',
-      content:
-        'You identify the business behind a US bank or credit card transaction description. Reply with JSON only: {"name": short business name, "business": what kind of business it is, in a few words}. If you are not sure, use your best guess for "name" and say "unknown" for "business".',
-    },
-    { role: 'user', content: 'SQ *BLUE BOTTLE COFFEE OAKLAND CA' },
-    { role: 'assistant', content: '{"name": "Blue Bottle Coffee", "business": "coffee shop"}' },
-    { role: 'user', content: description },
-  ];
-}
-
-export function parseExplain(output: string): { name: string; business: string } | null {
-  const m = output.match(/\{[\s\S]*?\}/);
-  if (!m) return null;
-  try {
-    const j = JSON.parse(m[0]);
-    const name = typeof j.name === 'string' ? j.name.trim() : '';
-    const business = typeof j.business === 'string' ? j.business.trim() : '';
-    if (!name || name.length > 40) return null;
-    return { name, business: business.length > 60 ? '' : business };
-  } catch {
-    return null;
-  }
 }
