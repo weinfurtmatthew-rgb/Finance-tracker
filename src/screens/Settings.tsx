@@ -8,6 +8,7 @@ import { ActionSheet, Field, Row, Section, Sheet } from '../components/ui';
 import { SetPasscode } from './Lock';
 import { CategoriesSheet } from './Categories';
 import { RulesSheet } from './Rules';
+import { AiSettings } from '../components/AiSettings';
 import { DEFAULT_SETTINGS, type PriceAlertRule } from '../lib/recurring';
 import type { AmountMode } from '../types';
 
@@ -132,6 +133,8 @@ export function Settings() {
           />
         )}
       </Section>
+
+      <AiSettings />
 
       <Section title="Organize">
         <Row title="Categories" detail={categories.length} onClick={() => nav.present((close) => <CategoriesSheet onClose={close} />)} />

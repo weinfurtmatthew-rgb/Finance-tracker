@@ -41,6 +41,12 @@ export const Icons = {
       <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
     </svg>
   ),
+  sparkle: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={1.8} stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" />
+      <path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z" />
+    </svg>
+  ),
   search: () => (
     <svg viewBox="0 0 24 24" {...P}>
       <circle cx="11" cy="11" r="7" />

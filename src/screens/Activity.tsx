@@ -7,6 +7,8 @@ import { TransactionRow } from '../components/TransactionRow';
 import { TransactionEditor } from './TransactionEditor';
 import { ImportFlow } from './Import';
 import { Icons } from '../components/icons';
+import { SuggestCategories } from './SuggestCategories';
+import { useAi } from '../ai/client';
 import type { Transaction } from '../types';
 
 const PAGE = 200;
@@ -21,6 +23,7 @@ export function Activity() {
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
   const f = nav.activityFilter;
+  const ai = useAi();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -99,6 +102,11 @@ export function Activity() {
             </button>
           )}
         </div>
+        {f.categoryId === 'uncategorized' && filtered.length > 0 && ai.embed && (
+          <button type="button" class="pill suggest-pill" onClick={() => nav.present((close) => <SuggestCategories onClose={close} />)}>
+            ✨ Suggest categories for these
+          </button>
+        )}
         {(hasFilter || query) && filtered.length > 0 && (
           <p class="filter-summary">
             {filtered.length} transaction{filtered.length === 1 ? '' : 's'} · net <Money cents={total} colored />

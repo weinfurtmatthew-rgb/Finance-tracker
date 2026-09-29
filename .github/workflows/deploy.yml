@@ -27,10 +27,39 @@ jobs:
         env:
           # Pages serves the site under the repo name, which is case-sensitive.
           BASE_PATH: /${{ github.event.repository.name }}/
+      # The on-device AI models are published with the site (not committed to git).
+      - name: Cache AI models
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/cache@v6
+        with:
+          path: .models-cache
+          key: models-${{ hashFiles('scripts/fetch-models.mjs') }}
+      - name: Add AI models to the site
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: node scripts/fetch-models.mjs dist/models
       - uses: actions/upload-pages-artifact@v5
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         with:
           path: dist
+
+  # Runs the real AI models against a small set of checks (see tests/ai-smoke.test.ts).
+  ai-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/cache@v6
+        with:
+          path: .models-cache
+          key: models-${{ hashFiles('scripts/fetch-models.mjs') }}
+      - run: node scripts/fetch-models.mjs "$RUNNER_TEMP/models"
+      - run: npx vitest run tests/ai-smoke.test.ts
+        env:
+          AI_SMOKE: '1'
 
   # Publishes the app to https://<user>.github.io/finance-tracker/ from the main branch.
   # One-time setup: repo Settings → Pages → Source: "GitHub Actions".

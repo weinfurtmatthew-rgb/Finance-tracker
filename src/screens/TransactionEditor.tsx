@@ -7,6 +7,7 @@ import { centsToInput, formatMoney, parseUserAmount } from '../lib/money';
 import { todayISO } from '../lib/dates';
 import { UNCATEGORIZED } from '../lib/categories';
 import { ActionSheet, CategorySelect, Field, Section, Segmented, Sheet } from '../components/ui';
+import { ExplainPanel } from '../components/ExplainPanel';
 
 type Props = { txn?: Transaction; accountId?: string; onClose: () => void };
 
@@ -146,6 +147,7 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
               <span class="row-title mono">{t.description}</span>
             </span>
           </div>
+          <ExplainPanel txn={t} categories={categories} onUseName={setPayee} onUseCategory={setCategoryId} />
         </Section>
       )}
       {t && (
