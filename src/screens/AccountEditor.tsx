@@ -5,7 +5,8 @@ import { useNav } from '../nav';
 import type { Account, AccountType, Transaction, Valuation } from '../types';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { isValued } from '../lib/networth';
-import { todayISO } from '../lib/dates';
+import { formatShortDate, todayISO } from '../lib/dates';
+import { BalanceCheckSheet } from '../components/BalanceCheck';
 import { accountBalance, isLiability, openingBalanceFor } from '../lib/balances';
 import { parseAmount } from '../lib/money';
 import { ActionSheet, Field, Section, Sheet } from '../components/ui';
@@ -65,6 +66,7 @@ function AccountForm(props: Props & { txns: Transaction[]; lastValue: Valuation 
       openingBalance: a ? a.openingBalance : 0,
       archived: a?.archived ?? false,
       createdAt: a?.createdAt ?? Date.now(),
+      ...(a?.checkedOn ? { checkedOn: a.checkedOn } : {}),
     };
     // Rates for the Plan calculators: APR & minimum on cards and loans, APY on bank accounts.
     const rate = (text: string) => {
@@ -88,6 +90,8 @@ function AccountForm(props: Props & { txns: Transaction[]; lastValue: Valuation 
       else if (!lastValue || lastValue.value !== signed) await db.valuations.add({ id: newId(), accountId: record.id, date: today, value: signed });
     } else {
       record.openingBalance = openingBalanceFor(record.id, txns, signed);
+      // Typing the bank's current balance here is a balance check too.
+      if (balance.trim() && (!a || signed !== current)) record.checkedOn = todayISO();
       await db.accounts.put(record);
     }
     nav.toast(a ? 'Account saved' : 'Account added');
@@ -173,6 +177,11 @@ function AccountForm(props: Props & { txns: Transaction[]; lastValue: Valuation 
       )}
       {a && (
         <Section>
+          {!valued && (
+            <button type="button" class="row link-row" onClick={() => nav.present((close) => <BalanceCheckSheet account={a} onClose={close} />)}>
+              Check balance against my bank{a.checkedOn ? ` · last matched ${formatShortDate(a.checkedOn)}` : ''}
+            </button>
+          )}
           <button type="button" class="row link-row" onClick={() => nav.showActivity({ accountId: a.id })}>
             View {count} transaction{count === 1 ? '' : 's'}
           </button>

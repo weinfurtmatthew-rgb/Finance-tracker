@@ -124,7 +124,9 @@ export function Accounts() {
             ? lastVal
               ? `Value updated ${formatShortDate(lastVal.date)}`
               : 'Value not set yet'
-            : [a.institution, a.last4 && `•••• ${a.last4}`, `${counts.get(a.id) ?? 0} transactions`].filter(Boolean).join(' · ')
+            : [a.institution, a.last4 && `•••• ${a.last4}`, `${counts.get(a.id) ?? 0} transactions`, a.checkedOn && `✓ ${formatShortDate(a.checkedOn)}`]
+                .filter(Boolean)
+                .join(' · ')
         }
         detail={<Money cents={isLiability(a) ? -b : b} />}
         onClick={() => edit(a)}

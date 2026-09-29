@@ -11,11 +11,13 @@ import { payeeHistory } from '../lib/categorize';
 import { aiState } from '../ai/client';
 import { automaticPicks } from '../ai/suggest';
 import { ReviewAiPicks } from './ReviewAiPicks';
+import { BalanceCheck } from '../components/BalanceCheck';
+import { isValued } from '../lib/networth';
 import { openingBalanceFor } from '../lib/balances';
 import { formatDay } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { CategoryIcon, Empty, Field, Money, Section, Sheet, Toggle } from '../components/ui';
-import { ACCOUNT_TYPES, AccountEditor } from './AccountEditor';
+import { ACCOUNT_TYPES } from './AccountEditor';
 
 interface CsvState {
   kind: 'csv';
@@ -167,6 +169,8 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
         let balanceSet = false;
         if (statement?.balance && useBalance) {
           account.openingBalance = openingBalanceFor(account.id, [...existing, ...rows], statement.balance.amount, statement.balance.asOf);
+          // The file carries the bank's own balance, so this counts as checked.
+          account.checkedOn = statement.balance.asOf;
           await db.accounts.put(account);
           balanceSet = true;
         }
@@ -218,17 +222,21 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
             <button type="button" class={`button ${byAi > 0 ? '' : 'primary'}`} onClick={() => nav.showActivity({ accountId: done.account.id })}>
               View Transactions
             </button>
-            {!done.balanceSet && (
-              <button type="button" class="button" onClick={() => nav.present((close) => <AccountEditor account={done.account} onClose={close} />)}>
-                Set Current Balance
-              </button>
-            )}
             <button type="button" class="button" onClick={props.onClose}>
               Done
             </button>
           </div>
-          {!done.balanceSet && <p class="muted small">CSV files don't include your balance. Enter it once so net worth is accurate.</p>}
         </Empty>
+        {done.balanceSet ? (
+          <p class="section-footer intro">✓ Balance set from your bank's file.</p>
+        ) : (
+          !isValued(done.account) && (
+            <BalanceCheck
+              account={done.account}
+              intro="Optional, but it keeps your net worth and budgets right: type the balance your bank shows now. The app checks it and explains any difference."
+            />
+          )
+        )}
       </Sheet>
     );
   }

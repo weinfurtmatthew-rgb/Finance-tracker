@@ -45,6 +45,11 @@ async function suggestGroups(groups: Map<string, Transaction[]>, all: Transactio
   });
 }
 
+/** Group any transactions by payee and suggest a category for each group (for the tidy-up). */
+export async function suggestForTxns(targets: Transaction[], all: Transaction[], categories: Category[], embed: Embed = vectors): Promise<PayeeGroup[]> {
+  return (await suggestGroups(groupByPayee(targets), all, categories, embed)).sort((a, b) => b.txns.length - a.txns.length);
+}
+
 /** Group uncategorized transactions by payee and suggest a category for each group. */
 export async function suggestForUncategorized(txns: Transaction[], categories: Category[], embed: Embed = vectors): Promise<PayeeGroup[]> {
   const groups = groupByPayee(txns.filter((t) => t.categoryId === UNCATEGORIZED));
