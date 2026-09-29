@@ -1839,3 +1839,26 @@ button.hero-card {
 .sheet-body > .segmented {
   margin-top: 12px;
 }
+
+/* Balance check */
+.callout.good {
+  border-left-color: var(--status-good);
+}
+.balance-result .causes {
+  margin: 8px 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 15px;
+}
+.balance-result .cause-line {
+  display: block;
+  color: var(--text-2);
+}
+.balance-result .pill {
+  margin-top: 6px;
+}
+.balance-result .small {
+  margin-top: 6px;
+}

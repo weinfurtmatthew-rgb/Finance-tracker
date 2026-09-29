@@ -27,6 +27,7 @@ import { AskSheet } from './AskSheet';
 import { Plan } from './plan/Plan';
 import { SuggestCategories } from './SuggestCategories';
 import { ReviewAiPicks } from './ReviewAiPicks';
+import { TidyUp, useOldGuesses } from './TidyUp';
 import { SummaryCard } from '../components/SummaryCard';
 import { useAi } from '../ai/client';
 
@@ -66,6 +67,9 @@ export function Home() {
   const soon = isCurrent ? rec.upcomingItems.filter((i) => i.late || i.date <= addDays(today, rec.settings.reminderDays)) : [];
   const uncategorized = txns.filter((t) => t.categoryId === 'uncategorized').length;
   const aiPicks = txns.filter((t) => t.categorySource === 'ai').length;
+  // One-time nudge to review old guessed categories (also always in Settings → Organize).
+  const oldGuesses = useOldGuesses()?.length ?? 0;
+  const tidyDone = useMeta<number>('tidyUpDone');
   const backupDue = txns.length > 0 && (!lastBackup || Date.now() - lastBackup > 14 * 86_400_000);
   const [y, mo] = month.split('-').map(Number);
   const daysLeft = isCurrent ? daysInMonth(y, mo) - dayOfMonth(today) + 1 : 0;
@@ -322,6 +326,15 @@ export function Home() {
                 )}
               </Section>
             </>
+          )}
+
+          {oldGuesses > 0 && !tidyDone && (
+            <button type="button" class="callout" onClick={() => nav.present((close) => <TidyUp onClose={close} />)}>
+              <strong>
+                🧹 Tidy up {oldGuesses} guessed categor{oldGuesses === 1 ? 'y' : 'ies'}
+              </strong>
+              <p>Older transactions filed as “Other”, unknown money-in as Income, or not at all. A quick review makes your charts and budgets right.</p>
+            </button>
           )}
 
           {aiPicks > 0 && (

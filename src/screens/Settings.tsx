@@ -5,6 +5,7 @@ import { useNav } from '../nav';
 import type { PasscodeRecord } from '../lib/lock';
 import { exportBackup, restoreBackup, summarizeBackup, type BackupSummary } from '../lib/backup';
 import { ActionSheet, Field, Row, Section, Sheet } from '../components/ui';
+import { TidyUp, useOldGuesses } from './TidyUp';
 import { SetPasscode } from './Lock';
 import { CategoriesSheet } from './Categories';
 import { RulesSheet } from './Rules';
@@ -41,6 +42,7 @@ export function Settings() {
   const lastBackup = useMeta<number>('lastBackupAt');
   const categories = useCategories();
   const rules = useRules();
+  const oldGuessCount = useOldGuesses()?.length ?? 0;
   const txns = useTransactions();
   const amountMode = useMeta<AmountMode>('recurringAmountMode') ?? DEFAULT_SETTINGS.amountMode;
   const priceAlert = useMeta<PriceAlertRule>('priceAlert') ?? DEFAULT_SETTINGS.priceAlert;
@@ -139,6 +141,12 @@ export function Settings() {
       <Section title="Organize">
         <Row title="Categories" detail={categories.length} onClick={() => nav.present((close) => <CategoriesSheet onClose={close} />)} />
         <Row title="Rules" subtitle="Auto-rename and categorize imports" detail={rules.length} onClick={() => nav.present((close) => <RulesSheet onClose={close} />)} />
+        <Row
+          title="Tidy up old categories"
+          subtitle="Review transactions filed by a guess"
+          detail={oldGuessCount || undefined}
+          onClick={() => nav.present((close) => <TidyUp onClose={close} />)}
+        />
       </Section>
 
       <Section

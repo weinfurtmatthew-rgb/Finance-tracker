@@ -23,6 +23,8 @@ export interface Account {
   minPayment?: Cents;
   /** Savings & checking: the yearly yield as a decimal (0.041 = 4.1%). */
   apy?: number;
+  /** Last day the balance was confirmed to match the bank's. */
+  checkedOn?: ISODate;
 }
 
 export type TransactionSource = 'manual' | 'csv' | 'ofx';
