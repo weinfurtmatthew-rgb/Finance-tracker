@@ -42,6 +42,30 @@ jobs:
         with:
           path: dist
 
+  # Phone-size browser tests: builds the app and clicks through it in Chromium (see e2e/).
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+        env:
+          CI: '1'
+      - name: Upload the report when something fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
+
   # Runs the real AI models against a small set of checks (see tests/ai-smoke.test.ts).
   ai-smoke:
     runs-on: ubuntu-latest
@@ -65,7 +89,7 @@ jobs:
   # One-time setup: repo Settings → Pages → Source: "GitHub Actions".
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: build
+    needs: [build, e2e]
     runs-on: ubuntu-latest
     permissions:
       pages: write

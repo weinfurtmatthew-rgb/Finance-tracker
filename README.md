@@ -126,9 +126,16 @@ npm install
 npm run dev        # http://localhost:5173/finance-tracker/
 npm test           # unit tests (parsers, categorizer, dedupe, balances, recurring detection & schedules)
 npm run build      # production build in dist/
+npm run e2e        # phone-size browser tests (builds, serves and clicks through the app in Chromium)
 ```
+
+The browser tests live in `e2e/` with sample bank files in `e2e/fixtures/`. They run at iPhone size with the
+clock frozen at 29 Sep 2026 (the sample files' dates), in light mode, plus the `@smoke` tests in dark mode. AI
+screens use a small stand-in model. First time: `npx playwright install chromium` (or point `PW_CHROMIUM` at an
+existing Chromium).
 
 Stack: Vite, Preact, TypeScript, Dexie (IndexedDB), vite-plugin-pwa (offline service worker), Papa Parse.
 A strict Content-Security-Policy (`connect-src 'self'`) prevents the app from sending data to any other server.
 
-Pushing to `main` runs the tests and deploys to GitHub Pages (see `.github/workflows/deploy.yml`).
+Every push runs the unit tests, the browser tests and the real-AI smoke test; pushing to `main` then deploys to
+GitHub Pages (see `.github/workflows/deploy.yml`). A failing browser test stops the deploy.
