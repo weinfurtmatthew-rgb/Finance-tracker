@@ -166,6 +166,16 @@ export function Home() {
         </Empty>
       ) : (
         <>
+          {/* Copies throw off every number below, so this comes first. */}
+          {copies.length > 0 && (
+            <button type="button" class="callout warn top-callout" onClick={() => nav.present((close) => <DuplicatesSheet onClose={close} />)}>
+              <strong>
+                ⚠️ {copies.length} transaction{copies.length === 1 ? ' was' : 's were'} imported twice
+              </strong>
+              <p>The same month came in from two kinds of file (like CSV and QFX). Tap to review and remove the copies.</p>
+            </button>
+          )}
+
           <div class="month-switch" role="group" aria-label="Month">
             <button type="button" class="icon-button" aria-label="Previous month" onClick={() => setMonth(addMonths(month, -1))}>
               ‹
@@ -371,15 +381,6 @@ export function Home() {
                   .join(' · ')}
                 {owed.length > 3 ? ` · +${owed.length - 3} more` : ''}. Tap when you’re paid back.
               </p>
-            </button>
-          )}
-
-          {copies.length > 0 && (
-            <button type="button" class="callout warn" onClick={() => nav.present((close) => <DuplicatesSheet onClose={close} />)}>
-              <strong>
-                ⚠️ {copies.length} transaction{copies.length === 1 ? ' was' : 's were'} imported twice
-              </strong>
-              <p>The same month came in from two kinds of file (like CSV and QFX). Tap to review and remove the copies.</p>
             </button>
           )}
 
