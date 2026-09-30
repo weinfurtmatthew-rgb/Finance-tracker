@@ -68,6 +68,7 @@ function AccountForm(props: Props & { txns: Transaction[]; lastValue: Valuation 
       archived: a?.archived ?? false,
       createdAt: a?.createdAt ?? Date.now(),
       ...(a?.checkedOn ? { checkedOn: a.checkedOn } : {}),
+      ...(a?.balanceSetAt ? { balanceSetAt: a.balanceSetAt } : {}),
     };
     // Rates for the Plan calculators: APR & minimum on cards and loans, APY on bank accounts.
     const rate = (text: string) => {
@@ -92,7 +93,10 @@ function AccountForm(props: Props & { txns: Transaction[]; lastValue: Valuation 
     } else {
       record.openingBalance = openingBalanceFor(record.id, txns, signed);
       // Typing the bank's current balance here is a balance check too.
-      if (balance.trim() && (!a || signed !== current)) record.checkedOn = todayISO();
+      if (balance.trim() && (!a || signed !== current)) {
+        record.checkedOn = todayISO();
+        record.balanceSetAt = Date.now();
+      }
       await db.accounts.put(record);
     }
     nav.toast(a ? 'Account saved' : 'Account added');

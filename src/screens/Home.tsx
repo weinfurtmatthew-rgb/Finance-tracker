@@ -30,6 +30,7 @@ import { ReviewAiPicks } from './ReviewAiPicks';
 import { TidyUp, useOldGuesses } from './TidyUp';
 import { OwedSheet } from './Owed';
 import { usePaymentAppNudges, WhatWasThis } from './People';
+import { DuplicatesSheet, useImportCopies } from './Duplicates';
 import { RecapPage, RecapStories, RecapTeaser } from './Recap';
 import { autoRecapYear, yearPeriod } from '../lib/recap';
 import { db, setMeta } from '../db';
@@ -82,6 +83,7 @@ export function Home() {
   const tidyDone = useMeta<number>('tidyUpDone');
   const owed = useMemo(() => owedByPerson(owedItems(txns)), [txns]);
   const appNudges = usePaymentAppNudges();
+  const copies = useImportCopies();
   // The year in review opens by itself once: in December (this year) or early January (last year),
   // when the app starts (never in the middle of something, like an import).
   const recapYear = autoRecapYear(today);
@@ -369,6 +371,15 @@ export function Home() {
                   .join(' · ')}
                 {owed.length > 3 ? ` · +${owed.length - 3} more` : ''}. Tap when you’re paid back.
               </p>
+            </button>
+          )}
+
+          {copies.length > 0 && (
+            <button type="button" class="callout warn" onClick={() => nav.present((close) => <DuplicatesSheet onClose={close} />)}>
+              <strong>
+                ⚠️ {copies.length} transaction{copies.length === 1 ? ' was' : 's were'} imported twice
+              </strong>
+              <p>The same month came in from two kinds of file (like CSV and QFX). Tap to review and remove the copies.</p>
             </button>
           )}
 

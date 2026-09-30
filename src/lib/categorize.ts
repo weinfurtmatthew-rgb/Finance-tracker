@@ -45,7 +45,21 @@ const KEYWORDS: Keyword[] = [
 
 /** Map the category text some banks include (Discover, Capital One) onto ours. */
 const BANK_CATEGORIES: [RegExp, string][] = [
-  [/award|rebate|cash ?back/i, 'income'],
+  [/award|rebate|cash ?back|paycheck|^income/i, 'income'],
+  // Rocket Money's categories.
+  [/internal transfer|^transfers?$/i, TRANSFER],
+  [/loan payment/i, 'bills'],
+  [/credit card payment/i, CARD_PAYMENT],
+  [/dining|drinks/i, 'dining'],
+  [/^rent|mortgage|housing/i, 'housing'],
+  [/charit|donation/i, 'charity'],
+  [/^gifts?$/i, 'gifts'],
+  [/^pets?/i, 'pets'],
+  [/personal care/i, 'personal'],
+  [/home ?& ?garden|home improvement/i, 'home'],
+  [/software|subscription|streaming/i, 'subscriptions'],
+  [/^taxes?$/i, 'taxes'],
+  [/^investments?$/i, 'investments'],
   [/payment|credits?$/i, CARD_PAYMENT],
   [/supermarket|grocer/i, 'groceries'],
   [/restaurant|dining/i, 'dining'],
@@ -146,7 +160,7 @@ export function categorize(
   // lands in the category you use for that store), then specific merchant keywords, then the bank's
   // broad category, then a fallback.
   const fromBank = categoryFromBank(input.bankCategory);
-  if (fromBank === CARD_PAYMENT || fromBank === 'income') return { payee, categoryId: fromBank, source: 'bank' };
+  if (fromBank === CARD_PAYMENT || fromBank === 'income' || fromBank === TRANSFER) return { payee, categoryId: fromBank, source: 'bank' };
   // Moving money between your bank and Venmo / Cash App / Apple Cash.
   if (isAppTransferLine(input.description)) return { payee, categoryId: TRANSFER, source: 'keyword' };
   const known = history.get(payeeKey(payee));

@@ -108,6 +108,7 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
       notes: notes.trim(),
       source: t?.source ?? 'manual',
       importId: t?.importId,
+      ...(t?.altImportIds?.length ? { altImportIds: t.altImportIds } : {}),
       createdAt: t?.createdAt ?? Date.now(),
       ...(splits ? { splits } : {}),
       ...(tags.length ? { tags } : {}),

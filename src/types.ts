@@ -47,6 +47,8 @@ export interface Account {
   apy?: number;
   /** Last day the balance was confirmed to match the bank's. */
   checkedOn?: ISODate;
+  /** When that confirmation was made (ms), to know which imports it already counted. */
+  balanceSetAt?: number;
 }
 
 export interface Split {
@@ -98,6 +100,8 @@ export interface Transaction {
   source: TransactionSource;
   /** Stable identifier used to skip duplicates when re-importing overlapping files. */
   importId?: string;
+  /** Ids of the same transaction in other file formats (a CSV row that matched this QFX row). */
+  altImportIds?: string[];
   createdAt: number;
 }
 
@@ -140,6 +144,10 @@ export interface CsvMapping {
   invert: boolean;
   /** Account this layout was last imported into. */
   accountId?: string;
+  /** A clean store name column (Rocket Money's "Custom Name", then "Name"). */
+  payee?: number[];
+  /** Columns naming the account each row is from, for files with several accounts (Rocket Money). */
+  sourceAccount?: { institution: number | null; name: number | null; number: number | null; type: number | null };
 }
 
 export interface MetaEntry {

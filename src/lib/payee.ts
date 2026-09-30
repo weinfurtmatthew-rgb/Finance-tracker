@@ -4,6 +4,8 @@ const PREFIXES = [
   /^(pos|debit card|check ?card|visa|recurring)( purchase| payment| debit)?( authorized on \d{1,2}\/\d{1,2})?\s*/i,
   /^purchase authorized on \d{1,2}\/\d{1,2}\s*/i,
   /^debit card purchase\s*/i,
+  // Citizens: "DBT CRD 0923 SHAWS #4521 BOSTON MA" (card, then the purchase date).
+  /^(dbt|db|pos) ?(crd|card)( \d{4})?\s*/i,
   /^(sq|tst|sp|pp|dd|py|in|bt|ckcd)\s?\*\s*/i,
   /^paypal \*\s*/i,
 ];

@@ -1,6 +1,6 @@
 import Papa from 'papaparse';
 import type { AccountType, CsvMapping } from '../types';
-import type { DraftTransaction } from './draft';
+import type { DraftTransaction, SourceAccount } from './draft';
 import { parseBankDate } from './dates';
 import { parseAmount } from './money';
 
@@ -83,6 +83,32 @@ export function detectFormat(table: CsvTable, accountType?: AccountType): CsvDet
     invert: false,
   };
 
+  if (has('account name') && has('amount') && (has('custom name') || has('original date') || has('institution name'))) {
+    // Rocket Money: every linked account in one file, its own store names and categories.
+    const mapping: CsvMapping = {
+      ...base,
+      date: col(table.headers, ['date'])!,
+      description: col(table.headers, ['description', 'name'])!,
+      amount: col(table.headers, ['amount']),
+      debit: null,
+      credit: null,
+      category: col(table.headers, ['category']),
+      invert: false,
+      payee: [col(table.headers, ['custom name']), col(table.headers, ['name'])].filter((x): x is number => x != null),
+      sourceAccount: {
+        institution: col(table.headers, ['institution name', 'institution']),
+        name: col(table.headers, ['account name']),
+        number: col(table.headers, ['account number', 'account mask']),
+        type: col(table.headers, ['account type']),
+      },
+    };
+    mapping.invert = rocketMoneyInverted(dataRows(table), mapping);
+    return {
+      format: 'Rocket Money',
+      mapping,
+      note: 'Rocket Money lists every account in one file: pick which one to import. Its store names and categories are used.',
+    };
+  }
   if (has('trans. date') && has('post date') && has('amount')) {
     return {
       format: 'Discover',
@@ -129,6 +155,17 @@ export function detectFormat(table: CsvTable, accountType?: AccountType): CsvDet
   return { format: 'Generic CSV', mapping, note: 'Check the preview: purchases should show as negative (red).' };
 }
 
+/**
+ * Rocket Money writes spending as positive amounts and income as negative (the opposite of banks). Check
+ * the file rather than assume: income-type rows decide, otherwise most rows being positive does.
+ */
+function rocketMoneyInverted(rows: string[][], m: CsvMapping): boolean {
+  const amounts = rows.map((r) => ({ a: parseAmount(r[m.amount!]), cat: m.category != null ? (r[m.category] ?? '') : '' })).filter((x) => x.a != null && x.a !== 0);
+  const income = amounts.filter((x) => /income|paycheck|salary|interest/i.test(x.cat));
+  if (income.length) return income.filter((x) => x.a! < 0).length > income.length / 2;
+  return amounts.filter((x) => x.a! > 0).length > amounts.length / 2;
+}
+
 export interface CsvReadResult {
   drafts: DraftTransaction[];
   /** Rows that were skipped because they had no valid date or amount (totals, disclaimers, etc). */
@@ -160,7 +197,24 @@ export function csvToDrafts(table: CsvTable, m: CsvMapping): CsvReadResult {
     if (m.invert) amount = -amount;
     const description = (r[m.description] ?? '').replace(/\s+$/, '').trim() || '(no description)';
     const bankCategory = m.category != null ? r[m.category]?.trim() || undefined : undefined;
-    drafts.push({ date, amount, description, bankCategory });
+    const payeeHint = (m.payee ?? []).map((i) => (r[i] ?? '').trim()).find(Boolean);
+    drafts.push({ date, amount, description, bankCategory, ...(payeeHint ? { payeeHint } : {}), ...(m.sourceAccount ? { sourceAccount: sourceAccountOf(r, m.sourceAccount) } : {}) });
   }
   return { drafts, skipped };
+}
+
+function sourceAccountOf(r: string[], c: NonNullable<CsvMapping['sourceAccount']>): SourceAccount {
+  const cell = (i: number | null) => (i != null ? (r[i] ?? '').trim() : '');
+  const institution = cell(c.institution);
+  const name = cell(c.name) || 'Account';
+  const last4 = cell(c.number).replace(/\D/g, '').slice(-4) || undefined;
+  const type = cell(c.type) || undefined;
+  return {
+    key: `${institution}|${name}|${last4 ?? ''}`.toLowerCase(),
+    label: [institution, `${name}${last4 ? ` ••${last4}` : ''}`].filter(Boolean).join(' · '),
+    name,
+    institution: institution || undefined,
+    last4,
+    type,
+  };
 }
