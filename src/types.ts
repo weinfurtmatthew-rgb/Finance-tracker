@@ -144,6 +144,10 @@ export interface CsvMapping {
   invert: boolean;
   /** Account this layout was last imported into. */
   accountId?: string;
+  /** A clean store name column (Rocket Money's "Custom Name", then "Name"). */
+  payee?: number[];
+  /** Columns naming the account each row is from, for files with several accounts (Rocket Money). */
+  sourceAccount?: { institution: number | null; name: number | null; number: number | null; type: number | null };
 }
 
 export interface MetaEntry {

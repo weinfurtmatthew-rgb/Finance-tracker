@@ -24,6 +24,7 @@ Download a file from your bank's **website** and import it (Overview or Activity
 | Discover | CSV (or QFX) | Purchases are positive in Discover's CSV. Detected and flipped automatically |
 | Capital One | CSV | Card (Debit/Credit columns) and 360 (Transaction Type column) formats detected. ~90 days per download |
 | Fidelity | CSV | Header row found below Fidelity's blank lines; buys/sells filed as Investments |
+| Rocket Money | Export CSV | All your accounts in one file: pick one at a time ("Import next"). Signs flipped to the bank convention; Rocket Money's store names and categories used. A Rocket Money file imported earlier as a plain CSV gets a one-tap repair (right signs, right accounts, merged with your bank's own files) |
 | Venmo | Statement CSV | venmo.com → Statements → Download CSV, monthly. Sets the Venmo balance |
 | Cash App | Activity CSV | cash.app → Activity / Statements → Export CSV |
 | Apple Cash | (no export) | Card-funded payments show in your bank's file; use People → Log a Payment for the rest |

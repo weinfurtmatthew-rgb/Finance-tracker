@@ -60,7 +60,7 @@ export function prepareImport(
   const likelyOf = new Map([...likely].map(([k, t]) => [fresh[k], t]));
   return drafts.map((draft, i) => {
     const p = draft.p2p;
-    const guessPayee = p ? (p.kind === 'transfer' ? `${APP_NAMES[p.app]} transfer` : p.person || APP_NAMES[p.app]) : (personFromBankLine(draft.description) ?? cleanPayee(draft.description));
+    const guessPayee = p ? (p.kind === 'transfer' ? `${APP_NAMES[p.app]} transfer` : p.person || APP_NAMES[p.app]) : (draft.payeeHint ?? personFromBankLine(draft.description) ?? cleanPayee(draft.description));
     let { payee, categoryId, source } = categorize(
       { description: draft.description, payee: guessPayee, amount: draft.amount, bankCategory: draft.bankCategory, creditAccount: opts.creditAccount, appPayment: !!p },
       rules,

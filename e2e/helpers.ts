@@ -96,8 +96,11 @@ export class App {
     await this.closeSheets();
   }
 
+  /** A form field by its label (not by text inside its control, like a dropdown's options). */
   field(label: string | RegExp) {
-    return this.sheet().locator('.field', { hasText: label });
+    return this.sheet()
+      .locator('.field')
+      .filter({ has: this.page.locator('.field-label', { hasText: label }) });
   }
 
   txnRows(text?: string | RegExp) {

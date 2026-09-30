@@ -15,6 +15,8 @@ import { payeeHistory } from '../lib/categorize';
 import { aiState } from '../ai/client';
 import { automaticPicks } from '../ai/suggest';
 import { ReviewAiPicks } from './ReviewAiPicks';
+import { RocketRepair } from '../components/RocketRepair';
+import { accountFor, accountTypeFor, rocketGroups, type RocketGroup } from '../lib/rocketmoney';
 import { BalanceCheck } from '../components/BalanceCheck';
 import { isValued } from '../lib/networth';
 import { openingBalanceFor } from '../lib/balances';
@@ -91,6 +93,9 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
   const [newType, setNewType] = useState<AccountType>('checking');
   const [newInstitution, setNewInstitution] = useState('');
   const [useBalance, setUseBalance] = useState(true);
+  // Rocket Money files hold several accounts: the one being imported, and the ones done this time.
+  const [group, setGroup] = useState<string>();
+  const [doneGroups, setDoneGroups] = useState<string[]>([]);
   const [busy, setBusy] = useState<false | 'import' | 'ai'>(false);
   const [done, setDone] = useState<{ added: number; skipped: number; account: Account; balanceSet: boolean; uncategorized: number; byAi: number; merged: number; waiting: number }>();
   // What you've categorized yourself teaches new imports: same payee, same category.
@@ -141,8 +146,11 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
       } else {
         const table = readCsv(text);
         if (table.headerIndex < 0) throw new Error("This doesn't look like a transactions file.");
-        const saved = await db.csvMappings.get(headerSignature(table.headers));
-        const detected = detectFormat(table, known.find((a) => a.id === (nextAccount ?? saved?.accountId))?.type);
+        const found = await db.csvMappings.get(headerSignature(table.headers));
+        const detected = detectFormat(table, known.find((a) => a.id === (nextAccount ?? found?.accountId))?.type);
+        // A Rocket Money file is always read as one (a layout saved from a plain import of it was wrong).
+        const rocket = detected.format === 'Rocket Money';
+        const saved = rocket ? undefined : found;
         setParsed({
           kind: 'csv',
           table,
@@ -152,6 +160,16 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
           saved: !!saved,
           fileName: file.name,
         });
+        if (rocket) {
+          const groups = rocketGroups(csvToDrafts(table, detected.mapping).drafts);
+          const g = (props.accountId && groups.find((x) => accountFor(x.account, known)?.id === props.accountId)) || groups[0];
+          if (g) {
+            setGroup(g.account.key);
+            setDoneGroups([]);
+            await suggestAccount(g, known, props.accountId);
+            return;
+          }
+        }
         nextAccount ??= saved?.accountId && known.some((a) => a.id === saved.accountId) ? saved.accountId : undefined;
         nextAccount ??= await accountWithMostMatches(known, csvToDrafts(table, saved ?? detected.mapping).drafts);
         const inst = guessInstitution(detected.format, file.name);
@@ -166,15 +184,28 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
     }
   };
 
+  /** Point the import at the app account for a Rocket Money account (or a new one named after it). */
+  const suggestAccount = async (g: RocketGroup, known: Account[], preferred?: string) => {
+    const id = preferred ?? accountFor(g.account, known)?.id ?? (await accountWithMostMatches(known, g.drafts));
+    setNewType(accountTypeFor(g.account));
+    setNewInstitution(g.account.institution ?? '');
+    setNewName(g.account.name);
+    setAccountId(id ?? NEW);
+  };
+
   const statement = parsed?.kind === 'ofx' ? parsed.statements[parsed.index] : undefined;
+  const csvDrafts = useMemo(() => (parsed?.kind === 'csv' ? csvToDrafts(parsed.table, parsed.mapping) : undefined), [parsed]);
+  const groups = useMemo(() => rocketGroups(csvDrafts?.drafts ?? []), [csvDrafts]);
+  const currentGroup = groups.find((g) => g.account.key === group);
   const fileBalance = statement?.balance ?? (parsed?.kind === 'app' ? parsed.file.balance : undefined);
   const accountType = accountId === NEW ? newType : accounts?.find((a) => a.id === accountId)?.type;
   const read = useMemo((): { drafts: DraftTransaction[]; skipped: number } => {
     if (!parsed) return { drafts: [], skipped: 0 };
     if (parsed.kind === 'ofx') return { drafts: parsed.statements[parsed.index].transactions, skipped: 0 };
     if (parsed.kind === 'app') return { drafts: parsed.file.drafts, skipped: parsed.file.skipped };
-    return csvToDrafts(parsed.table, parsed.mapping);
-  }, [parsed]);
+    if (currentGroup) return { drafts: currentGroup.drafts, skipped: csvDrafts!.skipped };
+    return csvDrafts!;
+  }, [parsed, csvDrafts, currentGroup]);
 
   const prepared = useMemo(
     () =>
@@ -197,13 +228,13 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
       const result = await db.transaction('rw', [db.accounts, db.transactions, db.csvMappings], async () => {
         let account = accountId === NEW ? undefined : await db.accounts.get(accountId);
         // Remember the account number from a QFX/OFX file, so the next one finds this account directly.
-        const fileLast4 = statement?.accountNumber?.replace(/\D/g, '').slice(-4);
+        const fileLast4 = statement?.accountNumber?.replace(/\D/g, '').slice(-4) ?? currentGroup?.account.last4;
         if (account && fileLast4 && !account.last4) {
           account.last4 = fileLast4;
           await db.accounts.update(account.id, { last4: fileLast4 });
         }
         if (!account) {
-          const last4 = statement?.accountNumber?.replace(/\D/g, '').slice(-4);
+          const last4 = statement?.accountNumber?.replace(/\D/g, '').slice(-4) ?? currentGroup?.account.last4;
           account = {
             id: newId(),
             name: newName.trim() || 'New account',
@@ -271,6 +302,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
       }
       const saved = await db.transactions.bulkGet(result.rows.map((r) => r.id));
       const uncategorized = saved.filter((t) => t?.categoryId === 'uncategorized').length;
+      if (group) setDoneGroups((d) => [...d, group]);
       setDone({ added: result.added, skipped: result.skipped, account: result.account, balanceSet: result.balanceSet, uncategorized, byAi, merged: result.merged, waiting: result.waiting });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -278,6 +310,8 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
       setBusy(false);
     }
   };
+
+  const nextGroup = groups.find((g) => g.account.key !== group && !doneGroups.includes(g.account.key));
 
   if (done) {
     const { uncategorized, byAi, merged, waiting } = done;
@@ -314,7 +348,20 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
                 What Were These? ({nudges.unexplained.length})
               </button>
             )}
-            <button type="button" class={`button ${byAi > 0 ? '' : 'primary'}`} onClick={() => nav.showActivity({ accountId: done.account.id })}>
+            {nextGroup && (
+              <button
+                type="button"
+                class="button primary"
+                onClick={async () => {
+                  setGroup(nextGroup.account.key);
+                  await suggestAccount(nextGroup, await db.accounts.toArray());
+                  setDone(undefined);
+                }}
+              >
+                Import Next: {nextGroup.account.name}
+              </button>
+            )}
+            <button type="button" class={`button ${byAi > 0 || nextGroup ? '' : 'primary'}`} onClick={() => nav.showActivity({ accountId: done.account.id })}>
               View Transactions
             </button>
             <button type="button" class="button" onClick={props.onClose}>
@@ -453,6 +500,30 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
           </Field>
         )}
       </Section>
+
+      {groups.length > 0 && csvDrafts && <RocketRepair drafts={csvDrafts.drafts} />}
+
+      {groups.length > 1 && (
+        <Section title="Rocket Money account" footer={`This file has ${groups.length} accounts. Import them one at a time, each into its own account.`}>
+          <Field label="From">
+            <select
+              value={group}
+              onChange={async (e) => {
+                const key = (e.target as HTMLSelectElement).value;
+                setGroup(key);
+                const g = groups.find((x) => x.account.key === key);
+                if (g) await suggestAccount(g, await db.accounts.toArray());
+              }}
+            >
+              {groups.map((g) => (
+                <option value={g.account.key}>
+                  {g.account.label} ({g.drafts.length}){doneGroups.includes(g.account.key) ? ' ✓' : ''}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </Section>
+      )}
 
       <Section title="Import into">
         <Field label="Account">

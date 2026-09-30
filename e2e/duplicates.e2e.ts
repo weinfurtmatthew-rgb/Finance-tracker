@@ -61,3 +61,61 @@ test('copies from before the fix are found and removed, keeping the bank balance
   await app.tab('Net Worth');
   await expect(page.locator('button.row', { hasText: 'Citizens Checking' })).toContainText('$1,445.87');
 });
+
+test('a Rocket Money export imported the old way is repaired, then the Citizens QFX adds nothing twice', async ({ app, page }) => {
+  // Before: the whole Rocket Money file went into one account as a plain CSV (spending as income).
+  await app.importFile('rocketmoney-plain.csv', { type: 'checking', newAccountName: 'Citizens Checking' });
+  await app.closeSheets();
+  // ...and the Citizens QFX matched none of it.
+  await page.getByRole('button', { name: /Import a Bank File|Import a file/ }).first().click();
+  await page.locator('.drop input[type=file]').setInputFiles(fixture('citizens-sept.qfx'));
+  await app.field('Account').locator('select').selectOption({ label: 'Citizens Checking' });
+  await page.getByRole('button', { name: 'Import 9', exact: true }).click();
+  await expect(page.getByText('Imported 9 transactions')).toBeVisible();
+  await app.closeSheets();
+
+  // Now: the real Rocket Money file is recognized and offers the repair.
+  await page.getByRole('button', { name: /Import a Bank File|Import a file/ }).first().click();
+  await page.locator('.drop input[type=file]').setInputFiles(fixture('rocketmoney.csv'));
+  await expect(app.sheet().getByText('Rocket Money', { exact: true })).toBeVisible();
+  const repair = app.sheet().locator('.section', { hasText: 'Fix your earlier Rocket Money import' });
+  await expect(repair).toContainText('11 transactions to fix');
+  await expect(repair).toContainText('3 to move');
+  await expect(repair).toContainText('8 already in your bank');
+  await expect(repair.getByLabel('Account for Discover · Discover it ••1234')).toHaveValue('__new__');
+  await repair.getByRole('button', { name: 'Fix Earlier Import' }).click();
+  await expect(page.getByText(/Fixed 11 transactions · 8 merged/)).toBeVisible();
+  await expect(repair).toHaveCount(0);
+  // Nothing left to add from either account in the file.
+  await expect(page.getByRole('button', { name: 'Import 0' })).toBeDisabled();
+  await app.field('From').locator('select').selectOption({ label: 'Discover · Discover it ••1234 (3)' });
+  await expect(page.getByRole('button', { name: 'Import 0' })).toBeDisabled();
+  await app.closeSheets();
+
+  await app.tab('Activity');
+  await expect(app.txnRows('Blue Bottle')).toHaveCount(2);
+  await expect(app.txnRows(/Shaw/)).toHaveCount(2);
+  await expect(app.txnRows('Target')).toHaveCount(1);
+  await expect(app.txnRows('Target')).toContainText('-$43.10');
+  await app.tab('Net Worth');
+  await expect(page.locator('button.row', { hasText: 'Citizens Checking' })).toContainText('$1,445.87');
+  await expect(page.locator('button.row', { hasText: 'Discover it' })).toBeVisible();
+});
+
+test('a fresh Rocket Money export imports each account separately', async ({ app, page }) => {
+  await page.getByRole('button', { name: /Import a Bank File|Import a file/ }).first().click();
+  await page.locator('.drop input[type=file]').setInputFiles(fixture('rocketmoney.csv'));
+  await expect(app.field('From').locator('select').locator('option:checked')).toContainText('Citizens Checking ••6789 (8)');
+  await expect(app.field('Name').locator('input')).toHaveValue('Citizens Checking');
+  await page.getByRole('button', { name: 'Import 8', exact: true }).click();
+  await expect(page.getByText('Imported 8 transactions')).toBeVisible();
+  await page.getByRole('button', { name: 'Import Next: Discover it' }).click();
+  await expect(app.field('Type').locator('select')).toHaveValue('credit');
+  await page.getByRole('button', { name: 'Import 3', exact: true }).click();
+  await expect(page.getByText('Imported 3 transactions')).toBeVisible();
+  await app.closeSheets();
+  await app.tab('Activity');
+  await expect(app.txnRows("Shaw's")).toHaveCount(2);
+  await expect(app.txnRows("Shaw's").first()).toContainText('Groceries');
+  await expect(app.txnRows('Acme Corp')).toContainText('+$2,400.00');
+});

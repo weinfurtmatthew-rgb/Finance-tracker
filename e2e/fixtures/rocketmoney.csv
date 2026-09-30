@@ -1,0 +1,12 @@
+Date,Original Date,Account Type,Account Name,Account Number,Institution Name,Name,Custom Name,Amount,Description,Category,Note,Ignored From,Tax Deductible
+2026-09-01,2026-09-01,Cash,Citizens Checking,6789,Citizens,Acme Corp,,-2400.00,ACME CORP PAYROLL DIR DEP PPD ID: 1234567890,Income,,,
+2026-09-02,2026-09-02,Cash,Citizens Checking,6789,Citizens,Shaw's,,86.20,DBT CRD 0923 SHAWS #4521 BOSTON MA,Groceries,,,
+2026-09-04,2026-09-04,Cash,Citizens Checking,6789,Citizens,Blue Bottle Coffee,,5.25,DBT CRD 1045 BLUE BOTTLE COFFEE BOSTON MA,Dining & Drinks,,,
+2026-09-04,2026-09-04,Cash,Citizens Checking,6789,Citizens,Blue Bottle Coffee,,5.25,DBT CRD 1112 BLUE BOTTLE COFFEE BOSTON MA,Dining & Drinks,,,
+2026-09-05,2026-09-05,Credit Card,Discover it,1234,Discover,Target,,43.10,TARGET 00012345 BOSTON MA,Shopping,,,
+2026-09-08,2026-09-08,Cash,Citizens Checking,6789,Citizens,Check 1043,,150.00,CHECK 1043,Cash & Checks,,,
+2026-09-09,2026-09-09,Credit Card,Discover it,1234,Discover,Discover,,-300.00,INTERNET PAYMENT - THANK YOU,Credit Card Payment,,everything,
+2026-09-10,2026-09-10,Cash,Citizens Checking,6789,Citizens,Eversource,,78.88,EVERSOURCE ENERGY PAYMENT WEB ID: 555,Bills & Utilities,,,
+2026-09-12,2026-09-12,Cash,Citizens Checking,6789,Citizens,Transfer to Savings,,500.00,ONLINE TRANSFER TO SAV XXXXXX1234,Internal Transfers,,everything,
+2026-09-14,2026-09-14,Credit Card,Discover it,1234,Discover,Chipotle,,14.35,CHIPOTLE 1234 BOSTON MA,Dining & Drinks,,,
+2026-09-15,2026-09-15,Cash,Citizens Checking,6789,Citizens,Shaw's,,86.20,DBT CRD 0915 SHAWS #4521 BOSTON MA,Groceries,,,
