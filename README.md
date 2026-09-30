@@ -29,7 +29,11 @@ Download a file from your bank's **website** and import it (Overview or Activity
 | Apple Cash | (no export) | Card-funded payments show in your bank's file; use People → Log a Payment for the rest |
 
 Any other bank's CSV works through the column mapper, which is remembered per file layout. Re-importing an overlapping date range
-skips transactions you already have.
+skips transactions you already have, even from a different kind of file (a CSV month, then the same month as a QFX statement):
+rows are matched one to one by amount, store name and date (a few days apart for posting dates), and listed on the review
+screen with an "Import these anyway" switch. A QFX file finds the account an earlier CSV went into and remembers its number.
+Settings → Duplicate imports (and an Overview card) finds and removes copies from before this, keeping your edits and the
+balance your bank confirmed.
 
 ## Features
 

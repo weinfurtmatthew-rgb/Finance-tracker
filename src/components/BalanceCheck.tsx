@@ -34,7 +34,7 @@ export function BalanceCheck(props: { account: Account; intro?: string; onDone?:
     const [acct, list] = await Promise.all([db.accounts.get(account.id), db.transactions.where('accountId').equals(account.id).toArray()]);
     const r = reconcile({ account: acct!, txns: list, bankBalance: bank, today });
     setResult(r);
-    if (r.matches) await db.accounts.update(account.id, { checkedOn: today });
+    if (r.matches) await db.accounts.update(account.id, { checkedOn: today, balanceSetAt: Date.now() });
   };
 
   const removeDuplicates = async () => {
@@ -44,7 +44,7 @@ export function BalanceCheck(props: { account: Account; intro?: string; onDone?:
 
   const match = async () => {
     const fix = matchBank(account, result!);
-    if (fix.openingBalance != null) await db.accounts.update(account.id, { openingBalance: fix.openingBalance, checkedOn: today });
+    if (fix.openingBalance != null) await db.accounts.update(account.id, { openingBalance: fix.openingBalance, checkedOn: today, balanceSetAt: Date.now() });
     else {
       await db.transactions.add({
         id: newId(),
@@ -59,7 +59,7 @@ export function BalanceCheck(props: { account: Account; intro?: string; onDone?:
         source: 'manual',
         createdAt: Date.now(),
       });
-      await db.accounts.update(account.id, { checkedOn: today });
+      await db.accounts.update(account.id, { checkedOn: today, balanceSetAt: Date.now() });
     }
     setResult(undefined);
     setText('');

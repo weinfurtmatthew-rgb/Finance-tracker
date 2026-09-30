@@ -47,6 +47,8 @@ export interface Account {
   apy?: number;
   /** Last day the balance was confirmed to match the bank's. */
   checkedOn?: ISODate;
+  /** When that confirmation was made (ms), to know which imports it already counted. */
+  balanceSetAt?: number;
 }
 
 export interface Split {
@@ -98,6 +100,8 @@ export interface Transaction {
   source: TransactionSource;
   /** Stable identifier used to skip duplicates when re-importing overlapping files. */
   importId?: string;
+  /** Ids of the same transaction in other file formats (a CSV row that matched this QFX row). */
+  altImportIds?: string[];
   createdAt: number;
 }
 
