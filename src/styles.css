@@ -2385,3 +2385,8 @@ button.hero-card {
   color: var(--text);
   font-weight: 600;
 }
+
+/* A callout above the month switcher (e.g. duplicate imports). */
+.callout.top-callout {
+  margin: 4px 0 12px;
+}

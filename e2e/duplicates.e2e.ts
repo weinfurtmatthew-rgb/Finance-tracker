@@ -49,6 +49,9 @@ test('copies from before the fix are found and removed, keeping the bank balance
   await app.tab('Overview');
   const callout = page.locator('.callout', { hasText: 'imported twice' });
   await expect(callout).toContainText('8 transactions were imported twice');
+  // It's the first thing on Overview: copies throw off every number below it.
+  const cardTop = (await callout.boundingBox())!.y;
+  expect(cardTop).toBeLessThan((await page.locator('.month-switch').boundingBox())!.y);
   await callout.click();
   await app.sheet().getByRole('button', { name: 'Remove 8 Duplicates' }).click();
   await expect(page.getByText('Removed 8 duplicates')).toBeVisible();
