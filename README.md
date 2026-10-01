@@ -73,6 +73,16 @@ balance your bank confirmed.
   and tag filters and search
 - Transactions grouped by day, with each day's total (transfers between your accounts left out)
 
+### Detail pages
+
+- **Category:** average a month, a 6-month or yearly chart with your budget line, a highlight ("your priciest dining
+  month since May"), budget progress with a pace marker (or set one), top places this month, recent transactions,
+  and **Pin** to put it in Browse with this month's total
+- **Store:** this year's total and visits, average visit, a monthly chart, and every visit (from a category's top
+  places or Search → Places)
+- **Account:** balance (or amount owed) with a chart over 6 months, a year or all time, when it was last checked
+  against the bank, and recent activity; **Edit** opens the account settings
+
 ### Getting around
 
 - Three tabs: **Today**, **Activity** and **Browse**, plus a round **Search** button

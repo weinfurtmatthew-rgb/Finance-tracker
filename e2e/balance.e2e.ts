@@ -29,6 +29,7 @@ test('a purchase entered twice is found, and removing it makes the balance match
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await app.tab('Net Worth');
   await page.locator('button.row', { hasText: 'Checking' }).first().click();
+  await app.sheet().getByRole('button', { name: 'Edit', exact: true }).click();
   await app.sheet().getByRole('button', { name: /Check balance against my bank/ }).click();
   await app.field('Bank shows').locator('input').fill('5000');
   await app.sheet().getByRole('button', { name: 'Check', exact: true }).click();

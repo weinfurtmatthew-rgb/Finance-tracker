@@ -3543,3 +3543,133 @@ button.hero-card {
 .section-title .day-total.pos {
   color: var(--green);
 }
+
+/* ---- Detail pages ---- */
+.detail-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 4px 12px;
+}
+.detail-title h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.detail-title .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+}
+.detail-title .pill svg {
+  width: 15px;
+  height: 15px;
+}
+.sheet-body > .segmented {
+  margin: 0 auto 4px;
+  max-width: none;
+}
+.detail-hero-card {
+  margin-top: 12px;
+  gap: 4px;
+  padding: 16px;
+}
+.detail-big {
+  font-size: 40px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.detail-mid {
+  font-size: 26px;
+  line-height: 1.2;
+  font-weight: 800;
+}
+.detail-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+}
+.detail-stats > div {
+  display: flex;
+  flex-direction: column;
+}
+.detail-hero-card .chart,
+.detail-hero-card .segmented {
+  margin-top: 8px;
+}
+.detail-hero-card .chart {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding: 4px 0 0;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.highlight-card {
+  margin-top: 12px;
+  gap: 10px;
+  padding: 16px;
+}
+.detail-budget {
+  margin-top: 12px;
+  gap: 10px;
+  padding: 16px;
+}
+.detail-budget-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.detail-budget-head h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+.detail-budget-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+.detail-budget-text strong {
+  color: var(--text);
+}
+.detail-budget .left-bar {
+  margin-top: 4px;
+}
+.place-row .row-main {
+  gap: 6px;
+}
+.place-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.place-bar {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--track);
+  overflow: hidden;
+}
+.place-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+.button-stack .button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.button-stack .button svg {
+  width: 18px;
+  height: 18px;
+}

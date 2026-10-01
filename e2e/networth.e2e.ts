@@ -28,9 +28,11 @@ test('a card APR and minimum can be saved on the account', async ({ app, page })
   await app.closeSheets();
   await app.tab('Net Worth');
   await page.locator('button.row', { hasText: /Discover/ }).first().click();
+  await app.sheet().getByRole('button', { name: 'Edit', exact: true }).click();
   await app.field('APR').locator('input').fill('24.99');
   await app.field('Minimum').locator('input').fill('40');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await page.locator('button.row', { hasText: /Discover/ }).first().click();
+  // Back on the account's page: open the editor again.
+  await app.sheet().getByRole('button', { name: 'Edit', exact: true }).click();
   await expect(app.field('APR').locator('input')).toHaveValue('24.99');
 });

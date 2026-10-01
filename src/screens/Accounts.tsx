@@ -14,6 +14,7 @@ import { Empty, Money, Row, Section, Segmented } from '../components/ui';
 import { LineChart } from '../components/charts';
 import { Icons } from '../components/icons';
 import { AccountEditor } from './AccountEditor';
+import { AccountDetail } from './AccountDetail';
 import { ImportFlow } from './Import';
 import { UpdateValues } from './UpdateValues';
 import { GoalEditor } from './GoalEditor';
@@ -129,7 +130,7 @@ export function Accounts() {
                 .join(' · ')
         }
         detail={<Money cents={isLiability(a) ? -b : b} />}
-        onClick={() => edit(a)}
+        onClick={() => nav.present((close) => <AccountDetail account={a} onClose={close} />)}
       />
     );
   };
