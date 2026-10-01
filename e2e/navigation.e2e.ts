@@ -65,3 +65,22 @@ test('Money Health scores six parts, from Browse and from Today @smoke', async (
   await app.tab('Browse');
   await expect(app.browseCard('Money Health')).toContainText(/\d+ · (Great|Good|Fair|Needs work)/);
 });
+
+test('Activity: month card, quick filters and day totals', async ({ app, page }) => {
+  await app.importAll();
+  await app.tab('Activity');
+  const card = page.locator('.month-card');
+  await expect(card).toContainText('September 2026');
+  await expect(card).toContainText('spent');
+  // Quick filter: money in only.
+  await page.locator('.quick-filters').getByRole('button', { name: 'Income', exact: true }).click();
+  const rows = app.txnRows();
+  await expect(rows.first()).toBeVisible();
+  for (const text of await rows.allInnerTexts()) expect(text).toMatch(/Income|Interest/);
+  await page.locator('.quick-filters').getByRole('button', { name: 'All', exact: true }).click();
+  // The arrows show one month at a time.
+  await card.getByRole('button', { name: 'Previous month' }).click();
+  await expect(card).toContainText('August 2026');
+  await expect(page.locator('.section-title').first()).toContainText(/Aug/);
+  await expect(page.locator('.section-title .day-total').first()).toBeVisible();
+});

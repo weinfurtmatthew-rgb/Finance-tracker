@@ -3460,3 +3460,86 @@ button.hero-card {
   line-height: 1.3;
   font-weight: 700;
 }
+
+/* ---- Activity ---- */
+.month-card {
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 14px 16px;
+}
+.month-card-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.month-card-nav strong {
+  font-size: 17px;
+}
+.round-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--track);
+  color: var(--text);
+}
+.round-button svg {
+  width: 18px;
+  height: 18px;
+}
+.round-button:disabled {
+  opacity: 0.35;
+}
+.month-card-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.month-card-stats > div {
+  display: flex;
+  flex-direction: column;
+}
+.month-stat {
+  font-size: 22px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.month-card-note {
+  font-size: 12px;
+  color: var(--text-2);
+}
+.quick-filters {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.quick-filters .chip {
+  max-width: none;
+  white-space: nowrap;
+}
+.review-card {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px 14px;
+}
+.review-card-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+.section-title .day-total {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.section-title .day-total.pos {
+  color: var(--green);
+}
