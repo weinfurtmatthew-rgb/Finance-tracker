@@ -66,6 +66,13 @@ balance your bank confirmed.
   debt load (15%) and planning (10%)
 - Each part shows where you are and the next step; the weakest one is shown on Today. Open it from Browse
 
+### Activity
+
+- A month card (spent, came in, number of transactions) with arrows to step through months
+- Quick filters: All · Spending · Income · Needs review (no category yet, or an AI guess), plus account, category
+  and tag filters and search
+- Transactions grouped by day, with each day's total (transfers between your accounts left out)
+
 ### Getting around
 
 - Three tabs: **Today**, **Activity** and **Browse**, plus a round **Search** button

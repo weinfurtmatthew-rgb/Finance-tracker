@@ -11,6 +11,8 @@ export interface ActivityFilter {
   categoryId?: string;
   month?: string;
   tag?: string;
+  /** Quick filter: money out, money in, or transactions to check (no category, or an AI guess). */
+  kind?: 'spending' | 'income' | 'review';
 }
 
 export interface Nav {
