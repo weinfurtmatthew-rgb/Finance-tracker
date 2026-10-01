@@ -16,6 +16,9 @@ import { Glyph, IconChip, type GlyphName, type Hue } from '../components/icons';
 import { ProfileButton } from '../components/ProfileButton';
 import { useMoneyHealth } from '../healthModel';
 import { BudgetsEditor } from './BudgetsEditor';
+import { CategoryDetail } from './CategoryDetail';
+import { CategoryIcon } from '../components/ui';
+import type { Category } from '../types';
 import { CategoriesSheet } from './Categories';
 import { PeopleSheet } from './People';
 import { OwedSheet } from './Owed';
@@ -33,6 +36,8 @@ interface Item {
   hue: Exclude<Hue, 'gray'>;
   /** One line about it right now. */
   sub: string;
+  /** A category pinned from its page shows its own icon. */
+  category?: Category;
   /** The headline number when it's pinned, and a few words under it. */
   value?: string;
   note?: string;
@@ -126,7 +131,15 @@ export function Browse() {
     ];
   }, [txns, accounts, categories, rec, months, budgets, book, month, today, health]);
 
-  const pinned = pins.map((id) => items.find((i) => i.id === id)).filter((i): i is Item => !!i);
+  // Categories pinned from their page ("cat:<id>") show what they've cost this month.
+  const categoryItem = (pin: string): Item | undefined => {
+    const id = pin.slice(4);
+    const c = categories.find((x) => x.id === id);
+    if (!c) return undefined;
+    const spent = Math.max(0, months.get(month)?.allByCategory.get(id) ?? 0);
+    return { id: pin as ItemId, title: c.name, glyph: 'tag', hue: 'blue', category: c, sub: 'this month', value: whole(spent), note: 'this month', open: () => nav.present((close) => <CategoryDetail categoryId={id} month={month} onClose={close} />) };
+  };
+  const pinned = pins.map((id) => (id.startsWith('cat:') ? categoryItem(id) : items.find((i) => i.id === id))).filter((i): i is Item => !!i);
   const togglePin = (id: ItemId) => void setMeta('browsePins', pins.includes(id) ? pins.filter((p) => p !== id) : [...pins, id]);
 
   return (
@@ -152,7 +165,7 @@ export function Browse() {
           {pinned.map((i) => (
             <button type="button" class="card browse-pin" onClick={editing ? () => togglePin(i.id) : i.open}>
               <span class="browse-pin-top">
-                <IconChip name={i.glyph} hue={i.hue} size="sm" />
+                {i.category ? <CategoryIcon category={i.category} size="sm" /> : <IconChip name={i.glyph} hue={i.hue} size="sm" />}
                 <span class="browse-pin-title">{i.title}</span>
               </span>
               {i.value ? (

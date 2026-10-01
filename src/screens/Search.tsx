@@ -10,8 +10,24 @@ import { Glyph, IconChip } from '../components/icons';
 import { TransactionRow } from '../components/TransactionRow';
 import { CategoryDetail } from './CategoryDetail';
 import { AskSheet } from './AskSheet';
+import { PlaceDetail } from './PlaceDetail';
+import type { Transaction } from '../types';
+import { placeKey } from '../lib/detail';
 
 const MAX_TXNS = 40;
+
+/** Stores whose name contains the text, most visited first. */
+function matchingPlaces(txns: Transaction[], q: string) {
+  const m = new Map<string, { key: string; name: string; count: number }>();
+  for (const t of txns) {
+    const key = placeKey(t);
+    if (!key.includes(q)) continue;
+    const p = m.get(key) ?? { key, name: t.payee || t.description, count: 0 };
+    p.count++;
+    m.set(key, p);
+  }
+  return [...m.values()].sort((a, b) => b.count - a.count).slice(0, 5);
+}
 
 /** One box for everything: categories, tags and transactions, and a question for Ask. */
 export function Search() {
@@ -30,6 +46,7 @@ export function Search() {
     if (!q) return null;
     return {
       categories: categories.filter((c) => !c.hidden && c.name.toLowerCase().includes(q)).slice(0, 6),
+      places: matchingPlaces(txns, q),
       tags: allTags(txns)
         .filter((t) => t.tag.toLowerCase().includes(q.replace(/^#/, '')))
         .slice(0, 6),
@@ -39,7 +56,7 @@ export function Search() {
   }, [q, txns, categories, cats]);
 
   const ask = () => nav.present((close) => <AskSheet question={query.trim()} onClose={close} />);
-  const nothing = results && !results.categories.length && !results.tags.length && !results.txns.length;
+  const nothing = results && !results.categories.length && !results.places.length && !results.tags.length && !results.txns.length;
 
   return (
     <>
@@ -79,6 +96,19 @@ export function Search() {
                   icon={<CategoryIcon category={c} size="sm" />}
                   title={c.name}
                   onClick={() => nav.present((close) => <CategoryDetail categoryId={c.id} month={monthKey(todayISO())} onClose={close} />)}
+                />
+              ))}
+            </Section>
+          )}
+
+          {results.places.length > 0 && (
+            <Section title="Places">
+              {results.places.map((p) => (
+                <Row
+                  icon={<IconChip name="bag" hue="orange" size="sm" />}
+                  title={p.name}
+                  subtitle={`${p.count} transaction${p.count === 1 ? '' : 's'}`}
+                  onClick={() => nav.present((close) => <PlaceDetail placeKey={p.key} onClose={close} />)}
                 />
               ))}
             </Section>

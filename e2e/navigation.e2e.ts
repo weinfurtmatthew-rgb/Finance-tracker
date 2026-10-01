@@ -84,3 +84,28 @@ test('Activity: month card, quick filters and day totals', async ({ app, page })
   await expect(page.locator('.section-title').first()).toContainText(/Aug/);
   await expect(page.locator('.section-title .day-total').first()).toBeVisible();
 });
+
+test('detail pages: a category, a store and an account', async ({ app, page }) => {
+  await app.importAll();
+  // Search → a category page: average, chart, budget, places, pin.
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await page.getByLabel('Search transactions, categories and tags').fill('coffee');
+  await page.locator('.section', { hasText: 'Categories' }).locator('.row', { hasText: 'Coffee' }).click();
+  const sheet = app.sheet();
+  await expect(sheet.locator('.detail-hero-card')).toContainText('Average a month');
+  await expect(sheet.locator('.detail-budget')).toBeVisible();
+  await sheet.getByRole('button', { name: 'Pin', exact: true }).click();
+  await expect(page.getByText('Pinned to Browse')).toBeVisible();
+  // A store from the category's top places.
+  await sheet.locator('.place-row').first().click();
+  await expect(app.sheet().locator('.detail-hero-card')).toContainText('this year');
+  await expect(app.sheet()).toContainText('Every visit');
+  // The pinned category shows up in Browse.
+  await app.tab('Browse');
+  await expect(page.locator('.browse-pin', { hasText: 'Coffee' })).toContainText('this month');
+  // An account page from Net Worth.
+  await app.tab('Net Worth');
+  await page.locator('button.row', { hasText: 'Checking' }).first().click();
+  await expect(app.sheet().locator('.detail-hero-card')).toContainText('Balance');
+  await expect(app.sheet().getByRole('button', { name: /All .* transactions/ })).toBeVisible();
+});
