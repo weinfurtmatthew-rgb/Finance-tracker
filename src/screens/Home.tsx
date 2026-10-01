@@ -5,7 +5,8 @@ import { UpdateValues } from './UpdateValues';
 import { useNav } from '../nav';
 import { useRecurringModel } from '../recurringModel';
 import { useSpending } from '../spendingModel';
-import { addDays, addMonths, dayInMonth, daysInMonth, dayOfMonth, monthKey, monthLabel } from '../lib/dates';
+import { addDays, addMonths, dayInMonth, daysInMonth, dayOfMonth, formatLongDay, monthKey, monthLabel } from '../lib/dates';
+import { ProfileButton } from '../components/ProfileButton';
 import { formatMoney } from '../lib/money';
 import { budgetProgress, monthElapsed } from '../lib/budgets';
 import { countsAsCost } from '../lib/recurring';
@@ -24,7 +25,6 @@ import { RecurringReview } from './RecurringReview';
 import { BudgetsEditor } from './BudgetsEditor';
 import { CategoryDetail } from './CategoryDetail';
 import { AskSheet } from './AskSheet';
-import { Plan } from './plan/Plan';
 import { SuggestCategories } from './SuggestCategories';
 import { ReviewAiPicks } from './ReviewAiPicks';
 import { TidyUp, useOldGuesses } from './TidyUp';
@@ -123,20 +123,23 @@ export function Home() {
   return (
     <>
       <header class="large-title">
-        <h1>Overview</h1>
-        {open.length > 0 && (
-          <div class="header-actions">
-            <button type="button" class="icon-button" aria-label="Ask a question" onClick={() => nav.present((close) => <AskSheet onClose={close} />)}>
-              {Icons.sparkle()}
-            </button>
-            <button type="button" class="icon-button" aria-label="Plan: financial calculators" onClick={() => nav.present((close) => <Plan onClose={close} />)}>
-              {Icons.calculator()}
-            </button>
-            <button type="button" class="icon-button" aria-label="Import a file" onClick={importFile}>
-              {Icons.import()}
-            </button>
-          </div>
-        )}
+        <div class="title-stack">
+          <p class="title-date">{formatLongDay(today)}</p>
+          <h1>Today</h1>
+        </div>
+        <div class="header-actions">
+          {open.length > 0 && (
+            <>
+              <button type="button" class="icon-button" aria-label="Ask a question" onClick={() => nav.present((close) => <AskSheet onClose={close} />)}>
+                {Icons.sparkle()}
+              </button>
+              <button type="button" class="icon-button" aria-label="Import a file" onClick={importFile}>
+                {Icons.import()}
+              </button>
+            </>
+          )}
+          <ProfileButton />
+        </div>
       </header>
 
       {!isStandalone() && (
@@ -440,7 +443,7 @@ export function Home() {
           )}
 
           {backupDue && (
-            <button type="button" class="callout warn" onClick={() => nav.setTab('settings')}>
+            <button type="button" class="callout warn" onClick={() => nav.openSettings()}>
               <strong>Back up your data</strong>
               <p>{lastBackup ? "It's been over two weeks since your last backup." : "You haven't made a backup yet."} Your data only lives on this phone. Tap to save a backup file.</p>
             </button>

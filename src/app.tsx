@@ -3,24 +3,28 @@ import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useRegisterSW } from 'virtual:pwa-register/preact';
 import { db, eraseEverything } from './db';
-import { NavContext, type ActivityFilter, type Nav, type Tab } from './nav';
+import { NavContext, type ActivityFilter, type Nav, type Page, type Tab } from './nav';
 import type { PasscodeRecord } from './lib/lock';
 import { LockScreen } from './screens/Lock';
 import { Home } from './screens/Home';
 import { Activity } from './screens/Activity';
 import { Accounts } from './screens/Accounts';
 import { Recurring } from './screens/Recurring';
-import { Settings } from './screens/Settings';
-import { Icons } from './components/icons';
+import { SettingsSheet } from './screens/Settings';
+import { Browse } from './screens/Browse';
+import { Search } from './screens/Search';
+import { Glyph, type GlyphName } from './components/icons';
 import { Ambient } from './components/Ambient';
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'home', label: 'Overview' },
-  { id: 'activity', label: 'Activity' },
-  { id: 'recurring', label: 'Recurring' },
-  { id: 'accounts', label: 'Net Worth' },
-  { id: 'settings', label: 'Settings' },
+const TABS: { id: Tab; label: string; glyph: GlyphName }[] = [
+  { id: 'home', label: 'Today', glyph: 'today' },
+  { id: 'activity', label: 'Activity', glyph: 'list' },
+  { id: 'browse', label: 'Browse', glyph: 'grid' },
 ];
+
+/** Screens opened from Browse: Browse stays lit in the tab bar. */
+const PAGES: Page[] = ['recurring', 'accounts'];
+const isPage = (t: Tab | Page): t is Page => (PAGES as string[]).includes(t);
 
 interface SheetEntry {
   id: number;
@@ -33,7 +37,7 @@ export function App() {
     autoLockMinutes: ((await db.meta.get('autoLockMinutes'))?.value as number | undefined) ?? 1,
   }));
   const [locked, setLocked] = useState<boolean | null>(null);
-  const [tab, setTab] = useState<Tab>('home');
+  const [tab, setTab] = useState<Tab | Page>('home');
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>({});
   const [sheets, setSheets] = useState<SheetEntry[]>([]);
   const [toastMsg, setToastMsg] = useState<string>();
@@ -77,6 +81,10 @@ export function App() {
       const id = nextId.current++;
       setSheets((s) => [...s, { id, render }]);
     },
+    openSettings: () => {
+      const id = nextId.current++;
+      setSheets((s) => [...s, { id, render: (close) => <SettingsSheet onClose={close} /> }]);
+    },
     showActivity: (filter) => {
       setActivityFilter(filter);
       setSheets([]);
@@ -102,21 +110,42 @@ export function App() {
     <NavContext.Provider value={nav}>
       <Ambient tone={tab} />
       <main class="screen">
+        {isPage(tab) && (
+          <button type="button" class="back-pill" onClick={() => nav.setTab('browse')}>
+            <Glyph name="chevronLeft" />
+            Browse
+          </button>
+        )}
         {tab === 'home' && <Home />}
         {tab === 'activity' && <Activity />}
+        {tab === 'browse' && <Browse />}
+        {tab === 'search' && <Search />}
         {tab === 'recurring' && <Recurring />}
         {tab === 'accounts' && <Accounts />}
-        {tab === 'settings' && <Settings />}
       </main>
-      <nav class="tabbar" aria-label="Main">
-        {TABS.map((t) => (
-          <button type="button" class={tab === t.id ? 'active' : ''} aria-current={tab === t.id ? 'page' : undefined} onClick={() => nav.setTab(t.id)}>
-            <span class="tab-icon" aria-hidden="true">
-              {Icons[t.id]()}
-            </span>
-            <span class="tab-label">{t.label}</span>
-          </button>
-        ))}
+      <nav class="tabbar-wrap" aria-label="Main">
+        <div class="tabbar">
+          {TABS.map((t) => {
+            const on = tab === t.id || (t.id === 'browse' && isPage(tab));
+            return (
+              <button type="button" class={on ? 'active' : ''} aria-current={on ? 'page' : undefined} onClick={() => nav.setTab(t.id)}>
+                <span class="tab-icon" aria-hidden="true">
+                  <Glyph name={t.glyph} />
+                </span>
+                <span class="tab-label">{t.label}</span>
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          class={`tab-search ${tab === 'search' ? 'active' : ''}`}
+          aria-label="Search"
+          aria-current={tab === 'search' ? 'page' : undefined}
+          onClick={() => nav.setTab('search')}
+        >
+          <Glyph name="search" />
+        </button>
       </nav>
       {sheets.map((s) => (
         <div key={s.id}>{s.render(() => setSheets((all) => all.filter((x) => x.id !== s.id)))}</div>

@@ -30,7 +30,7 @@ test('ask what a tagged trip cost', async ({ app, page }) => {
   await tag.fill('Italy 2026');
   await tag.press('Enter');
   await app.sheet().getByRole('button', { name: 'Save', exact: true }).click();
-  await app.tab('Overview');
+  await app.tab('Today');
   await page.getByRole('button', { name: 'Ask a question' }).click();
   await app.sheet().getByLabel('Question').fill('how much did the italy trip cost');
   await app.sheet().getByLabel('Question').press('Enter');

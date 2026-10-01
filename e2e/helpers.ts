@@ -57,8 +57,31 @@ export class App {
     return this.page.locator('.sheet').last();
   }
 
-  async tab(name: 'Overview' | 'Activity' | 'Recurring' | 'Net Worth' | 'Settings') {
-    await this.page.locator('.tabbar button', { hasText: name }).click();
+  /**
+   * Go somewhere from the tab bar (closing any open sheets first): a tab, a screen in Browse, or
+   * Settings (the profile button).
+   */
+  async tab(name: 'Today' | 'Activity' | 'Browse' | 'Recurring' | 'Net Worth' | 'Settings') {
+    const { page } = this;
+    if (await page.locator('.sheet').count()) await this.closeSheets();
+    if (name === 'Today' || name === 'Activity' || name === 'Browse') {
+      await page.locator('.tabbar button', { hasText: name }).click();
+      return;
+    }
+    await page.locator('.tabbar button', { hasText: 'Browse' }).click();
+    if (name === 'Settings') await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    else await this.browseCard(name === 'Recurring' ? 'Bills & Subscriptions' : name).click();
+  }
+
+  /** A card in Browse → Everything, by its title. */
+  browseCard(title: string) {
+    return this.page.locator('.browse-card').filter({ has: this.page.locator('.browse-card-title', { hasText: new RegExp(`^${title}$`) }) });
+  }
+
+  /** Browse → Plan. */
+  async openPlan() {
+    await this.tab('Browse');
+    await this.browseCard('Plan').click();
   }
 
   /** Import a bank file through the real flow and return the summary text. */
@@ -81,7 +104,14 @@ export class App {
   async closeSheets() {
     const { page } = this;
     while (await page.locator('.sheet').count()) {
-      await page.locator('.sheet').last().locator('.sheet-header button').first().click();
+      // A sheet may be closing on its own (after Save): then there's nothing to click.
+      await page
+        .locator('.sheet')
+        .last()
+        .locator('.sheet-header button')
+        .first()
+        .click({ timeout: 3000 })
+        .catch(() => {});
       await page.waitForTimeout(300);
     }
   }

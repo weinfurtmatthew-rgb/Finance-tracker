@@ -23,7 +23,8 @@ interface Turn {
   pending?: boolean;
 }
 
-export function AskSheet(props: { onClose: () => void }) {
+/** `question` fills in the box (from Search). */
+export function AskSheet(props: { onClose: () => void; question?: string }) {
   const nav = useNav();
   const ai = useAi();
   const txns = useTransactions();
@@ -32,7 +33,7 @@ export function AskSheet(props: { onClose: () => void }) {
   const rec = useRecurringModel();
   const { months, budgets } = useSpending();
   const book = useBook();
-  const [text, setText] = useState('');
+  const [text, setText] = useState(props.question ?? '');
   const [turns, setTurns] = useState<Turn[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
   const today = rec.today;

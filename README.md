@@ -47,6 +47,16 @@ balance your bank confirmed.
   home & bills yellow, money coming in aqua. Categories you make (or give your own emoji) keep their emoji
 - Light and dark mode each have their own colors; Reduce Transparency gives solid surfaces, and Reduce Motion is respected
 
+### Getting around
+
+- Three tabs: **Today**, **Activity** and **Browse**, plus a round **Search** button
+- **Browse** has a card for every part of the app (bills & subscriptions, budgets, net worth, categories,
+  people, owed money, trips & tags, Plan, year in review, import). **Edit** pins your favorites to the top
+  with their number (net worth and bills are pinned to start)
+- **Search** finds categories, #tags and transactions (by store, note, amount or category) and can hand your
+  words to **Ask**
+- **Settings** opens from the profile button on Today and Browse
+
 ### Venmo, Cash App & Apple Cash
 
 - Each app is a **Payment app** account with its own balance (counted as cash in net worth and the calculators).

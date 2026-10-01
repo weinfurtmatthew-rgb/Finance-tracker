@@ -22,7 +22,7 @@ test('a Citizens CSV, then the same month as a QFX statement: nothing doubles @s
   await app.tab('Net Worth');
   await expect(page.locator('button.row', { hasText: 'Citizens Checking' })).toContainText('$1,445.87');
   // Importing either file again adds nothing.
-  await app.tab('Overview');
+  await app.tab('Today');
   await page.getByRole('button', { name: /Import a Bank File|Import a file/ }).first().click();
   await page.locator('.drop input[type=file]').setInputFiles(fixture('citizens-sept.csv'));
   await expect(page.getByRole('button', { name: 'Import 0' })).toBeDisabled();
@@ -46,7 +46,7 @@ test('copies from before the fix are found and removed, keeping the bank balance
   await app.field('Category').locator('select').selectOption('bills');
   await app.sheet().getByRole('button', { name: 'Save', exact: true }).click();
 
-  await app.tab('Overview');
+  await app.tab('Today');
   const callout = page.locator('.callout', { hasText: 'imported twice' });
   await expect(callout).toContainText('8 transactions were imported twice');
   // It's the first thing on Overview: copies throw off every number below it.

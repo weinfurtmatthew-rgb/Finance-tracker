@@ -48,7 +48,7 @@ export function SuggestCategories(props: { onClose: () => void }) {
       <Sheet title="Suggest Categories" onClose={props.onClose}>
         <Empty icon="spark" title="Turn on on-device AI">
           <p>Category suggestions use a small AI model that runs on this phone. Turn it on in Settings → On-device AI.</p>
-          <button type="button" class="button" onClick={() => { props.onClose(); nav.setTab('settings'); }}>
+          <button type="button" class="button" onClick={() => { props.onClose(); nav.openSettings(); }}>
             Go to Settings
           </button>
         </Empty>

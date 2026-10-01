@@ -39,7 +39,16 @@ async function saveFile(name: string, text: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
-export function Settings() {
+/** Settings, opened from the profile button. */
+export function SettingsSheet(props: { onClose: () => void }) {
+  return (
+    <Sheet title="Settings" onClose={props.onClose}>
+      <Settings />
+    </Sheet>
+  );
+}
+
+function Settings() {
   const nav = useNav();
   const passcode = useMeta<PasscodeRecord>('passcode');
   const autoLock = useMeta<number>('autoLockMinutes') ?? 1;
@@ -108,10 +117,6 @@ export function Settings() {
 
   return (
     <>
-      <header class="large-title">
-        <h1>Settings</h1>
-      </header>
-
       <Section title="Security" footer="The passcode protects this app when someone else has your unlocked phone. There is no way to recover a forgotten passcode.">
         {passcode ? (
           <>
