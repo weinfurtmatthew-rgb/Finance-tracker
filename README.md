@@ -59,6 +59,13 @@ balance your bank confirmed.
 - **Highlights** (categories well above or below usual by this point), **bills before payday**, and **For you**
   suggestions. The month-by-month dashboard and charts are in **Browse → Spending**
 
+### Money Health
+
+- A 0–100 score for the bigger picture (85+ Great · 65–84 Good · 45–64 Fair · under 45 Needs work), drawn as a ring
+  of six parts: spend less than you earn (25%), cash cushion (20%), bills on time (15%), long-term savings (15%),
+  debt load (15%) and planning (10%)
+- Each part shows where you are and the next step; the weakest one is shown on Today. Open it from Browse
+
 ### Getting around
 
 - Three tabs: **Today**, **Activity** and **Browse**, plus a round **Search** button

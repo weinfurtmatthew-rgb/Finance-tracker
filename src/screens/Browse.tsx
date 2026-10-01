@@ -14,6 +14,7 @@ import { monthKey } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { Glyph, IconChip, type GlyphName, type Hue } from '../components/icons';
 import { ProfileButton } from '../components/ProfileButton';
+import { useMoneyHealth } from '../healthModel';
 import { BudgetsEditor } from './BudgetsEditor';
 import { CategoriesSheet } from './Categories';
 import { PeopleSheet } from './People';
@@ -23,7 +24,7 @@ import { Plan } from './plan/Plan';
 import { RecapPage } from './Recap';
 import { ImportFlow } from './Import';
 
-type ItemId = 'spending' | 'bills' | 'budgets' | 'networth' | 'categories' | 'people' | 'owed' | 'tags' | 'plan' | 'recap' | 'import';
+type ItemId = 'spending' | 'bills' | 'budgets' | 'networth' | 'health' | 'categories' | 'people' | 'owed' | 'tags' | 'plan' | 'recap' | 'import';
 
 interface Item {
   id: ItemId;
@@ -53,6 +54,7 @@ export function Browse() {
   const { months, budgets } = useSpending();
   const book = useBook();
   const pins = useMeta<ItemId[]>('browsePins') ?? DEFAULT_PINS;
+  const health = useMoneyHealth();
   const [editing, setEditing] = useState(false);
   const today = rec.today;
   const month = monthKey(today);
@@ -94,6 +96,16 @@ export function Browse() {
         note: 'on track this month',
         open: present((close) => <BudgetsEditor onClose={close} />),
       },
+      {
+        id: 'health',
+        title: 'Money Health',
+        glyph: 'shield',
+        hue: 'green',
+        sub: health ? `${health.score} · ${health.band}` : 'Your bigger picture, 0–100',
+        value: health ? String(health.score) : undefined,
+        note: health?.band,
+        open: () => nav.setTab('health'),
+      },
       { id: 'networth', title: 'Net Worth', glyph: 'trend', hue: 'aqua', sub: `${whole(net)} · ${plural(open, 'account')}`, value: whole(net), note: plural(open, 'account'), open: () => nav.setTab('accounts') },
       { id: 'categories', title: 'Categories', glyph: 'grid', hue: 'blue', sub: plural(categories.filter((c) => !c.hidden).length, 'category', 'categories'), open: present((close) => <CategoriesSheet onClose={close} />) },
       { id: 'people', title: 'People', glyph: 'users', hue: 'blue', sub: friends ? `${plural(friends, 'person', 'people')} · payment apps` : 'Venmo, Cash App & Apple Cash', open: present((close) => <PeopleSheet onClose={close} />) },
@@ -112,7 +124,7 @@ export function Browse() {
       { id: 'recap', title: 'Year in Review', glyph: 'play', hue: 'magenta', sub: `${today.slice(0, 4)} so far`, open: present((close) => <RecapPage onClose={close} />) },
       { id: 'import', title: 'Import', glyph: 'upload', hue: 'blue', sub: 'Bank files & statements', open: present((close) => <ImportFlow onClose={close} />) },
     ];
-  }, [txns, accounts, categories, rec, months, budgets, book, month, today]);
+  }, [txns, accounts, categories, rec, months, budgets, book, month, today, health]);
 
   const pinned = pins.map((id) => items.find((i) => i.id === id)).filter((i): i is Item => !!i);
   const togglePin = (id: ItemId) => void setMeta('browsePins', pins.includes(id) ? pins.filter((p) => p !== id) : [...pins, id]);

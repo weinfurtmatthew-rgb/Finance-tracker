@@ -18,6 +18,8 @@ import { categoryLook } from '../components/look';
 import { Gauge, verdictColor } from '../components/Gauge';
 import { PaceChart } from '../components/PaceChart';
 import { ProfileButton } from '../components/ProfileButton';
+import { HealthRing } from '../components/HealthRing';
+import { useMoneyHealth } from '../healthModel';
 import { RecurringRow } from '../components/RecurringRow';
 import { AccountEditor } from './AccountEditor';
 import { ImportFlow } from './Import';
@@ -164,6 +166,7 @@ export function Home() {
   });
   const hot = changes.hot[0];
   const cool = changes.cool[0];
+  const health = useMoneyHealth();
   const cushionMonths = plan && plan.monthlySpending > 0 ? plan.cash / plan.monthlySpending : null;
 
   const addAccount = () => nav.present((close) => <AccountEditor onClose={close} />);
@@ -521,6 +524,20 @@ export function Home() {
             <button type="button" class="callout warn" onClick={() => nav.openSettings()}>
               <strong>Back up your data</strong>
               <p>{lastBackup ? "It's been over two weeks since your last backup." : "You haven't made a backup yet."} Your data only lives on this phone. Tap to save a backup file.</p>
+            </button>
+          )}
+
+          {health && (
+            <button type="button" class="card lit health-teaser" style={{ '--lit': 'color-mix(in oklab, var(--hue-aqua) 14%, transparent)' }} onClick={() => nav.setTab('health')}>
+              <HealthRing pillars={health.pillars} score={health.score} band={health.band} size={92} stroke={9} />
+              <span class="health-teaser-text">
+                <span class="health-teaser-label">
+                  <Glyph name="shield" /> Money Health
+                </span>
+                <span class="health-teaser-title">Next win: {[...health.pillars].sort((a, b) => a.score - b.score)[0].name.toLowerCase()}</span>
+                <span class="card-sub">{[...health.pillars].sort((a, b) => a.score - b.score)[0].tip}</span>
+              </span>
+              <span class="chevron" aria-hidden="true">›</span>
             </button>
           )}
 

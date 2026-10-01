@@ -3357,3 +3357,106 @@ button.hero-card {
   font-size: 14px;
   color: var(--ink-2);
 }
+
+/* ---- Money Health ---- */
+.health-ring {
+  position: relative;
+  flex: none;
+}
+.health-ring svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+.health-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.health-score {
+  line-height: 1;
+  font-weight: 800;
+}
+.health-band {
+  margin-top: 2px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.health-hero {
+  align-items: center;
+  gap: 10px;
+  padding: 22px 16px 12px;
+  margin-top: 8px;
+}
+.health-meaning {
+  margin: 4px 0 0;
+  max-width: 320px;
+  text-align: center;
+  font-size: 17px;
+  line-height: 1.35;
+  font-weight: 600;
+}
+.pillar {
+  gap: 8px;
+  padding: 16px;
+  margin-top: 12px;
+}
+.pillar-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pillar-head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+.pillar-score {
+  font-size: 22px;
+  font-weight: 800;
+}
+.pillar-metric,
+.pillar-tip {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+}
+.pillar-tip {
+  color: var(--ink-2);
+}
+.health-teaser {
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 16px;
+}
+.health-teaser-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.health-teaser-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.health-teaser-label svg {
+  width: 18px;
+  height: 18px;
+}
+.health-teaser-title {
+  font-size: 17px;
+  line-height: 1.3;
+  font-weight: 700;
+}
