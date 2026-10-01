@@ -1,11 +1,11 @@
-import type { Tab } from '../nav';
+import type { Page, Tab } from '../nav';
 
 /**
  * The soft light behind the glass: a few still, blurred glows in colors that fit the screen, and a
  * fine grain so large areas don't look like flat plastic. It stays put while the page scrolls, so the
  * cards slide over it.
  */
-export type Tone = Tab | 'lock';
+export type Tone = Tab | Page | 'lock';
 
 type Glow = [left: number, top: number, size: number, color: string, strength: number];
 
@@ -28,9 +28,14 @@ const TONES: Record<Tone, Glow[]> = {
     [-170, -120, 440, 'var(--hue-aqua)', 0.42],
     [190, 420, 420, 'var(--hue-blue)', 0.34],
   ],
-  settings: [
-    [160, -160, 440, 'var(--hue-blue)', 0.3],
-    [-200, 560, 400, 'var(--hue-violet)', 0.22],
+  browse: [
+    [-180, -120, 440, 'var(--hue-orange)', 0.4],
+    [190, 120, 420, 'var(--hue-aqua)', 0.38],
+    [-200, 560, 420, 'var(--hue-violet)', 0.3],
+  ],
+  search: [
+    [180, -160, 380, 'var(--hue-aqua)', 0.3],
+    [-70, 480, 540, 'var(--hue-blue)', 0.45],
   ],
   lock: [
     [-40, -110, 520, 'var(--hue-blue)', 0.45],

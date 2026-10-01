@@ -29,7 +29,7 @@ test('paid for someone else, then paid back @smoke', async ({ app, page }) => {
   await app.field('Who owes you').locator('input').fill('Alex');
   await app.sheet().getByRole('button', { name: 'Save', exact: true }).click();
   await expect(app.txnRows('Chipotle').first()).toContainText('Owed by Alex');
-  await app.tab('Overview');
+  await app.tab('Today');
   const callout = page.locator('.callout', { hasText: 'owed to you' });
   await expect(callout).toContainText('Alex');
   await callout.click();
@@ -68,7 +68,7 @@ test('part of a split paid for someone, settled by a real deposit', async ({ app
   await app.sheet().locator('.split-part').nth(1).locator('.toggle-row input').check();
   await app.sheet().getByLabel('Part 2 owed by').fill('Sam');
   await app.sheet().getByRole('button', { name: 'Save', exact: true }).click();
-  await app.tab('Overview');
+  await app.tab('Today');
   await page.locator('.callout', { hasText: 'owed to you' }).click();
   await app.sheet().getByRole('button', { name: 'Paid all back' }).click();
   // Pick the first incoming payment offered.

@@ -123,3 +123,9 @@ export function formatShortDate(date: ISODate): string {
   const [y, m, d] = date.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
+
+/** "Thursday, October 1": the date above the Today title. */
+export function formatLongDay(date: ISODate): string {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+}

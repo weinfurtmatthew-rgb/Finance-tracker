@@ -13,7 +13,7 @@ test('bank first, then Venmo: bank-paid payments merge, paybacks settle @smoke',
   await app.field('Who owes you').locator('input').fill('Casey');
   await app.sheet().getByRole('button', { name: 'Save', exact: true }).click();
 
-  await app.tab('Overview');
+  await app.tab('Today');
   await page.getByRole('button', { name: /Import a Bank File|Import a file/ }).first().click();
   await page.locator('.drop input[type=file]').setInputFiles(await import('./helpers').then((h) => h.fixture('venmo.csv')));
   await expect(app.sheet().getByText('Venmo statement')).toBeVisible();
@@ -40,7 +40,7 @@ test('bank first, then Venmo: bank-paid payments merge, paybacks settle @smoke',
   await expect(page.locator('button.row', { hasText: 'Venmo' })).toContainText('$70.50');
 
   // Importing the same statement again adds nothing.
-  await app.tab('Overview');
+  await app.tab('Today');
   await page.getByRole('button', { name: /Import a Bank File|Import a file/ }).first().click();
   await page.locator('.drop input[type=file]').setInputFiles(await import('./helpers').then((h) => h.fixture('venmo.csv')));
   await expect(app.sheet().getByText(/6 already imported/)).toBeVisible();
@@ -66,7 +66,7 @@ test('Venmo first, then the bank: the waiting payment merges into the bank line'
 test('Cash App: what was this, people, log an Apple Cash payment, ask', async ({ app, page }) => {
   await app.importFile('cashapp.csv');
   await app.closeSheets();
-  await app.tab('Overview');
+  await app.tab('Today');
   const callout = page.locator('.callout', { hasText: 'What was this payment?' });
   await callout.click();
   const row = app.sheet().locator('.what-row', { hasText: 'Jamie Fox' });
@@ -78,7 +78,7 @@ test('Cash App: what was this, people, log an Apple Cash payment, ask', async ({
   await expect(callout).toHaveCount(0);
 
   await app.tab('Settings');
-  await page.getByRole('button', { name: /^People/ }).click();
+  await app.sheet().getByRole('button', { name: /^People/ }).click();
   await expect(app.sheet().locator('.row', { hasText: 'Morgan Diaz' })).toContainText('sent $40');
   await app.sheet().getByRole('button', { name: '＋ Log a Payment' }).click();
   await app.field(/^App/).locator('select').selectOption('applecash');
@@ -93,7 +93,7 @@ test('Cash App: what was this, people, log an Apple Cash payment, ask', async ({
   await expect(app.sheet()).toContainText('Apple Cash');
   await app.closeSheets();
 
-  await app.tab('Overview');
+  await app.tab('Today');
   await page.getByRole('button', { name: 'Ask a question' }).click();
   await app.sheet().getByLabel('Question').fill('how much have I sent Morgan');
   await app.sheet().getByLabel('Question').press('Enter');

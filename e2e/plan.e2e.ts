@@ -12,9 +12,9 @@ const CALCULATORS = [
   'Will my money last?',
 ];
 
-test('every calculator opens with your numbers filled in @smoke', async ({ app, page }) => {
+test('every calculator opens with your numbers filled in @smoke', async ({ app }) => {
   await app.importAll();
-  await page.getByRole('button', { name: 'Plan: financial calculators' }).click();
+  await app.openPlan();
   await expect(app.sheet()).toContainText('Your numbers');
   for (const name of CALCULATORS) {
     await app.sheet().locator('.row', { hasText: name }).click();
@@ -28,7 +28,7 @@ test('every calculator opens with your numbers filled in @smoke', async ({ app, 
 test('debt payoff compares avalanche and snowball', async ({ app, page }) => {
   await app.importFile('discover.csv');
   await app.closeSheets();
-  await page.getByRole('button', { name: 'Plan: financial calculators' }).click();
+  await app.openPlan();
   await app.sheet().locator('.row', { hasText: 'Debt payoff' }).click();
   // Make the card the bigger, pricier debt so the two strategies pick different orders.
   const card = app.sheet().locator('.section', { hasText: /Discover/ });
@@ -47,9 +47,9 @@ test('debt payoff compares avalanche and snowball', async ({ app, page }) => {
   await expect(app.sheet().getByText('Payoff order')).toBeVisible();
 });
 
-test('can I afford it gives a verdict for a financed purchase', async ({ app, page }) => {
+test('can I afford it gives a verdict for a financed purchase', async ({ app }) => {
   await app.importAll();
-  await page.getByRole('button', { name: 'Plan: financial calculators' }).click();
+  await app.openPlan();
   await app.sheet().locator('.row', { hasText: 'Can I afford it?' }).click();
   await app.sheet().getByRole('tab', { name: 'Finance it' }).click();
   await app.field('Price').locator('input').fill('25000');
@@ -60,7 +60,7 @@ test('can I afford it gives a verdict for a financed purchase', async ({ app, pa
 
 test('rent calculator: ranges, roommates, a listing and the landlord check @smoke', async ({ app, page }) => {
   await app.importAll();
-  await page.getByRole('button', { name: 'Plan: financial calculators' }).click();
+  await app.openPlan();
   await app.sheet().locator('.row', { hasText: 'Rent calculator' }).click();
   // Known numbers, so the ranges are exact.
   await app.field('Take-home / mo').locator('input').fill('5000');

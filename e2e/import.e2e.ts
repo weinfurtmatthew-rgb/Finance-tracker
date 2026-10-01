@@ -10,7 +10,7 @@ test('imports checking, card and savings files @smoke', async ({ app, page }) =>
   await expect(app.txnRows('Discover E-Payment').first()).toContainText('Credit Card Payment');
   await expect(app.txnRows('Internet Payment').first()).toContainText('Credit Card Payment');
   await expect(app.txnRows('Netflix').first()).toContainText('Subscriptions');
-  await app.tab('Overview');
+  await app.tab('Today');
   await expect(page.locator('.kpi').first()).toContainText('Spent');
 });
 
@@ -47,7 +47,7 @@ test('fixing a category updates the same payee and teaches future imports', asyn
   await expect(page.getByText('Saved · 1 more updated')).toBeVisible();
   await expect(app.txnRows('Green Leaf Market').filter({ hasText: 'Groceries' })).toHaveCount(2);
   // The next file from the same store (including a refund) follows your choice.
-  await app.tab('Overview');
+  await app.tab('Today');
   await app.importFile('card3.csv');
   await app.closeSheets();
   await app.tab('Activity');

@@ -3,6 +3,7 @@ import { allTags, categoriesOf, tagKey } from '../lib/lines';
 import { byId, useAccounts, useCategories, useTransactions } from '../hooks';
 import { useNav } from '../nav';
 import { formatDay, monthLabel, monthKey } from '../lib/dates';
+import { matchesQuery } from '../lib/search';
 import { CategorySelect, Empty, Money } from '../components/ui';
 import { TransactionRow } from '../components/TransactionRow';
 import { TransactionEditor } from './TransactionEditor';
@@ -34,12 +35,7 @@ export function Activity() {
         (!f.categoryId || categoriesOf(t).includes(f.categoryId)) &&
         (!f.month || monthKey(t.date) === f.month) &&
         (!f.tag || !!t.tags?.some((x) => tagKey(x) === tagKey(f.tag!))) &&
-        (!q ||
-          !!t.tags?.some((x) => tagKey(x).includes(q.replace(/^#/, ''))) ||
-          t.payee.toLowerCase().includes(q) ||
-          t.description.toLowerCase().includes(q) ||
-          t.notes.toLowerCase().includes(q) ||
-          (t.amount / 100).toFixed(2).includes(q.replace(/[$,-]/g, ''))),
+        matchesQuery(t, q),
     );
   }, [txns, f, query]);
 
