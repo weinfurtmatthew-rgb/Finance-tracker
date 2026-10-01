@@ -12,6 +12,7 @@ import { Accounts } from './screens/Accounts';
 import { Recurring } from './screens/Recurring';
 import { SettingsSheet } from './screens/Settings';
 import { Browse } from './screens/Browse';
+import { Spending } from './screens/Spending';
 import { Search } from './screens/Search';
 import { Glyph, type GlyphName } from './components/icons';
 import { Ambient } from './components/Ambient';
@@ -23,7 +24,7 @@ const TABS: { id: Tab; label: string; glyph: GlyphName }[] = [
 ];
 
 /** Screens opened from Browse: Browse stays lit in the tab bar. */
-const PAGES: Page[] = ['recurring', 'accounts'];
+const PAGES: Page[] = ['spending', 'recurring', 'accounts'];
 const isPage = (t: Tab | Page): t is Page => (PAGES as string[]).includes(t);
 
 interface SheetEntry {
@@ -120,6 +121,7 @@ export function App() {
         {tab === 'activity' && <Activity />}
         {tab === 'browse' && <Browse />}
         {tab === 'search' && <Search />}
+        {tab === 'spending' && <Spending />}
         {tab === 'recurring' && <Recurring />}
         {tab === 'accounts' && <Accounts />}
       </main>

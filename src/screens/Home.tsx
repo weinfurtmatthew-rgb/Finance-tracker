@@ -1,23 +1,24 @@
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo } from 'preact/hooks';
 import { useAccounts, useBook, useMeta, useTransactions } from '../hooks';
-import { changeSince, netWorthOn, staleValued } from '../lib/networth';
+import { staleValued } from '../lib/networth';
 import { UpdateValues } from './UpdateValues';
 import { useNav } from '../nav';
 import { useRecurringModel } from '../recurringModel';
 import { useSpending } from '../spendingModel';
-import { addDays, addMonths, dayInMonth, daysInMonth, dayOfMonth, formatLongDay, monthKey, monthLabel } from '../lib/dates';
-import { ProfileButton } from '../components/ProfileButton';
+import { usePlanData } from '../planModel';
+import { addDays, diffDays, formatLongDay, formatShortDate, monthKey, monthLabel } from '../lib/dates';
 import { formatMoney } from '../lib/money';
-import { budgetProgress, monthElapsed } from '../lib/budgets';
-import { countsAsCost } from '../lib/recurring';
-import { Empty, Money, Section } from '../components/ui';
-import { ColumnChart, RankedBars, compactMoney } from '../components/charts';
-
-/** Stat-tile values auto-compact so they fit a third of the screen: $2,271 but $17.4K. */
-const tile = (cents: number) => (Math.abs(cents) >= 1_000_000 ? compactMoney(cents) : formatMoney(cents, { whole: true }));
-import { BudgetMeter, budgetStatusText } from '../components/BudgetMeter';
+import { budgetProgress } from '../lib/budgets';
+import { accountBalance } from '../lib/balances';
+import { isOutflow } from '../lib/recurring';
+import { categoryChanges, isEverydayCategory, pace, paceTarget, spendReadiness, todayFacts, todaySummary, type CategoryChange, type Phrase } from '../lib/today';
+import { CategoryIcon, Empty, Section } from '../components/ui';
+import { Glyph, IconChip, Icons } from '../components/icons';
+import { categoryLook } from '../components/look';
+import { Gauge, verdictColor } from '../components/Gauge';
+import { PaceChart } from '../components/PaceChart';
+import { ProfileButton } from '../components/ProfileButton';
 import { RecurringRow } from '../components/RecurringRow';
-import { Icons } from '../components/icons';
 import { AccountEditor } from './AccountEditor';
 import { ImportFlow } from './Import';
 import { AlertCard } from './Recurring';
@@ -25,6 +26,7 @@ import { RecurringReview } from './RecurringReview';
 import { BudgetsEditor } from './BudgetsEditor';
 import { CategoryDetail } from './CategoryDetail';
 import { AskSheet } from './AskSheet';
+import { ReadinessSheet } from './Readiness';
 import { SuggestCategories } from './SuggestCategories';
 import { ReviewAiPicks } from './ReviewAiPicks';
 import { TidyUp, useOldGuesses } from './TidyUp';
@@ -32,11 +34,11 @@ import { OwedSheet } from './Owed';
 import { usePaymentAppNudges, WhatWasThis } from './People';
 import { DuplicatesSheet, useImportCopies } from './Duplicates';
 import { RecapPage, RecapStories, RecapTeaser } from './Recap';
+import { RunwayCalc } from './plan/Runway';
 import { autoRecapYear, yearPeriod } from '../lib/recap';
 import { db, setMeta } from '../db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { owedByPerson, owedItems } from '../lib/lines';
-import { SummaryCard } from '../components/SummaryCard';
 import { useAi } from '../ai/client';
 
 /** The automatic year in review is only considered once per app launch. */
@@ -45,6 +47,48 @@ let recapCheckedThisLaunch = false;
 const isStandalone = () =>
   window.matchMedia?.('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
 
+const whole = (c: number) => formatMoney(c, { whole: true });
+
+/** "Friday" within the week, else "Oct 24". */
+const dayName = (date: string, today: string) => {
+  if (diffDays(today, date) < 7) {
+    const [y, m, d] = date.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'long' });
+  }
+  return formatShortDate(date);
+};
+
+function Sentence(props: { phrases: Phrase[] }) {
+  return (
+    <>
+      {props.phrases.map((p) => (p.tone ? <span class={p.tone === 'good' ? 'pos-text' : 'neg-text'}>{p.text}</span> : p.text))}{' '}
+    </>
+  );
+}
+
+/** This month vs the usual by this point, as two bars. */
+function CompareBars(props: { change: CategoryChange; color: string }) {
+  const max = Math.max(props.change.spent, props.change.usual, 1);
+  const rows: [string, number, boolean][] = [
+    ['This month', props.change.spent, true],
+    ['Usual', props.change.usual, false],
+  ];
+  return (
+    <div class="compare-bars">
+      {rows.map(([label, v, on]) => (
+        <div class="compare-row">
+          <span class="compare-label">{label}</span>
+          <span class="compare-track">
+            <span class="compare-fill" style={{ width: `${(v / max) * 100}%`, background: on ? props.color : 'var(--track)' }} />
+          </span>
+          <span class="compare-value num">{whole(v)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Today: how the day and month look, what to watch, and what's coming up. */
 export function Home() {
   const nav = useNav();
   const accounts = useAccounts();
@@ -52,30 +96,16 @@ export function Home() {
   const lastBackup = useMeta<number>('lastBackupAt');
   const rec = useRecurringModel();
   const ai = useAi();
+  const plan = usePlanData();
   const { months, budgets, cats } = useSpending();
   const today = rec.today;
-  const current = monthKey(today);
-  const [month, setMonth] = useState(current);
-  const isCurrent = month === current;
+  const month = monthKey(today);
+  const monthName = monthLabel(month).split(' ')[0];
+  const monthShort = monthLabel(month, { short: true }).split(' ')[0];
 
   const open = accounts.filter((a) => !a.archived);
   const book = useBook();
-  const netWorth = useMemo(() => netWorthOn(book).net, [book]);
-  const lastMonthEnd = dayInMonth(`${addMonths(current, -1)}-01`, 0, 31);
-  const nwChange = useMemo(() => changeSince(book, lastMonthEnd).total, [book, lastMonthEnd]);
   const stale = staleValued(book, today);
-  const m = months.get(month);
-  const spent = (m?.flexible ?? 0) + (m?.fixed ?? 0);
-  const progress = useMemo(() => budgetProgress(budgets, m, month, today), [budgets, m, month, today]);
-  const elapsed = monthElapsed(month, today);
-  const budgetTotal = progress.reduce((s, p) => s + p.limit, 0);
-  const budgetSpent = progress.reduce((s, p) => s + p.spent, 0);
-  const budgeted = new Set(budgets.map((b) => b.categoryId));
-  const otherFlexible = [...(m?.byCategory ?? [])].filter(([id]) => !budgeted.has(id)).reduce((s, [, v]) => s + Math.max(0, v), 0);
-  const warnings = isCurrent ? progress.filter((p) => p.state !== 'ok' || p.offPace) : [];
-  // Card payments aren't bills: the purchases they pay for are already counted as spending.
-  const stillDue = isCurrent ? rec.upcomingItems.filter((i) => countsAsCost(i.status.rec) && monthKey(i.date) === month).reduce((s, i) => s + Math.abs(i.amount), 0) : 0;
-  const soon = isCurrent ? rec.upcomingItems.filter((i) => i.late || i.date <= addDays(today, rec.settings.reminderDays)) : [];
   const uncategorized = txns.filter((t) => t.categoryId === 'uncategorized').length;
   const aiPicks = txns.filter((t) => t.categorySource === 'ai').length;
   // One-time nudge to review old guessed categories (also always in Settings → Organize).
@@ -102,23 +132,48 @@ export function Home() {
   }, [recapCheck]);
   const owedTotal = owed.reduce((sum, p) => sum + p.total, 0);
   const backupDue = txns.length > 0 && (!lastBackup || Date.now() - lastBackup > 14 * 86_400_000);
-  const [y, mo] = month.split('-').map(Number);
-  const daysLeft = isCurrent ? daysInMonth(y, mo) - dayOfMonth(today) + 1 : 0;
 
-  // Charts: 12 months of spending; 6 months of income vs spending ending at the viewed month.
-  const trendKeys = Array.from({ length: 12 }, (_, i) => addMonths(current, i - 11));
-  const flowKeys = Array.from({ length: 6 }, (_, i) => addMonths(month, i - 5));
-  const total = (k: string) => Math.max(0, (months.get(k)?.flexible ?? 0) + (months.get(k)?.fixed ?? 0));
-  const income = (k: string) => Math.max(0, months.get(k)?.income ?? 0);
-  const where = [...(m?.allByCategory ?? [])]
-    .filter(([, v]) => v > 0)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8);
+  // ---- The day in numbers
+  const facts = useMemo(() => todayFacts(txns, cats, rec.recurring, today), [txns, cats, rec.recurring, today]);
+  const budgetTotal = useMemo(() => budgetProgress(budgets, months.get(month), month, today)
+          .filter((b) => isEverydayCategory(b.categoryId))
+          .reduce((s, b) => s + b.limit, 0), [budgets, months, month, today]);
+  const target = paceTarget(facts, budgetTotal);
+  const p = target ? pace(facts, target) : null;
+  const checking = useMemo(
+    () => accounts.filter((a) => !a.archived && (a.type === 'checking' || a.type === 'cash')).reduce((s, a) => s + accountBalance(a, txns), 0),
+    [accounts, txns],
+  );
+  // Bills before the next paycheck, or in the next week when no paycheck is tracked.
+  const flow = rec.cashFlow;
+  const billItems = flow ? flow.items : rec.upcomingItems.filter((i) => isOutflow(i.status.rec) && i.date <= addDays(today, 7));
+  const billsDue = billItems.reduce((s, i) => s + Math.abs(i.amount), 0);
+  const paycheck = flow ? rec.statuses.find((s) => s.rec.kind === 'income' && s.rec.status === 'active') : undefined;
+  const readiness = useMemo(
+    () => spendReadiness({ facts, target, cash: checking, billsDue, liquid: plan?.cash ?? checking, monthlySpending: plan?.monthlySpending ?? 0 }),
+    [facts, target, checking, billsDue, plan],
+  );
+  const changes = useMemo(() => categoryChanges(facts), [facts]);
+  const catName = (id: string) => cats.get(id)?.name ?? 'Other';
+  const summary = todaySummary({
+    facts,
+    target,
+    monthName,
+    categoryName: catName,
+    bills: { count: billItems.length, total: billsDue, payday: flow ? { label: dayName(flow.payday, today) } : undefined, covered: checking >= billsDue },
+  });
+  const hot = changes.hot[0];
+  const cool = changes.cool[0];
+  const cushionMonths = plan && plan.monthlySpending > 0 ? plan.cash / plan.monthlySpending : null;
 
   const addAccount = () => nav.present((close) => <AccountEditor onClose={close} />);
   const importFile = () => nav.present((close) => <ImportFlow onClose={close} />);
   const editBudgets = () => nav.present((close) => <BudgetsEditor onClose={close} />);
   const openCategory = (id: string) => nav.present((close) => <CategoryDetail categoryId={id} month={month} onClose={close} />);
+  const lookColor = (id: string) => {
+    const look = categoryLook(cats.get(id));
+    return 'glyph' in look ? look.background.replace('--deep-', '--hue-') : 'var(--chart-1)';
+  };
 
   return (
     <>
@@ -179,96 +234,207 @@ export function Home() {
             </button>
           )}
 
-          <div class="month-switch" role="group" aria-label="Month">
-            <button type="button" class="icon-button" aria-label="Previous month" onClick={() => setMonth(addMonths(month, -1))}>
-              ‹
-            </button>
-            <strong>{monthLabel(month)}</strong>
-            <button type="button" class="icon-button" aria-label="Next month" disabled={isCurrent} onClick={() => setMonth(addMonths(month, 1))}>
-              ›
-            </button>
-          </div>
-
-          {budgets.length > 0 ? (
-            <button type="button" class="hero-card" onClick={editBudgets}>
-              <span class="card-label">{budgetSpent > budgetTotal ? 'Over budget' : isCurrent ? 'Left to spend' : 'Left in budget'}</span>
-              <span class={`hero-number ${budgetSpent > budgetTotal ? 'neg-text' : ''}`}>{formatMoney(Math.abs(budgetTotal - budgetSpent), { whole: true })}</span>
-              <span class="card-sub">
-                {formatMoney(budgetSpent, { whole: true })} of {formatMoney(budgetTotal, { whole: true })} budgeted
-                {isCurrent && ` · ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
-              </span>
-            </button>
-          ) : (
-            <div class="hero-card">
-              <span class="card-label">Spent in {monthLabel(month, { short: true }).split(' ')[0]}</span>
-              <span class="hero-number">{formatMoney(spent, { whole: true })}</span>
-              <span class="card-sub">
-                {formatMoney(total(addMonths(month, -1)), { whole: true })} the month before
-              </span>
-            </div>
+          {summary.length > 0 && (
+            <section class="card lit day-summary" aria-labelledby="day-h">
+              <div class="day-summary-head">
+                <h2 id="day-h">
+                  <Glyph name="spark" /> Your day in money
+                </h2>
+              </div>
+              <p class="day-summary-text">
+                {summary.map((s) => (
+                  <Sentence phrases={s} />
+                ))}
+              </p>
+              {(hot || billItems.length > 0) && (
+                <div class="day-summary-actions">
+                  {hot && (
+                    <button type="button" class="pill" onClick={() => openCategory(hot.categoryId)}>
+                      See {catName(hot.categoryId)}
+                    </button>
+                  )}
+                  {billItems.length > 0 && (
+                    <button type="button" class="pill" onClick={() => document.getElementById('bills')?.scrollIntoView({ behavior: 'smooth' })}>
+                      {flow ? 'Bills before payday' : 'Bills this week'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </section>
           )}
 
-          <div class="kpis">
-            <button type="button" class="kpi" onClick={() => nav.showActivity({ month })}>
-              <span class="card-label">Spent</span>
-              <span class="kpi-value">{tile(spent)}</span>
-              <span class="card-sub">{formatMoney(m?.flexible ?? 0, { whole: true })} everyday</span>
-            </button>
-            <button type="button" class="kpi" onClick={() => nav.setTab('recurring')}>
-              <span class="card-label">Fixed bills</span>
-              <span class="kpi-value">{tile((m?.fixed ?? 0) + stillDue)}</span>
-              <span class="card-sub">{isCurrent ? `${formatMoney(stillDue, { whole: true })} still due` : 'paid'}</span>
-            </button>
-            <button type="button" class="kpi" onClick={() => nav.setTab('accounts')}>
-              <span class="card-label">Net worth</span>
-              <span class="kpi-value">{tile(netWorth)}</span>
-              <span class="card-sub">
-                {nwChange >= 0 ? '▲' : '▼'} {tile(Math.abs(nwChange))} this month
-              </span>
-            </button>
-          </div>
-
-          {txns.length > 0 && <SummaryCard month={month} />}
-
-          {isCurrent && <RecapTeaser onOpen={() => nav.present((close) => <RecapPage onClose={close} />)} />}
-
-          {isCurrent && rec.alerts.map((a) => <AlertCard key={a.key} alert={a} />)}
-
-          {warnings.length > 0 && (
-            <div class="callout warn">
-              <strong>
-                {warnings.length} budget{warnings.length === 1 ? ' needs' : 's need'} attention
-              </strong>
-              {warnings.map((p) => {
-                const s = budgetStatusText(p);
-                return (
-                  <p>
-                    <span aria-hidden="true">{s.icon} </span>
-                    {cats.get(p.categoryId)?.name}: {s.text}
-                  </p>
-                );
-              })}
-            </div>
-          )}
-
-          {soon.length > 0 && (
-            <Section
-              title={
-                <>
-                  <span>Upcoming bills</span>
-                  <button type="button" class="link" onClick={() => nav.setTab('recurring')}>
-                    See all
-                  </button>
-                </>
-              }
+          <div class="today-tiles">
+            <button
+              type="button"
+              class="card lit readiness-tile"
+              style={{ '--lit': `color-mix(in oklab, ${verdictColor(readiness.verdict)} 16%, transparent)` }}
+              aria-label={`Spend Readiness ${readiness.score} out of 10, ${readiness.verdict}. Open details.`}
+              onClick={() => nav.present((close) => <ReadinessSheet readiness={readiness} onClose={close} />)}
             >
-              {soon.map((i) => (
-                <RecurringRow status={i.status} today={today} date={i.date} late={i.late} category={cats.get(i.status.rec.categoryId ?? '')} />
-              ))}
-            </Section>
+              <span class="tile-head">
+                <span class="card-label">Spend Readiness</span>
+                <span class="chevron" aria-hidden="true">›</span>
+              </span>
+              <span class="gauge-wrap">
+                <Gauge score={readiness.score} verdict={readiness.verdict} size={124} stroke={11} />
+                <span class="gauge-center">
+                  <span class="gauge-score num">{readiness.score}</span>
+                  <span class="gauge-of">of 10</span>
+                </span>
+              </span>
+              <span class="readiness-verdict small">
+                <span class="verdict-dot" style={{ background: verdictColor(readiness.verdict) }} aria-hidden="true" />
+                {readiness.verdict}
+              </span>
+            </button>
+
+            {target && p ? (
+              <button type="button" class="card left-tile" onClick={budgets.length ? () => nav.setTab('spending') : editBudgets}>
+                <span class="card-label">{p.left >= 0 ? 'Left to spend' : 'Over by'}</span>
+                <span class={`left-value num ${p.left < 0 ? 'neg-text' : ''}`}>{whole(Math.abs(p.left))}</span>
+                <span class="left-sub">
+                  {p.daysLeft} day{p.daysLeft === 1 ? '' : 's'} left
+                  {p.left > 0 && (
+                    <>
+                      {' '}
+                      · about <strong>{whole(p.left / p.daysLeft)} a day</strong>
+                    </>
+                  )}
+                </span>
+                <span class="left-bar" aria-hidden="true">
+                  <span class="left-fill" style={{ width: `${Math.min(100, (facts.spent / target.amount) * 100)}%` }} />
+                  <span class="left-pace" style={{ left: `${Math.min(100, (p.expected / target.amount) * 100)}%` }} />
+                </span>
+                <span class="left-foot">
+                  <span>
+                    {whole(facts.spent)} of {whole(target.amount)}
+                  </span>
+                  <span>{target.kind === 'budget' ? 'budget' : 'usual'}</span>
+                </span>
+              </button>
+            ) : (
+              <button type="button" class="card left-tile" onClick={editBudgets}>
+                <span class="card-label">This month</span>
+                <span class="left-value num">{whole(facts.spent)}</span>
+                <span class="left-sub">everyday spending so far</span>
+                <span class="pill left-cta">Set budgets</span>
+              </button>
+            )}
+          </div>
+
+          {target && p && facts.curve.length > 0 && (
+            <section class="card lit pace-card" style={{ '--lit': 'color-mix(in oklab, var(--hue-blue) 12%, transparent)' }} aria-labelledby="pace-h">
+              <div class="pace-head">
+                <IconChip name="trend" hue="blue" size="sm" />
+                <h2 id="pace-h">{monthName} spending</h2>
+                <span class={`pace-status ${p.under >= 0 ? 'pos-text' : 'neg-text'}`}>
+                  {whole(Math.abs(p.under))} {p.under >= 0 ? 'under' : 'over'} pace
+                </span>
+              </div>
+              <div class="pace-numbers">
+                <div>
+                  <span class="pace-big num">{whole(facts.spent)}</span>
+                  <span class="card-sub">spent so far</span>
+                </div>
+                <div>
+                  <span class="pace-big num muted">{whole(p.expected)}</span>
+                  <span class="card-sub">at an even pace</span>
+                </div>
+              </div>
+              <PaceChart curve={facts.curve} days={facts.days} target={target.amount} targetLabel={target.kind === 'budget' ? 'Budget' : 'Usual'} monthShort={monthShort} />
+            </section>
           )}
 
-          {isCurrent && stale.length > 0 && (
+          {rec.alerts.map((a) => (
+            <AlertCard key={a.key} alert={a} />
+          ))}
+
+          {(hot || cool) && (
+            <>
+              <h2 class="section-heading today-heading">Highlights</h2>
+              {[hot, cool].filter((c): c is CategoryChange => !!c).map((c) => (
+                <button type="button" class="card highlight" onClick={() => openCategory(c.categoryId)}>
+                  <span class="highlight-head">
+                    <CategoryIcon category={cats.get(c.categoryId)} size="sm" />
+                    <span class="highlight-title">{catName(c.categoryId)}</span>
+                    <span class="card-sub">This month</span>
+                    <span class="chevron" aria-hidden="true">›</span>
+                  </span>
+                  <span class="highlight-text">
+                    {c.diff > 0
+                      ? `${catName(c.categoryId)} is running hot: ${whole(c.spent)} so far, ${whole(c.diff)} more than usual by this point.`
+                      : `You’ve spent ${whole(-c.diff)} less on ${catName(c.categoryId).toLowerCase()} than usual by now. Nice.`}
+                  </span>
+                  <CompareBars change={c} color={lookColor(c.categoryId)} />
+                </button>
+              ))}
+            </>
+          )}
+
+          {billItems.length > 0 && (
+            <div id="bills">
+              <Section
+                title={
+                  <>
+                    <span>{flow ? 'Before payday' : 'Due this week'}</span>
+                    <button type="button" class="link" onClick={() => nav.setTab('recurring')}>
+                      All bills
+                    </button>
+                  </>
+                }
+                footer={
+                  flow
+                    ? `Paycheck ${dayName(flow.payday, today)}${paycheck ? ` · +${whole(Math.abs(paycheck.expected))}` : ''}. ${whole(billsDue)} due before then, ${whole(checking)} in checking${checking >= billsDue ? ': you’re covered.' : '.'}`
+                    : `${whole(billsDue)} due, ${whole(checking)} in checking.`
+                }
+              >
+                {billItems.map((i) => (
+                  <RecurringRow status={i.status} today={today} date={i.date} late={i.late} category={cats.get(i.status.rec.categoryId ?? '')} />
+                ))}
+              </Section>
+            </div>
+          )}
+
+          <h2 class="section-heading today-heading">For you</h2>
+
+          {cushionMonths != null && cushionMonths < 3 && plan && (
+            <div class="card foryou">
+              <div class="foryou-top">
+                <IconChip name="vault" hue="blue" />
+                <div>
+                  <h3>Grow your cushion to 3 months</h3>
+                  <p>
+                    Your cash covers {cushionMonths.toFixed(1)} months of spending. Three months is a solid emergency fund; see what it takes to
+                    get there.
+                  </p>
+                </div>
+              </div>
+              <div class="foryou-actions">
+                <button type="button" class="pill primary" onClick={() => nav.present((close) => <RunwayCalc data={plan} onClose={close} />)}>
+                  Make a plan
+                </button>
+              </div>
+            </div>
+          )}
+
+          {budgets.length === 0 && txns.length > 0 && (
+            <div class="card foryou">
+              <div class="foryou-top">
+                <IconChip name="target" hue="yellow" />
+                <div>
+                  <h3>Set up monthly budgets</h3>
+                  <p>Limits are suggested from your last 3 months of everyday spending, and you can adjust any of them.</p>
+                </div>
+              </div>
+              <div class="foryou-actions">
+                <button type="button" class="pill primary" onClick={editBudgets}>
+                  Set budgets
+                </button>
+              </div>
+            </div>
+          )}
+
+          {stale.length > 0 && (
             <button type="button" class="callout" onClick={() => nav.present((close) => <UpdateValues onClose={close} />)}>
               <strong>Time to update {stale.length === 1 ? stale[0].name : 'investment & vehicle values'}</strong>
               <p>It's been over a month (or they were never set). Keeps your net worth history accurate.</p>
@@ -282,97 +448,6 @@ export function Home() {
             </button>
           )}
 
-          {budgets.length > 0 ? (
-            <Section
-              title={
-                <>
-                  <span>Budgets</span>
-                  <button type="button" class="link" onClick={editBudgets}>
-                    Edit
-                  </button>
-                </>
-              }
-              footer={isCurrent ? 'The line on each bar shows where you’d be at an even pace for the month.' : undefined}
-            >
-              {progress
-                .sort((a, b) => b.ratio - a.ratio)
-                .map((p) => (
-                  <BudgetMeter progress={p} category={cats.get(p.categoryId)} elapsed={isCurrent ? elapsed : 0} onClick={() => openCategory(p.categoryId)} />
-                ))}
-              {otherFlexible > 0 && (
-                <div class="row">
-                  <span class="row-main">
-                    <span class="row-title">Everything else</span>
-                    <span class="row-subtitle">Categories without a budget</span>
-                  </span>
-                  <span class="row-detail">{formatMoney(otherFlexible, { whole: true })}</span>
-                </div>
-              )}
-            </Section>
-          ) : (
-            txns.length > 0 && (
-              <button type="button" class="callout" onClick={editBudgets}>
-                <strong>Set up monthly budgets</strong>
-                <p>Limits are suggested from your last 3 months of everyday spending, and you can adjust any of them.</p>
-              </button>
-            )
-          )}
-
-          {txns.length > 0 && (
-            <>
-              <Section title="Spending by month">
-                <ColumnChart
-                  title="Total spending for the last 12 months"
-                  columns={trendKeys.map((k) => ({ key: k, label: monthLabel(k, { short: true }) }))}
-                  series={[{ name: 'Spent', color: 'var(--chart-1)', values: trendKeys.map(total) }]}
-                  selected={month}
-                  onSelect={setMonth}
-                />
-              </Section>
-
-              <Section title="Income vs spending">
-                <ColumnChart
-                  title="Income and spending for the last 6 months"
-                  columns={flowKeys.map((k) => ({ key: k, label: monthLabel(k, { short: true }) }))}
-                  series={[
-                    { name: 'Income', color: 'var(--chart-1)', values: flowKeys.map(income) },
-                    { name: 'Spending', color: 'var(--chart-2)', values: flowKeys.map(total) },
-                  ]}
-                  selected={month}
-                  onSelect={setMonth}
-                  readoutExtra={(i) => {
-                    const net = income(flowKeys[i]) - total(flowKeys[i]);
-                    return (
-                      <span class="readout-item muted">
-                        {net >= 0 ? 'saved' : 'overspent'} <Money cents={Math.abs(net)} whole />
-                      </span>
-                    );
-                  }}
-                />
-              </Section>
-
-              <Section title={`Where it went · ${monthLabel(month, { short: true })}`} footer="Includes bills and subscriptions. Tap a category for its history.">
-                {where.length ? (
-                  <RankedBars
-                    items={where.map(([id, v]) => ({
-                      key: id,
-                      label: (
-                        <>
-                          <span aria-hidden="true">{cats.get(id)?.emoji}</span> {cats.get(id)?.name ?? 'Unknown'}
-                        </>
-                      ),
-                      value: v,
-                    }))}
-                    onSelect={openCategory}
-                  />
-                ) : (
-                  <div class="group">
-                    <div class="row muted">No spending this month.</div>
-                  </div>
-                )}
-              </Section>
-            </>
-          )}
 
           {owed.length > 0 && (
             <button type="button" class="callout" onClick={() => nav.present((close) => <OwedSheet onClose={close} />)}>
@@ -448,8 +523,11 @@ export function Home() {
               <p>{lastBackup ? "It's been over two weeks since your last backup." : "You haven't made a backup yet."} Your data only lives on this phone. Tap to save a backup file.</p>
             </button>
           )}
+
+          <RecapTeaser onOpen={() => nav.present((close) => <RecapPage onClose={close} />)} />
         </>
       )}
     </>
   );
 }
+

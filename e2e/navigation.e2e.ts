@@ -35,3 +35,20 @@ test('search finds categories and transactions, and passes the words to Ask', as
   await page.locator('.search-ask').click();
   await expect(app.sheet().locator('.ask-bar input')).toHaveValue('coffee');
 });
+
+test('Today: the day in money, Spend Readiness, pace and bills @smoke', async ({ app, page }) => {
+  await app.importAll();
+  await app.tab('Today');
+  await expect(page.getByRole('heading', { name: 'Today', level: 1 })).toBeVisible();
+  await expect(page.locator('.day-summary')).toContainText(/pace|early in September/);
+  // The readiness tile opens what the score is made of.
+  const tile = page.locator('.readiness-tile');
+  await expect(tile).toHaveAttribute('aria-label', /Spend Readiness \d+ out of 10, (Go For It|On Track|Pace Yourself|Hold Off)/);
+  await tile.click();
+  await expect(app.sheet().locator('.factor-row')).toHaveCount(4);
+  await expect(app.sheet()).toContainText('Bills before payday');
+  await app.closeSheets();
+  // With a few months of history, the month is measured against the usual.
+  await expect(page.locator('.left-tile')).toContainText('usual');
+  await expect(page.locator('.pace-card')).toContainText(/under pace|over pace/);
+});

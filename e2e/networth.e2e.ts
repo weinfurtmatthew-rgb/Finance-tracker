@@ -19,7 +19,7 @@ test('net worth with an investment, a car and a savings goal @smoke', async ({ a
   await page.locator('.sheet input[type=date]').fill('2027-06-30');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.locator('.goal-row')).toContainText('Emergency fund');
-  await app.tab('Today');
+  await app.tab('Spending');
   await expect(page.locator('.kpi').nth(2)).toContainText('Net worth');
 });
 

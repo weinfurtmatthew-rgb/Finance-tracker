@@ -2,18 +2,24 @@ import { expect, test } from './helpers';
 
 test('budgets are suggested, and over-budget categories are flagged @smoke', async ({ app, page }) => {
   await app.importAll();
-  await page.getByText('Set up monthly budgets').click();
+  await page.locator('.foryou', { hasText: 'Set up monthly budgets' }).getByRole('button', { name: 'Set budgets' }).click();
   await expect(page.getByRole('heading', { name: 'Monthly Budgets' })).toBeVisible();
   const dining = app.field('Dining').locator('input');
   await expect(dining).not.toHaveValue('');
   await dining.fill('40');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
+  // Today measures the month against the budgets…
+  await expect(page.locator('.left-tile')).toContainText(/Left to spend|Over by/);
+  await expect(page.locator('.left-tile')).toContainText('budget');
+  // …and Browse → Spending has the details.
+  await app.tab('Spending');
   await expect(page.locator('.hero-card').first()).toContainText(/Left to spend|Over budget/);
   await expect(page.locator('.callout.warn').first()).toContainText('Dining');
 });
 
 test('tapping a month in the chart switches the dashboard', async ({ app, page }) => {
   await app.importAll();
+  await app.tab('Spending');
   await expect(page.locator('.month-switch strong')).toHaveText('September 2026');
   await page.locator('.chart-svg .col').nth(9).click();
   await expect(page.locator('.month-switch strong')).toHaveText('July 2026');

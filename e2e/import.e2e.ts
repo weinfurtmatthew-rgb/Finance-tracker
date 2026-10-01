@@ -10,7 +10,7 @@ test('imports checking, card and savings files @smoke', async ({ app, page }) =>
   await expect(app.txnRows('Discover E-Payment').first()).toContainText('Credit Card Payment');
   await expect(app.txnRows('Internet Payment').first()).toContainText('Credit Card Payment');
   await expect(app.txnRows('Netflix').first()).toContainText('Subscriptions');
-  await app.tab('Today');
+  await app.tab('Spending');
   await expect(page.locator('.kpi').first()).toContainText('Spent');
 });
 

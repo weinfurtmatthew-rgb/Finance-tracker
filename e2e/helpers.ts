@@ -61,7 +61,7 @@ export class App {
    * Go somewhere from the tab bar (closing any open sheets first): a tab, a screen in Browse, or
    * Settings (the profile button).
    */
-  async tab(name: 'Today' | 'Activity' | 'Browse' | 'Recurring' | 'Net Worth' | 'Settings') {
+  async tab(name: 'Today' | 'Activity' | 'Browse' | 'Spending' | 'Recurring' | 'Net Worth' | 'Settings') {
     const { page } = this;
     if (await page.locator('.sheet').count()) await this.closeSheets();
     if (name === 'Today' || name === 'Activity' || name === 'Browse') {

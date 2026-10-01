@@ -73,7 +73,7 @@ export function Browse() {
     const tags = allTags(txns).length;
     const present = (render: (close: () => void) => ComponentChildren) => () => nav.present(render);
     return [
-      { id: 'spending', title: 'Spending', glyph: 'bag', hue: 'orange', sub: `${whole(spent)} this month`, value: whole(spent), note: 'this month', open: () => nav.showActivity({ month }) },
+      { id: 'spending', title: 'Spending', glyph: 'bag', hue: 'orange', sub: `${whole(spent)} this month`, value: whole(spent), note: 'this month', open: () => nav.setTab('spending') },
       {
         id: 'bills',
         title: 'Bills & Subscriptions',
