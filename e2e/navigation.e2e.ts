@@ -52,3 +52,16 @@ test('Today: the day in money, Spend Readiness, pace and bills @smoke', async ({
   await expect(page.locator('.left-tile')).toContainText('usual');
   await expect(page.locator('.pace-card')).toContainText(/under pace|over pace/);
 });
+
+test('Money Health scores six parts, from Browse and from Today @smoke', async ({ app, page }) => {
+  await app.importAll();
+  await app.tab('Today');
+  const teaser = page.locator('.health-teaser');
+  await expect(teaser).toContainText(/Great|Good|Fair|Needs work/);
+  await teaser.click();
+  await expect(page.getByRole('heading', { name: 'Money Health', level: 1 })).toBeVisible();
+  await expect(page.locator('.pillar')).toHaveCount(6);
+  await expect(page.locator('.pillar', { hasText: 'Cash cushion' })).toContainText('months of spending in cash');
+  await app.tab('Browse');
+  await expect(app.browseCard('Money Health')).toContainText(/\d+ · (Great|Good|Fair|Needs work)/);
+});

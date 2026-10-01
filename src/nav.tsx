@@ -4,7 +4,7 @@ import { useContext } from 'preact/hooks';
 /** The tab bar: Today, Activity, Browse, and Search on its own button. */
 export type Tab = 'home' | 'activity' | 'browse' | 'search';
 /** Screens opened from Browse: Browse stays selected and they get a back button. */
-export type Page = 'spending' | 'recurring' | 'accounts';
+export type Page = 'spending' | 'recurring' | 'accounts' | 'health';
 
 export interface ActivityFilter {
   accountId?: string;
