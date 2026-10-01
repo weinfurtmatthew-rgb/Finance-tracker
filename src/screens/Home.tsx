@@ -150,7 +150,7 @@ export function Home() {
       )}
 
       {open.length === 0 ? (
-        <Empty icon="👋" title="Welcome">
+        <Empty icon="shield" title="Welcome">
           <p>
             Everything you enter stays on this device. Nothing is sent anywhere. Start by adding an account, or import a file you
             downloaded from your bank.

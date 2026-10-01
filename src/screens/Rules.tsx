@@ -88,7 +88,7 @@ export function RulesSheet(props: { onClose: () => void }) {
   return (
     <Sheet title="Rules" onClose={props.onClose}>
       {rules.length === 0 ? (
-        <Empty icon="🪄" title="No rules yet">
+        <Empty icon="spark" title="No rules yet">
           <p>When you change the category of an imported transaction, the app offers to make a rule, so the next import gets it right automatically.</p>
         </Empty>
       ) : (

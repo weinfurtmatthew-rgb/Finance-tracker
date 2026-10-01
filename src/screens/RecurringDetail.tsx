@@ -8,7 +8,7 @@ import { formatMoney } from '../lib/money';
 import { FREQUENCIES, KINDS, monthlyCost, nextOnSchedule } from '../lib/recurring';
 import { cancelLinkFor } from '../lib/cancelLinks';
 import { dismissAlert, markPaid } from '../lib/recurringActions';
-import { ActionSheet, Money, Row, Section, Sheet } from '../components/ui';
+import { ActionSheet, CategoryIcon, KindIcon, Money, Row, Section, Sheet } from '../components/ui';
 import { TransactionRow } from '../components/TransactionRow';
 import { RecurringEditor } from './RecurringEditor';
 
@@ -60,9 +60,7 @@ export function RecurringDetail(props: { id: string; onClose: () => void }) {
   return (
     <Sheet title={KINDS[r.kind].label} onClose={props.onClose} onSave={edit} saveLabel="Edit" closeLabel="Done">
       <div class="detail-hero">
-        <span class="cat-icon lg" aria-hidden="true">
-          {r.categoryId && cats.get(r.categoryId) ? cats.get(r.categoryId)!.emoji : KINDS[r.kind].emoji}
-        </span>
+        {r.categoryId && cats.get(r.categoryId) ? <CategoryIcon category={cats.get(r.categoryId)} size="lg" /> : <KindIcon kind={r.kind} size="lg" />}
         <h2>{r.name}</h2>
         <Money cents={s.expected} colored={!outflow} class="hero-value" />
         <p class="muted">

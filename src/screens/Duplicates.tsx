@@ -51,7 +51,7 @@ export function DuplicatesSheet(props: { onClose: () => void }) {
   return (
     <Sheet title="Duplicate Imports" onClose={props.onClose}>
       {!pairs.length ? (
-        <Empty icon="✅" title="No duplicates">
+        <Empty icon="check" title="No duplicates">
           <p>Nothing was imported twice. Importing the same month again, in any file format, is safe: matches are skipped.</p>
         </Empty>
       ) : (

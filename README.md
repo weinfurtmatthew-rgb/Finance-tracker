@@ -38,6 +38,15 @@ balance your bank confirmed.
 
 ## Features
 
+### Look & feel
+
+- Frosted-glass cards over soft, still light that takes its color from the screen (green on Overview, blue on
+  Activity, violet on Recurring…), with a fine grain so large areas don't look flat
+- A floating glass tab bar, glass buttons and controls, and rounded numerals for amounts
+- Line icons for the built-in categories, colored by family: food orange, getting around violet, shopping magenta,
+  home & bills yellow, money coming in aqua. Categories you make (or give your own emoji) keep their emoji
+- Light and dark mode each have their own colors; Reduce Transparency gives solid surfaces, and Reduce Motion is respected
+
 ### Venmo, Cash App & Apple Cash
 
 - Each app is a **Payment app** account with its own balance (counted as cash in net worth and the calculators).

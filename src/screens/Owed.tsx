@@ -104,7 +104,7 @@ export function OwedSheet(props: { onClose: () => void }) {
   return (
     <Sheet title="Owed to You" onClose={props.onClose}>
       {!items.length ? (
-        <Empty icon="🤝" title="Nobody owes you">
+        <Empty icon="users" title="Nobody owes you">
           <p>When you pay for someone else, open the transaction and turn on “Paid for someone else”, or split it and mark a part. It shows up here until you’re paid back.</p>
         </Empty>
       ) : (

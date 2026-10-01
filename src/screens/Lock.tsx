@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
 import { checkPasscode, createPasscode, type PasscodeRecord } from '../lib/lock';
 import { ActionSheet } from '../components/ui';
+import { Glyph } from '../components/icons';
 
 const LENGTH = 6;
 
@@ -25,7 +26,9 @@ function Keypad(props: { title: string; subtitle?: string; error?: string; onCom
   return (
     <div class="lock">
       <div class="lock-top">
-        <div class="lock-icon" aria-hidden="true">🔒</div>
+        <div class="lock-icon" aria-hidden="true">
+          <Glyph name="lock" />
+        </div>
         <h1>{props.title}</h1>
         {props.subtitle && <p class="muted">{props.subtitle}</p>}
         <div class={`dots ${props.error ? 'shake' : ''}`} aria-label={`${code.length} of ${LENGTH} digits entered`}>

@@ -1,8 +1,8 @@
 import type { Category } from '../types';
 import { useNav } from '../nav';
 import { diffDays, formatShortDate } from '../lib/dates';
-import { FREQUENCIES, KINDS, type RecurringStatus } from '../lib/recurring';
-import { CategoryIcon, Money } from './ui';
+import { FREQUENCIES, type RecurringStatus } from '../lib/recurring';
+import { CategoryIcon, KindIcon, Money } from './ui';
 import { RecurringDetail } from '../screens/RecurringDetail';
 
 export function dueLabel(date: string, today: string, late: boolean): string {
@@ -36,7 +36,7 @@ export function RecurringRow(props: {
         : `${dueLabel(date, props.today, props.late ?? s.late)} · ${FREQUENCIES[r.frequency].label}`);
   return (
     <button type="button" class="row txn-row" onClick={() => nav.present((close) => <RecurringDetail id={r.id} onClose={close} />)}>
-      {props.category ? <CategoryIcon category={props.category} /> : <span class="cat-icon md" aria-hidden="true">{KINDS[r.kind].emoji}</span>}
+      {props.category ? <CategoryIcon category={props.category} /> : <KindIcon kind={r.kind} />}
       <span class="row-main">
         <span class="row-title">
           {r.name}

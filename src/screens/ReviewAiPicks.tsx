@@ -42,7 +42,7 @@ export function ReviewAiPicks(props: { onClose: () => void }) {
   return (
     <Sheet title="Review AI Picks" onClose={props.onClose} onSave={groups.length ? confirm : undefined} saveLabel="Confirm All">
       {groups.length === 0 ? (
-        <Empty icon="✅" title="All reviewed">
+        <Empty icon="check" title="All reviewed">
           <p>Nothing the AI categorized is waiting for review.</p>
         </Empty>
       ) : (

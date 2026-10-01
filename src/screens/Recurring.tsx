@@ -96,7 +96,7 @@ export function Recurring() {
       ))}
 
       {nothing ? (
-        <Empty icon="🔁" title="No recurring items yet">
+        <Empty icon="repeat" title="No recurring items yet">
           <p>
             {model.suggestions.length
               ? 'Review the suggestions above. They come from the transactions you imported.'
@@ -164,7 +164,7 @@ export function Recurring() {
 
           {view === 'upcoming' &&
             (groups.length === 0 ? (
-              <Empty icon="🎉" title="Nothing due soon" />
+              <Empty icon="check" title="Nothing due soon" />
             ) : (
               groups.map(([title, items]) => (
                 <Section title={title}>

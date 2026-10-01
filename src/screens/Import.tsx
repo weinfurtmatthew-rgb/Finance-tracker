@@ -317,7 +317,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
     const { uncategorized, byAi, merged, waiting } = done;
     return (
       <Sheet title="Import" onClose={props.onClose}>
-        <Empty icon="✅" title={`Imported ${done.added} transaction${done.added === 1 ? '' : 's'}`}>
+        <Empty icon="check" title={`Imported ${done.added} transaction${done.added === 1 ? '' : 's'}`}>
           <p>
             Into <b>{done.account.name}</b>.{done.skipped > 0 && ` ${done.skipped} already-imported transaction${done.skipped === 1 ? ' was' : 's were'} skipped.`}
             {uncategorized > 0 && ` ${uncategorized} need a category.`}

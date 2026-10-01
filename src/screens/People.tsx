@@ -138,7 +138,7 @@ export function WhatWasThis(props: { onClose: () => void }) {
         </Section>
       ) : (
         !paybacks.length && (
-          <Empty icon="✅" title="All explained">
+          <Empty icon="check" title="All explained">
             <p>Every payment-app transaction has a category.</p>
           </Empty>
         )
@@ -188,7 +188,7 @@ export function PeopleSheet(props: { onClose: () => void }) {
           ))}
         </Section>
       ) : (
-        <Empty icon="👥" title="No one yet">
+        <Empty icon="users" title="No one yet">
           <p>
             {hasWallet
               ? 'Import a Venmo or Cash App statement, or log a payment, and the people you pay show up here.'

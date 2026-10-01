@@ -128,11 +128,11 @@ export function Activity() {
       </div>
 
       {txns.length === 0 ? (
-        <Empty icon="🧾" title="No transactions yet">
+        <Empty icon="receipt" title="No transactions yet">
           <p>Import a CSV or OFX file from your bank, or add one by hand with the + button.</p>
         </Empty>
       ) : filtered.length === 0 ? (
-        <Empty icon="🔍" title="Nothing matches" />
+        <Empty icon="search" title="Nothing matches" />
       ) : (
         <>
           {groups.map((g) => (
