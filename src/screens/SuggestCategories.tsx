@@ -46,7 +46,7 @@ export function SuggestCategories(props: { onClose: () => void }) {
   if (!ai.embed) {
     return (
       <Sheet title="Suggest Categories" onClose={props.onClose}>
-        <Empty icon="✨" title="Turn on on-device AI">
+        <Empty icon="spark" title="Turn on on-device AI">
           <p>Category suggestions use a small AI model that runs on this phone. Turn it on in Settings → On-device AI.</p>
           <button type="button" class="button" onClick={() => { props.onClose(); nav.setTab('settings'); }}>
             Go to Settings
@@ -60,7 +60,7 @@ export function SuggestCategories(props: { onClose: () => void }) {
     <Sheet title="Suggest Categories" onClose={props.onClose} onSave={groups?.length ? apply : undefined} saveLabel={`Apply ${chosen.length}`} saveDisabled={!chosen.length}>
       {error && <p class="error padded">{error}</p>}
       {!groups && !error && <p class="padded muted">Comparing with the payees you've already categorized…</p>}
-      {groups && groups.length === 0 && <Empty icon="✅" title="Nothing to categorize" />}
+      {groups && groups.length === 0 && <Empty icon="check" title="Nothing to categorize" />}
       {groups && groups.length > 0 && (
         <>
           <p class="section-footer intro">“Likely” picks are filled in; for guesses, tap the suggestion to use it. Suggestions come from payees you've already categorized.</p>

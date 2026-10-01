@@ -8,7 +8,7 @@ import { formatMoney } from '../lib/money';
 import { FREQUENCIES, KINDS, suggestionToRecurring, type Suggestion } from '../lib/recurring';
 import { cancelLinkFor } from '../lib/cancelLinks';
 import { dismissSuggestion } from '../lib/recurringActions';
-import { Empty, Sheet } from '../components/ui';
+import { Empty, KindIcon, Sheet } from '../components/ui';
 
 async function confirm(s: Suggestion, kind: RecurringKind) {
   const rec = suggestionToRecurring(s, kind, newId());
@@ -23,9 +23,7 @@ function SuggestionCard(props: { s: Suggestion }) {
   return (
     <div class="suggestion">
       <div class="suggestion-top">
-        <span class="cat-icon md" aria-hidden="true">
-          {KINDS[kind].emoji}
-        </span>
+        <KindIcon kind={kind} />
         <span class="row-main">
           <span class="row-title">{s.name}</span>
           <span class="row-subtitle">
@@ -66,7 +64,7 @@ export function RecurringReview(props: { onClose: () => void }) {
   return (
     <Sheet title="Possible Recurring" onClose={props.onClose} onSave={suggestions.length ? addAll : undefined} saveLabel="Add All">
       {suggestions.length === 0 ? (
-        <Empty icon="✅" title="All reviewed">
+        <Empty icon="check" title="All reviewed">
           <p>New suggestions appear here after you import more transactions.</p>
         </Empty>
       ) : (

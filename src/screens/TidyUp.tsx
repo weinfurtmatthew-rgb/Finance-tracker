@@ -80,7 +80,7 @@ export function TidyUp(props: { onClose: () => void }) {
   return (
     <Sheet title="Tidy Up Categories" onClose={props.onClose} onSave={groups.length ? apply : undefined} saveLabel={changes ? `Apply ${changes}` : 'Confirm'}>
       {groups.length === 0 ? (
-        <Empty icon="✨" title="Nothing to tidy">
+        <Empty icon="spark" title="Nothing to tidy">
           <p>Every category is one you or a rule chose, or one the app is sure about.</p>
         </Empty>
       ) : (

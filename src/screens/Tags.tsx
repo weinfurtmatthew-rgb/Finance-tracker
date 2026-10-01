@@ -41,7 +41,7 @@ export function TagsSheet(props: { onClose: () => void }) {
         </button>
       </Section>
       {tags.length === 0 ? (
-        <Empty icon="🏷️" title="No tags yet" />
+        <Empty icon="tag" title="No tags yet" />
       ) : (
         <Section title="Your tags">
           {tags.map((t) => (

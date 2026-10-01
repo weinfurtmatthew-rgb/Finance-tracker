@@ -1,8 +1,10 @@
-import type { ComponentChildren, JSX } from 'preact';
-import { useEffect, useState } from 'preact/hooks';
-import type { Category, Cents } from '../types';
+import { render, type ComponentChildren, type JSX } from 'preact';
+import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
+import type { Category, Cents, RecurringKind } from '../types';
 import { formatMoney } from '../lib/money';
 import { useNav } from '../nav';
+import { Glyph, isGlyph } from './icons';
+import { categoryLook, kindLook, type Look } from './look';
 
 export function Sheet(props: {
   title: string;
@@ -101,20 +103,31 @@ export function Money(props: { cents: Cents; colored?: boolean; whole?: boolean;
   );
 }
 
-export function CategoryIcon(props: { category?: Category; size?: 'sm' | 'md' }) {
-  const color = props.category?.color ?? '#c7c7cc';
+function LookIcon(props: { look: Look; size?: 'sm' | 'md' | 'lg' }) {
+  const { look } = props;
   return (
-    <span class={`cat-icon ${props.size ?? 'md'}`} style={{ background: `${color}33` }} aria-hidden="true">
-      {props.category?.emoji ?? '❔'}
+    <span class={`cat-icon ${'glyph' in look ? 'icon-chip' : 'emoji-chip'} ${props.size ?? 'md'}`} style={{ background: look.background }} aria-hidden="true">
+      {'glyph' in look ? <Glyph name={look.glyph} /> : look.emoji}
     </span>
   );
 }
 
+/** A category's icon: a line icon on a colored chip for built-in categories, or its emoji. */
+export function CategoryIcon(props: { category?: Category; size?: 'sm' | 'md' | 'lg' }) {
+  return <LookIcon look={categoryLook(props.category)} size={props.size} />;
+}
+
+/** The icon for a kind of recurring item (subscription, bill…) that has no category. */
+export function KindIcon(props: { kind: RecurringKind; size?: 'sm' | 'md' | 'lg' }) {
+  return <LookIcon look={kindLook(props.kind)} size={props.size} />;
+}
+
+/** An empty state. `icon` is a line icon's name, or an emoji. */
 export function Empty(props: { icon: string; title: string; children?: ComponentChildren }) {
   return (
     <div class="empty">
-      <div class="empty-icon" aria-hidden="true">
-        {props.icon}
+      <div class={`empty-icon ${isGlyph(props.icon) ? 'has-glyph' : ''}`} aria-hidden="true">
+        {isGlyph(props.icon) ? <Glyph name={props.icon} /> : props.icon}
       </div>
       <h3>{props.title}</h3>
       {props.children}
@@ -207,6 +220,23 @@ export function CategorySelect(props: {
   );
 }
 
+/**
+ * Renders its children at the end of the page instead of where it is used: a glass card's blur would
+ * otherwise trap a full-screen overlay inside the card.
+ */
+function Portal(props: { children: ComponentChildren }) {
+  const [host] = useState(() => document.createElement('div'));
+  useLayoutEffect(() => {
+    document.body.appendChild(host);
+    return () => {
+      render(null, host);
+      host.remove();
+    };
+  }, [host]);
+  useLayoutEffect(() => render(<>{props.children}</>, host));
+  return null;
+}
+
 /** A bottom action sheet with a message and a list of choices. */
 export function ActionSheet(props: {
   title?: string;
@@ -214,6 +244,14 @@ export function ActionSheet(props: {
   actions: { label: string; onClick: () => void; destructive?: boolean; bold?: boolean }[];
   onCancel: () => void;
 }) {
+  return (
+    <Portal>
+      <ActionSheetView {...props} />
+    </Portal>
+  );
+}
+
+function ActionSheetView(props: Parameters<typeof ActionSheet>[0]) {
   return (
     <div class="action-backdrop" onClick={props.onCancel}>
       <div class="action-sheet" role="alertdialog" onClick={(e) => e.stopPropagation()}>

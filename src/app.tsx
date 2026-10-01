@@ -12,6 +12,7 @@ import { Accounts } from './screens/Accounts';
 import { Recurring } from './screens/Recurring';
 import { Settings } from './screens/Settings';
 import { Icons } from './components/icons';
+import { Ambient } from './components/Ambient';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'home', label: 'Overview' },
@@ -89,11 +90,17 @@ export function App() {
 
   if (!lockState || locked === null) return <div class="splash" />;
   if (locked && lockState.passcode) {
-    return <LockScreen record={lockState.passcode} onUnlock={() => setLocked(false)} onReset={eraseEverything} />;
+    return (
+      <>
+        <Ambient tone="lock" />
+        <LockScreen record={lockState.passcode} onUnlock={() => setLocked(false)} onReset={eraseEverything} />
+      </>
+    );
   }
 
   return (
     <NavContext.Provider value={nav}>
+      <Ambient tone={tab} />
       <main class="screen">
         {tab === 'home' && <Home />}
         {tab === 'activity' && <Activity />}

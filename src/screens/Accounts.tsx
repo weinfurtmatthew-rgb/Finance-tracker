@@ -148,7 +148,7 @@ export function Accounts() {
         </div>
       </header>
       {open.length === 0 ? (
-        <Empty icon="🏦" title="No accounts yet">
+        <Empty icon="bank" title="No accounts yet">
           <p>Add your checking, credit cards, investments and vehicles to see your net worth.</p>
           <button type="button" class="button primary" onClick={() => edit()}>
             Add Account
