@@ -20,6 +20,10 @@ const TONES: Record<Tone, Glow[]> = {
     [150, -160, 460, 'var(--hue-blue)', 0.45],
     [-210, 520, 420, 'var(--hue-aqua)', 0.35],
   ],
+  spending: [
+    [110, -150, 500, 'var(--hue-orange)', 0.5],
+    [-220, 520, 420, 'var(--hue-yellow)', 0.28],
+  ],
   recurring: [
     [150, -150, 460, 'var(--hue-violet)', 0.42],
     [-200, 520, 420, 'var(--hue-yellow)', 0.3],

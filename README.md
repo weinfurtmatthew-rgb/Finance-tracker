@@ -47,6 +47,18 @@ balance your bank confirmed.
   home & bills yellow, money coming in aqua. Categories you make (or give your own emoji) keep their emoji
 - Light and dark mode each have their own colors; Reduce Transparency gives solid surfaces, and Reduce Motion is respected
 
+### Today
+
+- **Your day in money:** a few plain sentences: how the month is pacing, which category is running hot (or
+  cool), and the bills landing before your next paycheck
+- **Spend Readiness (0–10):** how comfortable today is for spending. Pace this month (40%), bills before payday
+  vs. checking (25%), your cash cushion (20%) and the last 7 days vs. a typical week (15%). 9–10 Go For It,
+  7–8 On Track, 4–6 Pace Yourself, 0–3 Hold Off. Tap it to see each part
+- **Left to spend** and a day-by-day **pace chart**, against your budgets, or your usual month when you have none.
+  Everyday spending leaves out rent, bills and subscriptions
+- **Highlights** (categories well above or below usual by this point), **bills before payday**, and **For you**
+  suggestions. The month-by-month dashboard and charts are in **Browse → Spending**
+
 ### Getting around
 
 - Three tabs: **Today**, **Activity** and **Browse**, plus a round **Search** button
