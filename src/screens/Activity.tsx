@@ -4,7 +4,7 @@ import { byId, useAccounts, useCategories, useTransactions } from '../hooks';
 import { useNav } from '../nav';
 import { addMonths, formatDay, monthLabel, monthKey, todayISO } from '../lib/dates';
 import { matchesQuery } from '../lib/search';
-import { CategorySelect, Empty, Money } from '../components/ui';
+import { ActionSheet, CategorySelect, Empty, Money } from '../components/ui';
 import { TransactionRow } from '../components/TransactionRow';
 import { TransactionEditor } from './TransactionEditor';
 import { ImportFlow } from '../lazy';
@@ -13,6 +13,14 @@ import { formatMoney } from '../lib/money';
 import { SuggestCategories } from './SuggestCategories';
 import { useAi } from '../ai/client';
 import type { Transaction } from '../types';
+
+/** What the Filters button can show. */
+const KINDS = [
+  [undefined, 'All'],
+  ['spending', 'Spending'],
+  ['income', 'Income'],
+  ['review', 'Needs review'],
+] as const;
 
 const PAGE = 200;
 
@@ -24,6 +32,7 @@ export function Activity() {
   const cats = useMemo(() => byId(categories), [categories]);
   const accts = useMemo(() => byId(accounts), [accounts]);
   const [query, setQuery] = useState('');
+  const [picking, setPicking] = useState(false);
   const [limit, setLimit] = useState(PAGE);
   const f = nav.activityFilter;
   const ai = useAi();
@@ -130,28 +139,52 @@ export function Activity() {
         </section>
       )}
 
+      {picking && (
+        <ActionSheet
+          title="Show"
+          actions={[
+            ...KINDS.map(([kind, label]) => ({
+              label: kind === 'review' && toReview ? `${label} · ${toReview}` : label,
+              bold: f.kind === kind,
+              onClick: () => {
+                setFilter({ kind });
+                setPicking(false);
+              },
+            })),
+            // Clearing everything (account, category, tag and month too) lives here, keeping the row short.
+            ...(hasFilter
+              ? [
+                  {
+                    label: 'Clear All Filters',
+                    destructive: true,
+                    onClick: () => {
+                      nav.setActivityFilter({});
+                      setPicking(false);
+                    },
+                  },
+                ]
+              : []),
+          ]}
+          onCancel={() => setPicking(false)}
+        />
+      )}
       <div class="toolbar">
         <label class="search">
           {Icons.search()}
           <input type="search" placeholder="Search payee, notes, amount" value={query} onInput={(e) => setQuery((e.target as HTMLInputElement).value)} />
         </label>
         <div class="filters">
-          <div class="quick-filters" role="group" aria-label="Show">
-            {(
-              [
-                [undefined, 'All'],
-                ['spending', 'Spending'],
-                ['income', 'Income'],
-                ['review', toReview ? `Needs review · ${toReview}` : 'Needs review'],
-              ] as const
-            ).map(([kind, label]) => (
-              <button type="button" class={`chip ${f.kind === kind ? 'on' : ''}`} aria-pressed={f.kind === kind} onClick={() => setFilter({ kind })}>
-                {label}
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            class={`chip filter-button ${f.kind ? 'on' : ''}`}
+            aria-label={`Filters: ${f.kind ? KINDS.find(([k]) => k === f.kind)![1] : 'All transactions'}`}
+            onClick={() => setPicking(true)}
+          >
+            <Glyph name="sliders" />
+            {f.kind ? KINDS.find(([k]) => k === f.kind)![1] : 'Filters'}
+          </button>
           <select class={f.accountId ? 'chip on' : 'chip'} value={f.accountId ?? ''} onChange={(e) => setFilter({ accountId: (e.target as HTMLSelectElement).value || undefined })} aria-label="Filter by account">
-            <option value="">All accounts</option>
+            <option value="">Accounts</option>
             {accounts.map((a) => (
               <option value={a.id}>{a.name}</option>
             ))}
@@ -160,13 +193,13 @@ export function Activity() {
             class={f.categoryId ? 'chip on' : 'chip'}
             aria-label="Filter by category"
             allowNew={false}
-            categories={[{ id: '', name: 'All categories', emoji: '', color: '', group: 'expense', order: -1 }, ...categories]}
+            categories={[{ id: '', name: 'Categories', emoji: '', color: '', group: 'expense', order: -1 }, ...categories]}
             value={f.categoryId ?? ''}
             onChange={(id) => setFilter({ categoryId: id || undefined })}
           />
           {tags.length > 0 && (
             <select class={f.tag ? 'chip on' : 'chip'} value={f.tag ?? ''} aria-label="Filter by tag" onChange={(e) => setFilter({ tag: (e.target as HTMLSelectElement).value || undefined })}>
-              <option value="">All tags</option>
+              <option value="">Tags</option>
               {tags.map((t) => (
                 <option value={t.tag}>#{t.tag}</option>
               ))}
@@ -175,11 +208,6 @@ export function Activity() {
           {f.month && (
             <button type="button" class="chip on" onClick={() => setFilter({ month: undefined })}>
               {monthLabel(f.month, { short: true })} ✕
-            </button>
-          )}
-          {hasFilter && (
-            <button type="button" class="chip link" onClick={() => nav.setActivityFilter({})}>
-              Clear
             </button>
           )}
         </div>

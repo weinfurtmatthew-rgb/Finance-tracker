@@ -3635,17 +3635,22 @@ button.hero-card {
   font-size: 12px;
   color: var(--text-2);
 }
-.quick-filters {
-  display: flex;
-  gap: 8px;
-  width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-  padding-bottom: 2px;
-}
-.quick-filters .chip {
-  max-width: none;
+/* Activity: the Filters button, then the account and category menus sharing the rest of the row. */
+.filter-button {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   white-space: nowrap;
+}
+.filter-button .glyph {
+  width: 16px;
+  height: 16px;
+}
+.filters select.chip {
+  flex: 1 1 0;
+  min-width: 112px;
+  text-overflow: ellipsis;
 }
 .review-card {
   flex-direction: row;
