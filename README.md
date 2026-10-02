@@ -11,6 +11,9 @@ works offline, and keeps its data in the phone's local database (IndexedDB).
 3. Open it from the Home Screen icon from now on. Home Screen apps keep their own storage and are exempt from Safari's
    7-day cleanup of website data.
 
+The first launch shows a short intro (what stays private, how to bring in transactions, keeping a backup).
+**Settings → About** has the version and build, the **Privacy** policy in plain words, and the intro again.
+
 > Your data lives only on this phone. Deleting the Home Screen icon deletes the data too, so use
 > **Settings → Back Up Now…** regularly and keep the file in iCloud Drive (Today reminds you; choose how often in Settings).
 

@@ -6,6 +6,7 @@ import type { PasscodeRecord } from '../lib/lock';
 import { saveFile } from '../lib/files';
 import { BACKUP_INTERVALS, checkBackup, DEFAULT_BACKUP_EVERY_DAYS, restoreBackup, summarizeBackup, type BackupSummary } from '../lib/backup';
 import { BackupCheckSheet, BackupSheet, openBackupFile } from './Backup';
+import { AboutSheet, PrivacySheet, versionLabel } from './About';
 import { ActionSheet, Field, Row, Section, Sheet } from '../components/ui';
 import { TidyUp, useOldGuesses } from './TidyUp';
 import { OwedSheet } from './Owed';
@@ -175,6 +176,10 @@ function Settings() {
         <Row title="Erase All Data" danger chevron={false} onClick={() => setAsk('erase')} />
       </Section>
 
+      <Section title="About">
+        <Row title="Privacy" onClick={() => nav.present((close) => <PrivacySheet onClose={close} />)} />
+        <Row title="About Finance Tracker" detail={versionLabel()} onClick={() => nav.present((close) => <AboutSheet onClose={close} />)} />
+      </Section>
       <p class="section-footer center">Finance Tracker · private &amp; on-device</p>
 
       {ask === 'autolock' && (

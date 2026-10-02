@@ -13,6 +13,8 @@ export function Sheet(props: {
   saveLabel?: string;
   saveDisabled?: boolean;
   closeLabel?: string;
+  /** For sheets of plain text: the body takes keyboard focus so it can be scrolled without a touch screen. */
+  readable?: boolean;
   children: ComponentChildren;
 }) {
   const [shown, setShown] = useState(false);
@@ -41,7 +43,9 @@ export function Sheet(props: {
             <span class="spacer" />
           )}
         </header>
-        <div class="sheet-body">{props.children}</div>
+        <div class="sheet-body" tabIndex={props.readable ? 0 : undefined}>
+          {props.children}
+        </div>
       </div>
     </div>
   );

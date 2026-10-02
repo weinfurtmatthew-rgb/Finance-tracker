@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { Suspense } from 'preact/compat';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useRegisterSW } from 'virtual:pwa-register/preact';
-import { db, eraseEverything } from './db';
+import { db, eraseEverything, setMeta } from './db';
 import { NavContext, type ActivityFilter, type Nav, type Page, type Tab } from './nav';
 import type { PasscodeRecord } from './lib/lock';
 import { LockScreen } from './screens/Lock';
@@ -11,7 +11,8 @@ import { Home } from './screens/Home';
 import { Activity } from './screens/Activity';
 import { Accounts } from './screens/Accounts';
 import { Recurring } from './screens/Recurring';
-import { SettingsSheet } from './lazy';
+import { ImportFlow, SettingsSheet } from './lazy';
+import { Onboarding } from './screens/Onboarding';
 import { Browse } from './screens/Browse';
 import { Spending } from './screens/Spending';
 import { MoneyHealth } from './screens/MoneyHealth';
@@ -52,6 +53,8 @@ export function App() {
   const lockState = useLiveQuery(async () => ({
     passcode: (await db.meta.get('passcode'))?.value as PasscodeRecord | undefined,
     autoLockMinutes: ((await db.meta.get('autoLockMinutes'))?.value as number | undefined) ?? 1,
+    // First launch: the intro shows until it's finished (or there's already data, from before it existed).
+    needsIntro: !(await db.meta.get('onboardedAt')) && (await db.accounts.count()) === 0,
   }));
   const [locked, setLocked] = useState<boolean | null>(null);
   const [tab, setTab] = useState<Tab | Page>('home');
@@ -127,6 +130,20 @@ export function App() {
       <>
         <Ambient tone="lock" />
         <LockScreen record={lockState.passcode} onUnlock={() => setLocked(false)} onReset={eraseEverything} />
+      </>
+    );
+  }
+
+  if (lockState.needsIntro) {
+    return (
+      <>
+        <Ambient tone="home" />
+        <Onboarding
+          onDone={async (next) => {
+            await setMeta('onboardedAt', Date.now());
+            if (next === 'import') nav.present((close) => <ImportFlow onClose={close} />);
+          }}
+        />
       </>
     );
   }
