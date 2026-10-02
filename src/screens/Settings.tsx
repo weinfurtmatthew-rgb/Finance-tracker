@@ -190,7 +190,8 @@ function Settings() {
       <Section title="About">
         <Row title="Privacy" onClick={() => nav.present((close) => <PrivacySheet onClose={close} />)} />
         <Row title="About Finance Tracker" detail={versionLabel()} onClick={() => nav.present((close) => <AboutSheet onClose={close} />)} />
-        {SUPPORT_URL && (
+        {/* Until there's a pay-what-you-want link (VITE_SUPPORT_URL), this is a placeholder that says so. */}
+        {SUPPORT_URL ? (
           <a class="row" href={SUPPORT_URL} target="_blank" rel="noopener noreferrer">
             <span class="row-main">
               <span class="row-title">Support Finance Tracker</span>
@@ -200,6 +201,12 @@ function Settings() {
               ›
             </span>
           </a>
+        ) : (
+          <Row
+            title="Support Finance Tracker"
+            subtitle="Free for everyone. Chip in what you like to keep it updated and running."
+            onClick={() => nav.toast('Ways to support are coming soon. Thank you!')}
+          />
         )}
       </Section>
       <p class="section-footer center">Finance Tracker · private &amp; on-device</p>

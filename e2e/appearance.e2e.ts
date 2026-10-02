@@ -4,8 +4,9 @@ test('pick an accent color; it recolors the app and sticks after a reload @smoke
   const tint = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--tint').trim());
   const blue = await tint();
   await app.tab('Settings');
-  // No support link in this build, so there's no Support row.
-  await expect(app.sheet().getByText('Support Finance Tracker')).toHaveCount(0);
+  // No support link in this build yet: the Support row says it's coming soon.
+  await app.sheet().getByRole('button', { name: /Support Finance Tracker/ }).click();
+  await expect(page.getByText('Ways to support are coming soon.')).toBeVisible();
   await app.sheet().getByRole('button', { name: /Accent Color/ }).click();
   await page.getByRole('button', { name: 'Green', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-accent', 'green');

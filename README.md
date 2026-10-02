@@ -50,8 +50,8 @@ balance your bank confirmed.
   home & bills yellow, money coming in aqua. Categories you make (or give your own emoji) keep their emoji
 - **Accent color** (Settings → Appearance): Blue, Green, Violet, Orange, Pink or Graphite recolors buttons, links,
   the selected tab and highlights; each is checked for readable contrast in light and dark mode
-- Everything is free. If the app is built with `VITE_SUPPORT_URL` set (a pay-what-you-want link), Settings → About
-  shows **Support Finance Tracker**, which just opens that link; nothing is unlocked or checked
+- Everything is free. Settings → About → **Support Finance Tracker** opens a pay-what-you-want link when the app is
+  built with `VITE_SUPPORT_URL` set (nothing is unlocked or checked); until then it says support is coming soon
 - Light and dark mode each have their own colors; Reduce Transparency gives solid surfaces, and Reduce Motion turns
   the animations off
 - Motion (subtle, Apple-like): the first time you open a screen in a visit its cards rise in one after another,
