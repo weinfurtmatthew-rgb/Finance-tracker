@@ -22,7 +22,7 @@ import { HealthRing } from '../components/HealthRing';
 import { useMoneyHealth } from '../healthModel';
 import { RecurringRow } from '../components/RecurringRow';
 import { AccountEditor } from './AccountEditor';
-import { ImportFlow } from './Import';
+import { ImportFlow } from '../lazy';
 import { AlertCard } from './Recurring';
 import { RecurringReview } from './RecurringReview';
 import { BudgetsEditor } from './BudgetsEditor';

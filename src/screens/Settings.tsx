@@ -172,7 +172,7 @@ function Settings() {
         }
       >
         <Row title="Save Backup…" onClick={backup} />
-        <label class="row" role="button">
+        <label class="row">
           <span class="row-main">
             <span class="row-title">Restore from Backup…</span>
           </span>

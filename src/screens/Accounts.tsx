@@ -15,7 +15,7 @@ import { LineChart } from '../components/charts';
 import { Icons } from '../components/icons';
 import { AccountEditor } from './AccountEditor';
 import { AccountDetail } from './AccountDetail';
-import { ImportFlow } from './Import';
+import { ImportFlow } from '../lazy';
 import { UpdateValues } from './UpdateValues';
 import { GoalEditor } from './GoalEditor';
 

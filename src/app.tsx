@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
+import { Suspense } from 'preact/compat';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useRegisterSW } from 'virtual:pwa-register/preact';
 import { db, eraseEverything } from './db';
@@ -10,7 +11,7 @@ import { Home } from './screens/Home';
 import { Activity } from './screens/Activity';
 import { Accounts } from './screens/Accounts';
 import { Recurring } from './screens/Recurring';
-import { SettingsSheet } from './screens/Settings';
+import { SettingsSheet } from './lazy';
 import { Browse } from './screens/Browse';
 import { Spending } from './screens/Spending';
 import { MoneyHealth } from './screens/MoneyHealth';
@@ -40,7 +41,12 @@ function backTo(t: Tab | Page): { label: string; glyph: GlyphName } {
 interface SheetEntry {
   id: number;
   render: (close: () => void) => ComponentChildren;
+  /** Sliding away: still on screen for a moment, but no longer interactive. */
+  closing?: boolean;
 }
+
+/** How long a sheet takes to slide away (matches the .sheet transition). */
+const SHEET_EXIT_MS = 280;
 
 export function App() {
   const lockState = useLiveQuery(async () => ({
@@ -84,6 +90,11 @@ export function App() {
     setTimeout(() => setToastMsg((m) => (m === message ? undefined : m)), 2600);
   }, []);
 
+  const closeSheet = (id: number) => {
+    setSheets((all) => all.map((x) => (x.id === id ? { ...x, closing: true } : x)));
+    setTimeout(() => setSheets((all) => all.filter((x) => x.id !== id)), SHEET_EXIT_MS);
+  };
+
   const nav: Nav = {
     tab,
     setTab: (t) => {
@@ -123,7 +134,7 @@ export function App() {
   return (
     <NavContext.Provider value={nav}>
       <Ambient tone={tab} />
-      <main class="screen">
+      <main class="screen" key={tab}>
         {isPage(tab) && (
           <button type="button" class="back-pill" onClick={() => nav.setTab('browse')}>
             <Glyph name="chevronLeft" />
@@ -160,7 +171,9 @@ export function App() {
         </nav>
       )}
       {sheets.map((s) => (
-        <div key={s.id}>{s.render(() => setSheets((all) => all.filter((x) => x.id !== s.id)))}</div>
+        <div key={s.id} class={s.closing ? 'sheet-layer closing' : 'sheet-layer'} inert={s.closing}>
+          <Suspense fallback={null}>{s.render(() => closeSheet(s.id))}</Suspense>
+        </div>
       ))}
       {toastMsg && (
         <div class="toast" role="status">

@@ -143,6 +143,14 @@ select {
   outline: none;
   min-width: 0;
 }
+/* Keyboard focus (and Full Keyboard Access on iPhone): a tinted ring that follows each control's shape. */
+:where(button, a, [tabindex], label.row):focus-visible {
+  outline: 2px solid var(--tint);
+  outline-offset: 2px;
+}
+:where(.row, .group > button):focus-visible {
+  outline-offset: -3px;
+}
 
 input::placeholder {
   color: var(--text-3);
@@ -157,6 +165,34 @@ input::placeholder {
   max-width: 680px;
   margin: 0 auto;
   padding: calc(var(--safe-top) + 8px) 16px calc(var(--tabbar-h) + var(--tabbar-bottom) + 28px);
+  /* A quick fade between tabs (opacity only: a transform would unpin the fixed search bar). */
+  animation: screen-in 0.22s ease-out;
+}
+@keyframes screen-in {
+  from {
+    opacity: 0;
+  }
+}
+/* Tappable cards give a little under your finger. */
+button.card,
+.browse-card,
+.browse-pin,
+.chip,
+.pill,
+.icon-button,
+.tab-search {
+  transition: transform 0.15s ease-out;
+}
+button.card:active,
+.browse-card:active,
+.browse-pin:active {
+  transform: scale(0.97);
+}
+.chip:active,
+.pill:active,
+.icon-button:active,
+.tab-search:active {
+  transform: scale(0.94);
 }
 
 /* The light behind the glass (see Ambient.tsx): still while the page scrolls. */
@@ -925,6 +961,13 @@ label.row:active,
 }
 .sheet-backdrop.shown .sheet {
   transform: none;
+}
+.sheet-layer.closing .sheet-backdrop {
+  background: #0000;
+  pointer-events: none;
+}
+.sheet-layer.closing .sheet {
+  transform: translateY(100%);
 }
 .sheet-header {
   display: grid;
@@ -2643,6 +2686,26 @@ button.hero-card {
 }
 
 /* ---- Motion, transparency & fallbacks ---- */
+/* Reduce Motion: things appear and move without animating. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  button.card:active,
+  .browse-card:active,
+  .browse-pin:active,
+  .chip:active,
+  .pill:active,
+  .icon-button:active,
+  .tab-search:active {
+    transform: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .glow {
     animation: none;

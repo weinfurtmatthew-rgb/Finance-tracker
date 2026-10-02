@@ -19,6 +19,7 @@
     "preact": "^10.29.8"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "1.63",
     "@preact/preset-vite": "^2.10.6",
     "@types/papaparse": "^5.5.2",

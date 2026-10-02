@@ -45,7 +45,12 @@ balance your bank confirmed.
 - A floating glass tab bar, glass buttons and controls, and rounded numerals for amounts
 - Line icons for the built-in categories, colored by family: food orange, getting around violet, shopping magenta,
   home & bills yellow, money coming in aqua. Categories you make (or give your own emoji) keep their emoji
-- Light and dark mode each have their own colors; Reduce Transparency gives solid surfaces, and Reduce Motion is respected
+- Light and dark mode each have their own colors; Reduce Transparency gives solid surfaces, and Reduce Motion turns
+  the animations off
+- Motion: screens fade between tabs, sheets slide up and back down, and cards give a little when you press them
+- Accessibility: every control has a VoiceOver name, keyboard focus shows a tinted ring, and an automated check (axe)
+  scans the main screens and sheets in the browser tests, along with a check that nothing scrolls sideways
+- Fast to open: Import, Plan and Settings load the first time you open them (they're still saved for offline use)
 
 ### Today
 
@@ -250,7 +255,7 @@ npm run e2e        # phone-size browser tests (builds, serves and clicks through
 
 The browser tests live in `e2e/` with sample bank files in `e2e/fixtures/`. They run at iPhone size with the
 clock frozen at 29 Sep 2026 (the sample files' dates), in light mode, plus the `@smoke` tests in dark mode. AI
-screens use a small stand-in model. First time: `npx playwright install chromium` (or point `PW_CHROMIUM` at an
+screens use a small stand-in model. `e2e/a11y.e2e.ts` runs axe on the main screens and sheets. First time: `npx playwright install chromium` (or point `PW_CHROMIUM` at an
 existing Chromium).
 
 Stack: Vite, Preact, TypeScript, Dexie (IndexedDB), vite-plugin-pwa (offline service worker), Papa Parse.

@@ -23,9 +23,9 @@ import { CategoriesSheet } from './Categories';
 import { PeopleSheet } from './People';
 import { OwedSheet } from './Owed';
 import { TagsSheet } from './Tags';
-import { Plan } from './plan/Plan';
+import { Plan } from '../lazy';
 import { RecapPage } from './Recap';
-import { ImportFlow } from './Import';
+import { ImportFlow } from '../lazy';
 
 type ItemId = 'spending' | 'bills' | 'budgets' | 'networth' | 'health' | 'categories' | 'people' | 'owed' | 'tags' | 'plan' | 'recap' | 'import';
 

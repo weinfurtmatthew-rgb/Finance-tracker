@@ -49,12 +49,15 @@ export const test = base.extend<Options & { app: App }>({
   },
 });
 
+/** Open sheets, leaving out one that's sliding away after being closed. */
+const OPEN_SHEET = '.sheet:not(.closing .sheet)';
+
 export class App {
   constructor(readonly page: Page) {}
 
   /** The top-most open sheet. */
   sheet() {
-    return this.page.locator('.sheet').last();
+    return this.page.locator(OPEN_SHEET).last();
   }
 
   /**
@@ -63,7 +66,7 @@ export class App {
    */
   async tab(name: 'Today' | 'Activity' | 'Browse' | 'Spending' | 'Recurring' | 'Net Worth' | 'Settings') {
     const { page } = this;
-    if (await page.locator('.sheet').count()) await this.closeSheets();
+    if (await page.locator(OPEN_SHEET).count()) await this.closeSheets();
     // Search swaps the tab bar for its box and a back button.
     if (await page.locator('.search-mode').count()) await page.locator('.tab-back').click();
     if (name === 'Today' || name === 'Activity' || name === 'Browse') {
@@ -105,10 +108,10 @@ export class App {
   /** Close every open sheet. */
   async closeSheets() {
     const { page } = this;
-    while (await page.locator('.sheet').count()) {
+    while (await page.locator(OPEN_SHEET).count()) {
       // A sheet may be closing on its own (after Save): then there's nothing to click.
       await page
-        .locator('.sheet')
+        .locator(OPEN_SHEET)
         .last()
         .locator('.sheet-header button')
         .first()
@@ -116,6 +119,7 @@ export class App {
         .catch(() => {});
       await page.waitForTimeout(300);
     }
+    await expect(page.locator('.sheet')).toHaveCount(0);
   }
 
   /** The usual starting point: checking, a Discover card and a savings account. */

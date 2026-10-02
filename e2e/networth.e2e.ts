@@ -5,10 +5,10 @@ test('net worth with an investment, a car and a savings goal @smoke', async ({ a
   await app.tab('Net Worth');
   for (const [name, type, value] of [['Honda Civic', 'vehicle', '18500'], ['Fidelity Brokerage', 'brokerage', '42000']]) {
     await page.getByRole('button', { name: 'Add account' }).first().click();
-    await page.getByPlaceholder('e.g. Discover It').fill(name);
+    await app.sheet().getByPlaceholder('e.g. Discover It').fill(name);
     await app.field('Type').locator('select').selectOption(type);
     await app.field('Value').locator('input').fill(value);
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await app.sheet().getByRole('button', { name: 'Save', exact: true }).click();
   }
   await expect(page.locator('button.row', { hasText: 'Fidelity Brokerage' })).toContainText('$42,000.00');
   await page.getByRole('button', { name: 'Add a savings goal' }).click();
