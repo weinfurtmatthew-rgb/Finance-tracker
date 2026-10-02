@@ -7,7 +7,7 @@ import { matchesQuery } from '../lib/search';
 import { CategorySelect, Empty, Money } from '../components/ui';
 import { TransactionRow } from '../components/TransactionRow';
 import { TransactionEditor } from './TransactionEditor';
-import { ImportFlow } from './Import';
+import { ImportFlow } from '../lazy';
 import { Glyph, IconChip, Icons } from '../components/icons';
 import { formatMoney } from '../lib/money';
 import { SuggestCategories } from './SuggestCategories';
