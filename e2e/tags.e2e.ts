@@ -36,3 +36,15 @@ test('ask what a tagged trip cost', async ({ app, page }) => {
   await page.getByLabel('Search or ask').press('Enter');
   await expect(page.locator('.answer-card').getByText(/on #Italy 2026 overall/)).toBeVisible();
 });
+
+test('a question asked while the app is still loading waits for the data', async ({ app, page }) => {
+  await app.importFile('discover.csv');
+  await app.closeSheets();
+  await page.reload();
+  // Straight from a fresh load: Search opens before the transactions have been read.
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await page.getByLabel('Search or ask').fill('how many times did I go to Chipotle');
+  await page.getByLabel('Search or ask').press('Enter');
+  await expect(page.locator('.answer-card .answer-headline')).toContainText(/Chipotle/);
+  await expect(page.locator('.answer-card .answer-headline')).not.toContainText(/\b0 times/);
+});

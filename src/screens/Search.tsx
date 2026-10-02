@@ -46,7 +46,8 @@ export function Search(props: { back: { label: string; glyph: GlyphName; go: () 
   const cats = useMemo(() => byId(categories), [categories]);
   const accts = useMemo(() => byId(accounts), [accounts]);
   const recents = useMeta<string[]>('recentSearches') ?? [];
-  const askFor = useAsk();
+  const { ask: askFor, ready } = useAsk();
+  const asking = useRef<string>();
   const [query, setQuery] = useState('');
   const [replies, setReplies] = useState<Reply[]>([]);
   const [thinking, setThinking] = useState<string>();
@@ -97,22 +98,31 @@ export function Search(props: { back: { label: string; glyph: GlyphName; go: () 
   }, [txns, today, cats]);
 
   const remember = (text: string) => void setMeta('recentSearches', addRecent(recents, text));
-  const ask = async (question: string) => {
+  // A question waits (as "Thinking…") until Ask's data has loaded, so it's never answered from nothing.
+  const ask = (question: string) => {
     const text = question.trim();
     if (!text || thinking) return;
     remember(text);
     setQuery('');
     setThinking(text);
     input.current?.blur();
-    const reply = await askFor(text);
-    setThinking(undefined);
-    setReplies((r) => [reply, ...r].slice(0, 5));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+  useEffect(() => {
+    if (!thinking || !ready || asking.current === thinking) return;
+    asking.current = thinking;
+    void askFor(thinking).then((reply) => {
+      asking.current = undefined;
+      setThinking(undefined);
+      setReplies((r) => [reply, ...r].slice(0, 5));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }, [thinking, ready]);
   const submit = () => {
-    if (looksLikeQuestion(query)) void ask(query);
-    else if (q) {
-      remember(query);
+    // Read the box itself: return can come before the last keystroke has re-rendered.
+    const text = input.current?.value ?? query;
+    if (looksLikeQuestion(text)) ask(text);
+    else if (text.trim()) {
+      remember(text);
       input.current?.blur();
     }
   };
@@ -125,7 +135,7 @@ export function Search(props: { back: { label: string; glyph: GlyphName; go: () 
     nav.present((close) => <PlaceDetail placeKey={key} onClose={close} />);
   };
   const pickRecent = (text: string) => {
-    if (looksLikeQuestion(text)) void ask(text);
+    if (looksLikeQuestion(text)) ask(text);
     else setQuery(text);
   };
 
@@ -195,7 +205,7 @@ export function Search(props: { back: { label: string; glyph: GlyphName; go: () 
             <h3 class="section-title">Ask about your money</h3>
             <div class="group ask-examples">
               {EXAMPLES.slice(0, replies.length || recents.length ? 4 : EXAMPLES.length).map((e) => (
-                <Row icon={<IconChip name="spark" hue="blue" size="sm" />} title={e} chevron={false} onClick={() => void ask(e)} />
+                <Row icon={<IconChip name="spark" hue="blue" size="sm" />} title={e} chevron={false} onClick={() => ask(e)} />
               ))}
             </div>
             <p class="section-footer">Answers are worked out exactly from your data, on this phone.</p>
@@ -209,7 +219,7 @@ export function Search(props: { back: { label: string; glyph: GlyphName; go: () 
         </>
       ) : (
         <>
-          <button type="button" class={`card search-ask ${question ? 'is-question' : ''}`} onClick={() => void ask(query)}>
+          <button type="button" class={`card search-ask ${question ? 'is-question' : ''}`} onClick={() => ask(query)}>
             <IconChip name="spark" hue="blue" />
             <span class="row-main">
               <span class="search-ask-label">{question ? 'Ask · press return' : 'Ask'}</span>

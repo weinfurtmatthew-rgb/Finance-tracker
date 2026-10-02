@@ -56,6 +56,10 @@ test('every main screen has accessible names and roles, and fits the phone @smok
   await check('Transaction editor');
   await app.tab('Settings');
   await check('Settings');
+  await app.sheet().getByRole('button', { name: /About Finance Tracker/ }).click();
+  await check('About');
+  await app.sheet().getByRole('button', { name: 'Privacy' }).click();
+  await check('Privacy');
 });
 
 test('the sheets opened from Browse are accessible too', async ({ app, page }) => {

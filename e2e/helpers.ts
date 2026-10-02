@@ -43,14 +43,19 @@ export const test = base.extend<Options & { app: App }>({
     await page.clock.setFixedTime(today);
     if (withAi) await page.addInitScript(installAiMock);
     await page.goto('./');
+    // A fresh app opens with the intro (see onboarding.e2e.ts).
+    await page.getByRole('button', { name: 'Skip' }).click();
     await expect(page.getByText('Welcome')).toBeVisible();
     await use(new App(page));
     expect(errors, 'page errors').toEqual([]);
   },
 });
 
-/** Open sheets, leaving out one that's sliding away after being closed. */
-const OPEN_SHEET = '.sheet:not(.closing .sheet)';
+/**
+ * Open sheets: ones that have started sliding up (before that a new sheet sits still off-screen for a
+ * frame, and a tap there would miss), leaving out one that's sliding away after being closed.
+ */
+const OPEN_SHEET = '.sheet-backdrop.shown .sheet:not(.closing .sheet)';
 
 export class App {
   constructor(readonly page: Page) {}

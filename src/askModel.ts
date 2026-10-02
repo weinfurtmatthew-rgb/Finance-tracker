@@ -1,8 +1,10 @@
 import { useMemo } from 'preact/hooks';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from './db';
 import { allTags } from './lib/lines';
 import { people } from './lib/p2p';
 import { usePlanData } from './planModel';
-import { byId, useBook, useCategories, useTransactions } from './hooks';
+import { byId, useAccounts, useBook, useCategories, useTransactions } from './hooks';
 import { useRecurringModel } from './recurringModel';
 import { useSpending } from './spendingModel';
 import { addMonths, dayInMonth, formatShortDate, monthKey } from './lib/dates';
@@ -19,14 +21,20 @@ export interface Reply {
   error?: string;
 }
 
-/** Answers a question from everything on the phone; the on-device AI (when on) helps read it. */
+/**
+ * Answers a question from everything on the phone; the on-device AI (when on) helps read it. `ready` is
+ * false until the data has loaded: a question asked before then would be answered from nothing.
+ */
 export function useAsk() {
   const ai = useAi();
+  // How much there is, to tell an empty list that's still loading from one that's really empty.
+  const counts = useLiveQuery(async () => ({ txns: await db.transactions.count(), categories: await db.categories.count(), accounts: await db.accounts.count() }), []);
+  const accounts = useAccounts();
   const txns = useTransactions();
   const categories = useCategories();
   const cats = useMemo(() => byId(categories), [categories]);
   const rec = useRecurringModel();
-  const { months, budgets } = useSpending();
+  const { months, budgets, budgetsLoaded } = useSpending();
   const book = useBook();
   const plan = usePlanData();
   const today = rec.today;
@@ -34,7 +42,7 @@ export function useAsk() {
   const tags = useMemo(() => allTags(txns).map((x) => x.tag), [txns]);
   const peopleNames = useMemo(() => people(txns).map((p) => p.name), [txns]);
 
-  return async (question: string): Promise<Reply> => {
+  const ask = async (question: string): Promise<Reply> => {
     const q = question.trim();
     const ctx = { today, categories, merchants, tags, people: peopleNames };
     let query = null;
@@ -64,4 +72,14 @@ export function useAsk() {
       }),
     };
   };
+  // The hooks above give empty lists until their first read finishes; ready once each has caught up.
+  const ready =
+    !!counts &&
+    txns.length === counts.txns &&
+    categories.length === counts.categories &&
+    accounts.length === counts.accounts &&
+    rec.loaded &&
+    budgetsLoaded &&
+    plan !== undefined;
+  return { ask, ready };
 }
