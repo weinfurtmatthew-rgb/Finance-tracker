@@ -23,6 +23,8 @@ import { useMoneyHealth } from '../healthModel';
 import { RecurringRow } from '../components/RecurringRow';
 import { AccountEditor } from './AccountEditor';
 import { ImportFlow } from '../lazy';
+import { BackupSheet } from './Backup';
+import { BACKUP_SNOOZE_DAYS, backupDue, DEFAULT_BACKUP_EVERY_DAYS } from '../lib/backup';
 import { AlertCard } from './Recurring';
 import { RecurringReview } from './RecurringReview';
 import { BudgetsEditor } from './BudgetsEditor';
@@ -132,7 +134,9 @@ export function Home() {
     nav.present((close) => <RecapStories period={yearPeriod(recapYear!, today)} onClose={close} />);
   }, [recapCheck]);
   const owedTotal = owed.reduce((sum, p) => sum + p.total, 0);
-  const backupDue = txns.length > 0 && (!lastBackup || Date.now() - lastBackup > 14 * 86_400_000);
+  const backupEvery = useMeta<number>('backupEveryDays') ?? DEFAULT_BACKUP_EVERY_DAYS;
+  const backupSnooze = useMeta<number>('backupSnoozeUntil');
+  const showBackup = backupDue({ hasData: txns.length > 0, lastBackupAt: lastBackup, everyDays: backupEvery, snoozedUntil: backupSnooze, now: Date.now() });
 
   // ---- The day in numbers
   const facts = useMemo(() => todayFacts(txns, cats, rec.recurring, today), [txns, cats, rec.recurring, today]);
@@ -519,11 +523,22 @@ export function Home() {
             </div>
           )}
 
-          {backupDue && (
-            <button type="button" class="callout warn" onClick={() => nav.openSettings()}>
+          {showBackup && (
+            <section class="callout warn backup-callout">
               <strong>Back up your data</strong>
-              <p>{lastBackup ? "It's been over two weeks since your last backup." : "You haven't made a backup yet."} Your data only lives on this phone. Tap to save a backup file.</p>
-            </button>
+              <p>
+                {lastBackup ? `Your last backup was ${Math.floor((Date.now() - lastBackup) / 86_400_000)} days ago.` : "You haven't made a backup yet."} Your data
+                only lives on this phone.
+              </p>
+              <div class="callout-actions">
+                <button type="button" class="pill primary" onClick={() => nav.present((close) => <BackupSheet onClose={close} />)}>
+                  Back up now
+                </button>
+                <button type="button" class="pill" onClick={() => void setMeta('backupSnoozeUntil', Date.now() + BACKUP_SNOOZE_DAYS * 86_400_000)}>
+                  Later
+                </button>
+              </div>
+            </section>
           )}
 
           {health && (

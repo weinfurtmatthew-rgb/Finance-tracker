@@ -12,7 +12,7 @@ works offline, and keeps its data in the phone's local database (IndexedDB).
    7-day cleanup of website data.
 
 > Your data lives only on this phone. Deleting the Home Screen icon deletes the data too, so use
-> **Settings → Save Backup…** regularly and keep the file in Files / iCloud Drive.
+> **Settings → Back Up Now…** regularly and keep the file in iCloud Drive (Today reminds you; choose how often in Settings).
 
 ## Getting transactions in
 
@@ -240,7 +240,10 @@ published site and runs `tests/ai-smoke.test.ts` against it.
 - Search and filter activity by account, category and month
 - Manual transactions
 - 6-digit passcode lock with auto-lock
-- Backup / restore (JSON) and CSV export
+- Backup / restore (JSON) and CSV export. A backup can be **protected with a password** (AES-256-GCM, with the key made
+  from the password by PBKDF2-SHA256, 600,000 rounds, all on the phone; the password is never stored). Every backup
+  is read back and compared with the app's data before it's offered to save, and **Check a Backup File…** confirms
+  an older backup still opens without changing anything
 - Light & dark mode
 
 ## Development

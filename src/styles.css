@@ -3781,3 +3781,57 @@ button.hero-card {
   width: 18px;
   height: 18px;
 }
+
+/* ---- Backups ---- */
+.callout-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.button.wide {
+  margin-top: 16px;
+}
+.button:disabled {
+  opacity: 0.5;
+}
+.section-footer.danger {
+  color: var(--status-critical);
+}
+.backup-ready {
+  margin-top: 8px;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 22px 18px;
+  --lit: color-mix(in oklab, var(--status-good) 18%, transparent);
+  background:
+    radial-gradient(120% 90% at 50% 0%, var(--lit), transparent 70%),
+    linear-gradient(180deg, var(--glass-top), var(--glass-bottom));
+}
+.backup-ready.has-problems {
+  --lit: color-mix(in oklab, var(--status-warning) 22%, transparent);
+}
+.backup-ready strong {
+  font-size: 19px;
+}
+.backup-ready-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--status-good);
+}
+.has-problems .backup-ready-icon {
+  background: var(--status-warning);
+}
+.backup-ready-icon svg {
+  width: 26px;
+  height: 26px;
+}
+.backup-problems {
+  margin: 0;
+  padding: 12px 16px 12px 34px;
+  line-height: 1.4;
+}

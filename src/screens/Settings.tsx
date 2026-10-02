@@ -3,7 +3,9 @@ import { db, deleteMeta, eraseEverything, setMeta } from '../db';
 import { useCategories, useMeta, useRules, useTransactions } from '../hooks';
 import { useNav } from '../nav';
 import type { PasscodeRecord } from '../lib/lock';
-import { exportBackup, restoreBackup, summarizeBackup, type BackupSummary } from '../lib/backup';
+import { saveFile } from '../lib/files';
+import { BACKUP_INTERVALS, checkBackup, DEFAULT_BACKUP_EVERY_DAYS, restoreBackup, summarizeBackup, type BackupSummary } from '../lib/backup';
+import { BackupCheckSheet, BackupSheet, openBackupFile } from './Backup';
 import { ActionSheet, Field, Row, Section, Sheet } from '../components/ui';
 import { TidyUp, useOldGuesses } from './TidyUp';
 import { OwedSheet } from './Owed';
@@ -23,21 +25,6 @@ const AUTO_LOCK = [
   { minutes: 5, label: 'After 5 minutes' },
   { minutes: 15, label: 'After 15 minutes' },
 ];
-
-async function saveFile(name: string, text: string, type: string) {
-  const file = new File([text], name, { type });
-  // On iPhone the share sheet offers "Save to Files", which is the most reliable option.
-  if (navigator.canShare?.({ files: [file] })) {
-    await navigator.share({ files: [file] });
-    return;
-  }
-  const url = URL.createObjectURL(file);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
-}
 
 /** Settings, opened from the profile button. */
 export function SettingsSheet(props: { onClose: () => void }) {
@@ -61,7 +48,8 @@ function Settings() {
   const priceAlert = useMeta<PriceAlertRule>('priceAlert') ?? DEFAULT_SETTINGS.priceAlert;
   const reminderDays = useMeta<number>('reminderDays') ?? DEFAULT_SETTINGS.reminderDays;
   const dismissedCount = useMeta<string[]>('dismissedRecurring')?.length ?? 0;
-  const [ask, setAsk] = useState<null | 'remove-passcode' | 'erase' | 'autolock' | 'amount-mode' | 'reminder' | { restore: string; summary: BackupSummary }>(null);
+  const backupEvery = useMeta<number>('backupEveryDays') ?? DEFAULT_BACKUP_EVERY_DAYS;
+  const [ask, setAsk] = useState<null | 'remove-passcode' | 'erase' | 'autolock' | 'amount-mode' | 'reminder' | 'backup-every' | { restore: string; summary: BackupSummary }>(null);
   const [persisted, setPersisted] = useState<boolean>();
   const [usage, setUsage] = useState<string>();
 
@@ -83,26 +71,24 @@ function Settings() {
       </Sheet>
     ));
 
-  const backup = async () => {
-    try {
-      const text = await exportBackup(db);
-      const stamp = new Date().toISOString().slice(0, 10);
-      await saveFile(`finance-backup-${stamp}.json`, text, 'application/json');
-      await setMeta('lastBackupAt', Date.now());
-      nav.toast('Backup saved');
-    } catch (e) {
-      if ((e as Error).name !== 'AbortError') nav.toast(`Backup failed: ${(e as Error).message}`);
-    }
-  };
+  const pickRestore = (file: File) =>
+    openBackupFile(nav, file, (text) => {
+      try {
+        setAsk({ restore: text, summary: summarizeBackup(text) });
+      } catch (e) {
+        nav.toast((e as Error).message);
+      }
+    }).catch((e) => nav.toast((e as Error).message));
 
-  const pickRestore = async (file: File) => {
-    try {
-      const text = await file.text();
-      setAsk({ restore: text, summary: summarizeBackup(text) });
-    } catch (e) {
-      nav.toast((e as Error).message);
-    }
-  };
+  const pickCheck = (file: File) =>
+    openBackupFile(nav, file, (text) => {
+      try {
+        const check = checkBackup(text);
+        nav.present((close) => <BackupCheckSheet check={check} onClose={close} />);
+      } catch (e) {
+        nav.toast((e as Error).message);
+      }
+    }).catch((e) => nav.toast((e as Error).message));
 
   const exportCsv = async () => {
     const accounts = new Map((await db.accounts.toArray()).map((a) => [a.id, a.name]));
@@ -166,28 +152,19 @@ function Settings() {
         title="Backup"
         footer={
           <>
-            Your data exists only on this phone. If you delete the app from your Home Screen, the data goes with it. Save a backup to Files (or iCloud Drive) regularly.
+            Your data exists only on this phone. If you delete the app from your Home Screen, the data goes with it. Save a backup to iCloud Drive regularly; you can protect it with a password.
             {lastBackup ? ` Last backup: ${new Date(lastBackup).toLocaleDateString()}.` : ' No backup yet.'}
           </>
         }
       >
-        <Row title="Save Backup…" onClick={backup} />
-        <label class="row">
-          <span class="row-main">
-            <span class="row-title">Restore from Backup…</span>
-          </span>
-          <span class="chevron">›</span>
-          <input
-            type="file"
-            class="hidden-file"
-            accept=".json,application/json"
-            onChange={(e) => {
-              const f = (e.target as HTMLInputElement).files?.[0];
-              if (f) pickRestore(f);
-              (e.target as HTMLInputElement).value = '';
-            }}
-          />
-        </label>
+        <Row title="Back Up Now…" onClick={() => nav.present((close) => <BackupSheet onClose={close} />)} />
+        <Row
+          title="Remind Me to Back Up"
+          detail={BACKUP_INTERVALS.find((i) => i.days === backupEvery)?.label ?? `Every ${backupEvery} days`}
+          onClick={() => setAsk('backup-every')}
+        />
+        <FilePickRow title="Restore from Backup…" onPick={pickRestore} />
+        <FilePickRow title="Check a Backup File…" onPick={pickCheck} />
         <Row title="Export Transactions as CSV…" onClick={exportCsv} />
       </Section>
 
@@ -243,6 +220,21 @@ function Settings() {
           onCancel={() => setAsk(null)}
         />
       )}
+      {ask === 'backup-every' && (
+        <ActionSheet
+          title="Remind me to back up"
+          message="A reminder shows on Today when it's been this long since your last backup."
+          actions={BACKUP_INTERVALS.map((i) => ({
+            label: i.label,
+            bold: i.days === backupEvery,
+            onClick: async () => {
+              await setMeta('backupEveryDays', i.days);
+              setAsk(null);
+            },
+          }))}
+          onCancel={() => setAsk(null)}
+        />
+      )}
       {ask === 'remove-passcode' && (
         <ActionSheet
           message="Anyone with your unlocked phone will be able to open the app."
@@ -291,6 +283,29 @@ function Settings() {
         />
       )}
     </>
+  );
+}
+
+/** A row that opens the file picker for a backup file. */
+function FilePickRow(props: { title: string; onPick: (file: File) => void }) {
+  return (
+    <label class="row">
+      <span class="row-main">
+        <span class="row-title">{props.title}</span>
+      </span>
+      <span class="chevron">›</span>
+      <input
+        type="file"
+        class="hidden-file"
+        accept=".json,application/json"
+        aria-label={props.title}
+        onChange={(e) => {
+          const f = (e.target as HTMLInputElement).files?.[0];
+          if (f) props.onPick(f);
+          (e.target as HTMLInputElement).value = '';
+        }}
+      />
+    </label>
   );
 }
 
