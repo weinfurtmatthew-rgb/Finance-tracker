@@ -26,14 +26,34 @@ test('Browse opens every part of the app, and pinned cards come first @smoke', a
   await expect(app.sheet().getByRole('heading', { name: 'Settings' })).toBeVisible();
 });
 
-test('search finds categories and transactions, and passes the words to Ask', async ({ app, page }) => {
+test('search: top hit, results, questions answered in place, recents, back', async ({ app, page }) => {
   await app.importAll();
+  await app.tab('Activity');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
-  await page.getByLabel('Search transactions, categories and tags').fill('coffee');
-  await expect(page.locator('.section', { hasText: 'Categories' }).locator('.row', { hasText: 'Coffee' })).toBeVisible();
+  const box = page.getByLabel('Search or ask');
+  await expect(box).toBeFocused();
+  await expect(page.locator('.search-chips .chip').first()).toBeVisible();
+  await box.fill('coffee');
+  await expect(page.locator('.top-hit')).toContainText('Coffee');
+  await expect(page.locator('.top-hit')).toContainText('this month');
   await expect(app.txnRows().first()).toBeVisible();
-  await page.locator('.search-ask').click();
-  await expect(app.sheet().locator('.ask-bar input')).toHaveValue('coffee');
+  // A plain search goes to Recent when you press return.
+  await box.press('Enter');
+  await page.getByRole('button', { name: 'Clear search' }).click();
+  await expect(page.locator('.section', { hasText: 'Recent' }).locator('.row', { hasText: 'coffee' })).toBeVisible();
+  // A question is answered right on the page.
+  await box.fill('what are my subscriptions');
+  await expect(page.locator('.search-ask')).toContainText('press return');
+  await box.press('Enter');
+  await expect(page.locator('.answer-card')).toContainText('what are my subscriptions');
+  await expect(page.locator('.answer-card .answer-headline')).toBeVisible();
+  await expect(box).toHaveValue('');
+  // An example question works the same way.
+  await page.locator('.row', { hasText: 'Where did my money go this month?' }).click();
+  await expect(page.locator('.answer-card')).toHaveCount(2);
+  // The round button goes back where you were.
+  await page.getByRole('button', { name: 'Back to Activity' }).click();
+  await expect(page.getByRole('heading', { name: 'Activity', level: 1 })).toBeVisible();
 });
 
 test('Today: the day in money, Spend Readiness, pace and bills @smoke', async ({ app, page }) => {
@@ -89,8 +109,8 @@ test('detail pages: a category, a store and an account', async ({ app, page }) =
   await app.importAll();
   // Search → a category page: average, chart, budget, places, pin.
   await page.getByRole('button', { name: 'Search', exact: true }).click();
-  await page.getByLabel('Search transactions, categories and tags').fill('coffee');
-  await page.locator('.section', { hasText: 'Categories' }).locator('.row', { hasText: 'Coffee' }).click();
+  await page.getByLabel('Search or ask').fill('coffee');
+  await page.locator('.top-hit').click();
   const sheet = app.sheet();
   await expect(sheet.locator('.detail-hero-card')).toContainText('Average a month');
   await expect(sheet.locator('.detail-budget')).toBeVisible();

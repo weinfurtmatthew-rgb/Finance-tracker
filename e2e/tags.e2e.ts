@@ -32,7 +32,7 @@ test('ask what a tagged trip cost', async ({ app, page }) => {
   await app.sheet().getByRole('button', { name: 'Save', exact: true }).click();
   await app.tab('Today');
   await page.getByRole('button', { name: 'Ask a question' }).click();
-  await app.sheet().getByLabel('Question').fill('how much did the italy trip cost');
-  await app.sheet().getByLabel('Question').press('Enter');
-  await expect(app.sheet().getByText(/on #Italy 2026 overall/)).toBeVisible();
+  await page.getByLabel('Search or ask').fill('how much did the italy trip cost');
+  await page.getByLabel('Search or ask').press('Enter');
+  await expect(page.locator('.answer-card').getByText(/on #Italy 2026 overall/)).toBeVisible();
 });

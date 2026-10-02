@@ -89,8 +89,10 @@ balance your bank confirmed.
 - **Browse** has a card for every part of the app (bills & subscriptions, budgets, net worth, categories,
   people, owed money, trips & tags, Plan, year in review, import). **Edit** pins your favorites to the top
   with their number (net worth and bills are pinned to start)
-- **Search** finds categories, #tags and transactions (by store, note, amount or category) and can hand your
-  words to **Ask**
+- **Search** puts its box at the bottom, by your thumb. Before you type it shows your recent searches, the places you go
+  most and example questions; as you type, a **top hit** (the category or store you most likely mean), then categories,
+  places, #tags and transactions (by store, note, amount or category). Type a question ("how much did I spend on
+  dining last month?") and press return to get the answer right there
 - **Settings** opens from the profile button on Today and Browse
 
 ### Venmo, Cash App & Apple Cash
