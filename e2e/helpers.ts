@@ -64,6 +64,8 @@ export class App {
   async tab(name: 'Today' | 'Activity' | 'Browse' | 'Spending' | 'Recurring' | 'Net Worth' | 'Settings') {
     const { page } = this;
     if (await page.locator('.sheet').count()) await this.closeSheets();
+    // Search swaps the tab bar for its box and a back button.
+    if (await page.locator('.search-mode').count()) await page.locator('.tab-back').click();
     if (name === 'Today' || name === 'Activity' || name === 'Browse') {
       await page.locator('.tabbar button', { hasText: name }).click();
       return;

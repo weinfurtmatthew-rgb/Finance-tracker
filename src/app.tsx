@@ -28,6 +28,15 @@ const TABS: { id: Tab; label: string; glyph: GlyphName }[] = [
 const PAGES: Page[] = ['spending', 'recurring', 'accounts', 'health'];
 const isPage = (t: Tab | Page): t is Page => (PAGES as string[]).includes(t);
 
+const PAGE_LABELS: Record<Page, string> = { spending: 'Spending', recurring: 'Bills & Subscriptions', accounts: 'Net Worth', health: 'Money Health' };
+
+/** The tab or page Search goes back to, as the back button shows it. */
+function backTo(t: Tab | Page): { label: string; glyph: GlyphName } {
+  if (isPage(t)) return { label: PAGE_LABELS[t], glyph: 'grid' };
+  const found = TABS.find((x) => x.id === t) ?? TABS[0];
+  return { label: found.label, glyph: found.glyph };
+}
+
 interface SheetEntry {
   id: number;
   render: (close: () => void) => ComponentChildren;
@@ -40,6 +49,8 @@ export function App() {
   }));
   const [locked, setLocked] = useState<boolean | null>(null);
   const [tab, setTab] = useState<Tab | Page>('home');
+  // Where Search's back button returns to.
+  const [beforeSearch, setBeforeSearch] = useState<Tab | Page>('home');
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>({});
   const [sheets, setSheets] = useState<SheetEntry[]>([]);
   const [toastMsg, setToastMsg] = useState<string>();
@@ -76,6 +87,7 @@ export function App() {
   const nav: Nav = {
     tab,
     setTab: (t) => {
+      if (t === 'search' && tab !== 'search') setBeforeSearch(tab);
       setTab(t);
       window.scrollTo(0, 0);
     },
@@ -121,36 +133,32 @@ export function App() {
         {tab === 'home' && <Home />}
         {tab === 'activity' && <Activity />}
         {tab === 'browse' && <Browse />}
-        {tab === 'search' && <Search />}
+        {tab === 'search' && <Search back={{ ...backTo(beforeSearch), go: () => nav.setTab(beforeSearch) }} />}
         {tab === 'spending' && <Spending />}
         {tab === 'health' && <MoneyHealth />}
         {tab === 'recurring' && <Recurring />}
         {tab === 'accounts' && <Accounts />}
       </main>
-      <nav class="tabbar-wrap" aria-label="Main">
-        <div class="tabbar">
-          {TABS.map((t) => {
-            const on = tab === t.id || (t.id === 'browse' && isPage(tab));
-            return (
-              <button type="button" class={on ? 'active' : ''} aria-current={on ? 'page' : undefined} onClick={() => nav.setTab(t.id)}>
-                <span class="tab-icon" aria-hidden="true">
-                  <Glyph name={t.glyph} />
-                </span>
-                <span class="tab-label">{t.label}</span>
-              </button>
-            );
-          })}
-        </div>
-        <button
-          type="button"
-          class={`tab-search ${tab === 'search' ? 'active' : ''}`}
-          aria-label="Search"
-          aria-current={tab === 'search' ? 'page' : undefined}
-          onClick={() => nav.setTab('search')}
-        >
-          <Glyph name="search" />
-        </button>
-      </nav>
+      {tab !== 'search' && (
+        <nav class="tabbar-wrap" aria-label="Main">
+          <div class="tabbar">
+            {TABS.map((t) => {
+              const on = tab === t.id || (t.id === 'browse' && isPage(tab));
+              return (
+                <button type="button" class={on ? 'active' : ''} aria-current={on ? 'page' : undefined} onClick={() => nav.setTab(t.id)}>
+                  <span class="tab-icon" aria-hidden="true">
+                    <Glyph name={t.glyph} />
+                  </span>
+                  <span class="tab-label">{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          <button type="button" class="tab-search" aria-label="Search" onClick={() => nav.setTab('search')}>
+            <Glyph name="search" />
+          </button>
+        </nav>
+      )}
       {sheets.map((s) => (
         <div key={s.id}>{s.render(() => setSheets((all) => all.filter((x) => x.id !== s.id)))}</div>
       ))}

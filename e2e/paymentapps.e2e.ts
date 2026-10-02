@@ -95,9 +95,9 @@ test('Cash App: what was this, people, log an Apple Cash payment, ask', async ({
 
   await app.tab('Today');
   await page.getByRole('button', { name: 'Ask a question' }).click();
-  await app.sheet().getByLabel('Question').fill('how much have I sent Morgan');
-  await app.sheet().getByLabel('Question').press('Enter');
-  await expect(app.sheet().getByText('You sent Morgan Diaz $40.00 and received $0.00 overall.')).toBeVisible();
+  await page.getByLabel('Search or ask').fill('how much have I sent Morgan');
+  await page.getByLabel('Search or ask').press('Enter');
+  await expect(page.locator('.answer-card').getByText('You sent Morgan Diaz $40.00 and received $0.00 overall.')).toBeVisible();
 });
 
 test('a bank line from Apple Cash asks who it was for', async ({ app, page }) => {

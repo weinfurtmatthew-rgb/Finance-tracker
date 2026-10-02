@@ -27,7 +27,6 @@ import { AlertCard } from './Recurring';
 import { RecurringReview } from './RecurringReview';
 import { BudgetsEditor } from './BudgetsEditor';
 import { CategoryDetail } from './CategoryDetail';
-import { AskSheet } from './AskSheet';
 import { ReadinessSheet } from './Readiness';
 import { SuggestCategories } from './SuggestCategories';
 import { ReviewAiPicks } from './ReviewAiPicks';
@@ -188,7 +187,7 @@ export function Home() {
         <div class="header-actions">
           {open.length > 0 && (
             <>
-              <button type="button" class="icon-button" aria-label="Ask a question" onClick={() => nav.present((close) => <AskSheet onClose={close} />)}>
+              <button type="button" class="icon-button" aria-label="Ask a question" onClick={() => nav.setTab('search')}>
                 {Icons.sparkle()}
               </button>
               <button type="button" class="icon-button" aria-label="Import a file" onClick={importFile}>
