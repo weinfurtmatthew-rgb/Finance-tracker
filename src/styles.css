@@ -4306,3 +4306,82 @@ html.app-hidden *::after {
     transform: none;
   }
 }
+
+/* ---- Accent colors (Settings → Appearance), each checked for 4.5:1 contrast as text and behind white ---- */
+:root[data-accent='green'] {
+  --tint: #1d7a3c;
+  --tint-strong: #1d7a3c;
+  --tint-bg: rgba(29, 122, 60, 0.1);
+}
+:root[data-accent='violet'] {
+  --tint: #6b3fd4;
+  --tint-strong: #6b3fd4;
+  --tint-bg: rgba(107, 63, 212, 0.1);
+}
+:root[data-accent='orange'] {
+  --tint: #b04800;
+  --tint-strong: #b04800;
+  --tint-bg: rgba(176, 72, 0, 0.1);
+}
+:root[data-accent='pink'] {
+  --tint: #bf2475;
+  --tint-strong: #bf2475;
+  --tint-bg: rgba(191, 36, 117, 0.1);
+}
+:root[data-accent='graphite'] {
+  --tint: #3d4351;
+  --tint-strong: #3d4351;
+  --tint-bg: rgba(61, 67, 81, 0.1);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-accent='green'] {
+    --tint: #4cc76a;
+    --tint-strong: #1e7f40;
+    --tint-bg: rgba(76, 199, 106, 0.16);
+  }
+  :root[data-accent='violet'] {
+    --tint: #a98bff;
+    --tint-strong: #6b3fd4;
+    --tint-bg: rgba(169, 139, 255, 0.16);
+  }
+  :root[data-accent='orange'] {
+    --tint: #ff9a4d;
+    --tint-strong: #b54d0a;
+    --tint-bg: rgba(255, 154, 77, 0.16);
+  }
+  :root[data-accent='pink'] {
+    --tint: #ff7ab8;
+    --tint-strong: #bf2475;
+    --tint-bg: rgba(255, 122, 184, 0.16);
+  }
+  :root[data-accent='graphite'] {
+    --tint: #c3c8d2;
+    --tint-strong: #4a505e;
+    --tint-bg: rgba(195, 200, 210, 0.16);
+  }
+}
+.accent-swatch {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #0060cf;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+    0 1px 3px rgba(16, 24, 40, 0.18);
+}
+.accent-swatch[data-swatch='green'] {
+  background: #1d7a3c;
+}
+.accent-swatch[data-swatch='violet'] {
+  background: #6b3fd4;
+}
+.accent-swatch[data-swatch='orange'] {
+  background: #b04800;
+}
+.accent-swatch[data-swatch='pink'] {
+  background: #bf2475;
+}
+.accent-swatch[data-swatch='graphite'] {
+  background: #3d4351;
+}

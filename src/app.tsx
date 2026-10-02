@@ -20,6 +20,7 @@ import { Search } from './screens/Search';
 import { Glyph, type GlyphName } from './components/icons';
 import { Ambient } from './components/Ambient';
 import { IntroContext } from './components/motion';
+import { applyAccent, type Accent } from './lib/appearance';
 import { Celebration } from './components/Celebration';
 
 const TABS: { id: Tab; label: string; glyph: GlyphName }[] = [
@@ -60,6 +61,11 @@ export function App() {
   }));
   const [locked, setLocked] = useState<boolean | null>(null);
   const [tab, setTab] = useState<Tab | Page>('home');
+  // The accent color you picked in Settings (null when it's the default; undefined while loading).
+  const accent = useLiveQuery(async () => ((await db.meta.get('accent'))?.value as Accent | undefined) ?? null, []);
+  useEffect(() => {
+    if (accent !== undefined) applyAccent(accent ?? undefined);
+  }, [accent]);
   // Screens already seen this visit: their numbers and charts just appear instead of building in again.
   const seen = useRef(new Set<Tab | Page>());
   useEffect(() => () => void seen.current.add(tab), [tab]);

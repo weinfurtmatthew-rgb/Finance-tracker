@@ -7,6 +7,7 @@ import { saveFile } from '../lib/files';
 import { BACKUP_INTERVALS, checkBackup, DEFAULT_BACKUP_EVERY_DAYS, restoreBackup, summarizeBackup, type BackupSummary } from '../lib/backup';
 import { BackupCheckSheet, BackupSheet, openBackupFile } from './Backup';
 import { AboutSheet, PrivacySheet, versionLabel } from './About';
+import { ACCENTS, SUPPORT_URL, type Accent } from '../lib/appearance';
 import { ActionSheet, Field, Row, Section, Sheet } from '../components/ui';
 import { TidyUp, useOldGuesses } from './TidyUp';
 import { OwedSheet } from './Owed';
@@ -50,7 +51,8 @@ function Settings() {
   const reminderDays = useMeta<number>('reminderDays') ?? DEFAULT_SETTINGS.reminderDays;
   const dismissedCount = useMeta<string[]>('dismissedRecurring')?.length ?? 0;
   const backupEvery = useMeta<number>('backupEveryDays') ?? DEFAULT_BACKUP_EVERY_DAYS;
-  const [ask, setAsk] = useState<null | 'remove-passcode' | 'erase' | 'autolock' | 'amount-mode' | 'reminder' | 'backup-every' | { restore: string; summary: BackupSummary }>(null);
+  const accent = useMeta<Accent>('accent') ?? 'blue';
+  const [ask, setAsk] = useState<null | 'remove-passcode' | 'erase' | 'autolock' | 'amount-mode' | 'reminder' | 'backup-every' | 'accent' | { restore: string; summary: BackupSummary }>(null);
   const [persisted, setPersisted] = useState<boolean>();
   const [usage, setUsage] = useState<string>();
 
@@ -176,9 +178,29 @@ function Settings() {
         <Row title="Erase All Data" danger chevron={false} onClick={() => setAsk('erase')} />
       </Section>
 
+      <Section title="Appearance">
+        <Row
+          icon={<span class="accent-swatch" data-swatch={accent} aria-hidden="true" />}
+          title="Accent Color"
+          detail={ACCENTS.find((a) => a.id === accent)?.label}
+          onClick={() => setAsk('accent')}
+        />
+      </Section>
+
       <Section title="About">
         <Row title="Privacy" onClick={() => nav.present((close) => <PrivacySheet onClose={close} />)} />
         <Row title="About Finance Tracker" detail={versionLabel()} onClick={() => nav.present((close) => <AboutSheet onClose={close} />)} />
+        {SUPPORT_URL && (
+          <a class="row" href={SUPPORT_URL} target="_blank" rel="noopener noreferrer">
+            <span class="row-main">
+              <span class="row-title">Support Finance Tracker</span>
+              <span class="row-subtitle">Free for everyone. Chip in what you like to keep it updated and running.</span>
+            </span>
+            <span class="chevron" aria-hidden="true">
+              ›
+            </span>
+          </a>
+        )}
       </Section>
       <p class="section-footer center">Finance Tracker · private &amp; on-device</p>
 
@@ -219,6 +241,21 @@ function Settings() {
             bold: d === reminderDays,
             onClick: async () => {
               await setMeta('reminderDays', d);
+              setAsk(null);
+            },
+          }))}
+          onCancel={() => setAsk(null)}
+        />
+      )}
+      {ask === 'accent' && (
+        <ActionSheet
+          title="Accent color"
+          message="Colors buttons, links, the selected tab and highlights."
+          actions={ACCENTS.map((a) => ({
+            label: a.label,
+            bold: a.id === accent,
+            onClick: async () => {
+              await setMeta('accent', a.id);
               setAsk(null);
             },
           }))}
