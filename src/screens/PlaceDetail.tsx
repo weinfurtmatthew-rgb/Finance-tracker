@@ -1,4 +1,5 @@
 import { useMemo } from 'preact/hooks';
+import { CountUp } from '../components/motion';
 import { byId, useAccounts, useCategories, useTransactions } from '../hooks';
 import { useNav } from '../nav';
 import { formatShortDate, monthKey, monthLabel, todayISO } from '../lib/dates';
@@ -42,7 +43,7 @@ export function PlaceDetail(props: { placeKey: string; onClose: () => void }) {
       <section class="card lit detail-hero-card" style={{ '--lit': `color-mix(in oklab, ${hue} 14%, transparent)` }}>
         <div class="detail-stats">
           <div>
-            <span class="detail-big num">{whole(s.yearTotal)}</span>
+            <CountUp class="detail-big num" value={s.yearTotal} format={whole} />
             <span class="card-sub">this year · {s.yearCount} visit{s.yearCount === 1 ? '' : 's'}</span>
           </div>
           <div>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'preact/hooks';
+import { CountUp } from '../components/motion';
 import { useBook, useTransactions } from '../hooks';
 import { changeSince, netWorthOn } from '../lib/networth';
 import { useNav } from '../nav';
@@ -95,17 +96,17 @@ export function Spending() {
       <div class="kpis">
         <button type="button" class="kpi" onClick={() => nav.showActivity({ month })}>
           <span class="card-label">Spent</span>
-          <span class="kpi-value">{tile(spent)}</span>
+          <CountUp class="kpi-value" value={spent} format={tile} />
           <span class="card-sub">{formatMoney(m?.flexible ?? 0, { whole: true })} everyday</span>
         </button>
         <button type="button" class="kpi" onClick={() => nav.setTab('recurring')}>
           <span class="card-label">Fixed bills</span>
-          <span class="kpi-value">{tile((m?.fixed ?? 0) + stillDue)}</span>
+          <CountUp class="kpi-value" value={(m?.fixed ?? 0) + stillDue} format={tile} />
           <span class="card-sub">{isCurrent ? `${formatMoney(stillDue, { whole: true })} still due` : 'paid'}</span>
         </button>
         <button type="button" class="kpi" onClick={() => nav.setTab('accounts')}>
           <span class="card-label">Net worth</span>
-          <span class="kpi-value">{tile(netWorth)}</span>
+          <CountUp class="kpi-value" value={netWorth} format={tile} />
           <span class="card-sub">
             {nwChange >= 0 ? '▲' : '▼'} {tile(Math.abs(nwChange))} this month
           </span>

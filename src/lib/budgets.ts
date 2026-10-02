@@ -127,3 +127,12 @@ export function monthElapsed(month: string, today: ISODate): number {
   if (!current) return today > `${month}-31` ? 1 : 0;
   return dayOfMonth(today) / daysInMonth(y, m);
 }
+
+/**
+ * Whether a finished month is worth a small celebration: there were budgets, they were set before the
+ * month began (so a limit made afterwards doesn't count), and every category stayed within its limit.
+ */
+export function heldEveryBudget(budgets: Budget[], progress: BudgetProgress[], monthStart: number): boolean {
+  if (!budgets.length || budgets.some((b) => b.createdAt >= monthStart)) return false;
+  return progress.length > 0 && progress.every((p) => p.spent <= p.limit);
+}

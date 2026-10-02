@@ -79,11 +79,13 @@ export function PaceChart(props: { curve: Cents[]; days: number; target: Cents; 
         <text x={X(days) - 2} y={Y(target) - 8} class="tick" text-anchor="end">
           {props.targetLabel} {compactMoney(target)}
         </text>
-        <path d={area} class="pace-area" />
-        <polyline points={pts} class="pace-glow" />
-        <polyline points={pts} class="pace-you" />
+        <path d={area} class="pace-area draw-area" />
+        <polyline points={pts} pathLength={1} class="pace-glow draw-line" />
+        <polyline points={pts} pathLength={1} class="pace-you draw-line" />
         {hover != null && <line x1={X(hover)} x2={X(hover)} y1={PAD.t} y2={Y(0)} class="crosshair" />}
         <circle cx={X(shown)} cy={Y(paceAt(shown))} r={4} class="pace-dot-pace" />
+        {/* Where you are right now: a soft, slow pulse (it pauses while you read another day). */}
+        {hover == null && <circle cx={X(today)} cy={Y(curve[today - 1] ?? 0)} r={6} class="live-ring" />}
         <circle cx={X(shown)} cy={Y(curve[shown - 1] ?? 0)} r={6} class="pace-dot" />
         <text x={X(1)} y={H - 4} class="tick">
           {props.monthShort} 1

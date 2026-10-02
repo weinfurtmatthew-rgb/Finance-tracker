@@ -547,7 +547,7 @@ label.row:active,
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 3px 8px #00000026, 0 1px 1px #00000029;
-  transition: transform 0.2s;
+  transition: transform 0.35s cubic-bezier(0.3, 1.35, 0.5, 1);
 }
 .switch:checked {
   background: #34c759;
@@ -915,12 +915,28 @@ label.row:active,
   color: var(--text);
   transition: background 0.2s, color 0.2s;
 }
+.tabbar {
+  position: relative;
+}
+.tabbar button {
+  position: relative;
+}
 .tabbar button.active {
   color: var(--tint);
+}
+/* The selected tab's background: one pill that slides between tabs. */
+.tab-pill {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 5px;
+  width: calc((100% - 10px) / 3);
+  border-radius: 999px;
   background: var(--tab-on);
   box-shadow:
     inset 0 1px 0 var(--glass-shine),
     0 2px 8px rgba(16, 24, 40, 0.08);
+  transition: transform 0.42s var(--ease-spring);
 }
 .tab-icon svg {
   width: 24px;
@@ -2753,7 +2769,7 @@ button.hero-card {
     backdrop-filter: none;
   }
   .segmented button.active,
-  .tabbar button.active {
+  .tab-pill {
     background: var(--surface-2);
   }
 }
@@ -3972,4 +3988,316 @@ button.hero-card {
 .prose ul {
   margin: 4px 0;
   padding-left: 22px;
+}
+
+/* ==== Motion ==== */
+/* Subtle and quick: things build in on a screen's first view each visit (.screen.intro) and in sheets,
+   and only transform and opacity move. Reduce Motion turns all of it off (see the end of this file). */
+:root {
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.3, 1.35, 0.5, 1);
+}
+
+/* Behind an open sheet, the screen recedes. */
+.screen {
+  transition: transform 0.45s var(--ease-out);
+}
+.screen.receded {
+  transform: scale(0.95);
+}
+
+/* A screen assembles: its cards rise in one after another. */
+.screen.intro > :not(.tabbar-wrap):not(.back-pill) {
+  animation: rise-in 0.5s var(--ease-out) both;
+}
+.screen.intro > :nth-child(2) { animation-delay: 30ms; }
+.screen.intro > :nth-child(3) { animation-delay: 60ms; }
+.screen.intro > :nth-child(4) { animation-delay: 90ms; }
+.screen.intro > :nth-child(5) { animation-delay: 120ms; }
+.screen.intro > :nth-child(6) { animation-delay: 150ms; }
+.screen.intro > :nth-child(7) { animation-delay: 180ms; }
+.screen.intro > :nth-child(8) { animation-delay: 210ms; }
+.screen.intro > :nth-child(n + 9) { animation-delay: 240ms; }
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Charts draw themselves. */
+:is(.screen.intro, .sheet) .chart-svg .col path {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: bar-grow 0.6s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 35ms + 120ms);
+}
+@keyframes bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+:is(.screen.intro, .sheet) .draw-line {
+  stroke-dasharray: 1;
+  animation: draw-line 1s var(--ease-out) 0.15s both;
+}
+@keyframes draw-line {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+:is(.screen.intro, .sheet) .draw-area {
+  animation: fade-in 0.6s ease-out 0.7s both;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+/* The dial lights up segment by segment, then its glow comes on. */
+:is(.screen.intro, .sheet) .gauge .seg-on {
+  animation: seg-on 0.25s ease-out both;
+  animation-delay: calc(var(--i, 0) * 55ms + 150ms);
+}
+@keyframes seg-on {
+  from {
+    stroke: var(--track);
+  }
+}
+:is(.screen.intro, .sheet) .gauge-glow,
+:is(.screen.intro, .sheet) .ring-glow {
+  animation: fade-in 0.6s ease-out 0.6s both;
+}
+/* Money Health: each part sweeps to its score. */
+:is(.screen.intro, .sheet) .ring-fill {
+  stroke-dasharray: 1;
+  animation: draw-line 0.8s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 70ms + 150ms);
+}
+/* Progress bars fill from the left. */
+:is(.screen.intro, .sheet) :is(.left-fill, .ranked-fill, .meter-fill, .goal-fill) {
+  transform-origin: 0 50%;
+  animation: bar-fill 0.7s var(--ease-out) 0.2s both;
+}
+@keyframes bar-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* Cards that show up while you're looking (answers, reminders, alerts) pop in. */
+.answer-card,
+.callout,
+.toast {
+  animation: pop-in 0.35s var(--ease-spring) both;
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+}
+
+/* ---- Persistent, and gentle ---- */
+/* Today: your spot on the pace chart pulses slowly, and the dial's glow breathes. */
+.live-ring {
+  fill: var(--chart-1);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: live-pulse 2.6s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes live-pulse {
+  0% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+.live-glow {
+  animation: breathe 3.2s ease-in-out infinite;
+}
+:is(.screen.intro, .sheet) .live-glow {
+  animation:
+    fade-in 0.6s ease-out 0.6s both,
+    breathe 3.2s ease-in-out 1.2s infinite;
+}
+@keyframes breathe {
+  50% {
+    opacity: 0.25;
+  }
+}
+/* A slow sheen now and then across the Year in Review and Money Health cards. */
+.shimmer {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.22) 50%, transparent 62%);
+  transform: translateX(-130%);
+  animation: shimmer 9s ease-in-out 1.5s infinite;
+  pointer-events: none;
+}
+@keyframes shimmer {
+  0% {
+    transform: translateX(-130%);
+  }
+  18%,
+  100% {
+    transform: translateX(130%);
+  }
+}
+/* Nothing loops while the app is in the background. */
+html.app-hidden *,
+html.app-hidden *::after {
+  animation-play-state: paused !important;
+}
+
+/* ---- Small responses ---- */
+/* A pin, once pressed, pops. */
+.pill[aria-pressed='true'] .glyph,
+.browse-pin-mark .glyph {
+  animation: pop 0.4s var(--ease-spring);
+}
+@keyframes pop {
+  40% {
+    transform: scale(1.3);
+  }
+}
+/* "Done" marks draw their check. */
+.backup-ready-icon,
+.celebrate-icon {
+  animation: pop-in 0.45s var(--ease-spring) both;
+}
+.backup-ready-icon .glyph *,
+.celebrate-icon > .glyph * {
+  stroke-dasharray: 30;
+  animation: draw-check 0.45s var(--ease-out) 0.2s both;
+}
+@keyframes draw-check {
+  from {
+    stroke-dashoffset: 30;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ---- Celebrations ---- */
+.celebrate {
+  position: fixed;
+  top: calc(var(--safe-top) + 10px);
+  left: 0;
+  right: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+  animation: celebrate-in 3.2s var(--ease-out) both;
+}
+@keyframes celebrate-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.96);
+  }
+  10%,
+  85% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+.celebrate-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 420px;
+  padding: 12px 18px 12px 12px;
+  border-radius: 22px;
+  border: 1px solid var(--glass-edge);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--surface) 84%, transparent));
+  -webkit-backdrop-filter: blur(28px) saturate(1.9);
+  backdrop-filter: blur(28px) saturate(1.9);
+  box-shadow:
+    inset 0 1px 0 var(--glass-shine),
+    0 12px 32px var(--bar-shadow);
+}
+.celebrate-icon {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--status-good);
+  box-shadow: 0 0 18px color-mix(in oklab, var(--status-good) 55%, transparent);
+}
+.celebrate-icon > .glyph {
+  width: 22px;
+  height: 22px;
+}
+.celebrate-burst span {
+  position: absolute;
+  left: calc(50% - 3px);
+  top: calc(50% - 3px);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  animation: burst 0.9s var(--ease-out) 0.15s both;
+}
+@keyframes burst {
+  from {
+    opacity: 1;
+    transform: rotate(var(--a)) translateX(10px) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: rotate(var(--a)) translateX(44px) scale(0.4);
+  }
+}
+.celebrate-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.3;
+}
+.celebrate-text strong {
+  font-size: 16px;
+}
+.celebrate-text span {
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+/* Reduce Motion: a celebration just appears (its fade would otherwise end it at once), and the screen
+   behind a sheet stays put. */
+@media (prefers-reduced-motion: reduce) {
+  .celebrate {
+    animation: none;
+  }
+  .screen.receded {
+    transform: none;
+  }
 }

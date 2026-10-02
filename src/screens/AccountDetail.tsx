@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'preact/hooks';
+import { CountUp } from '../components/motion';
 import { byId, useAccounts, useBook, useCategories, useTransactions } from '../hooks';
 import { useNav } from '../nav';
 import type { Account } from '../types';
@@ -37,7 +38,7 @@ export function AccountDetail(props: { account: Account; onClose: () => void }) 
     <Sheet title={a.name} onClose={props.onClose} onSave={edit} saveLabel="Edit" closeLabel="Done">
       <section class="card lit detail-hero-card account-hero" style={{ '--lit': 'color-mix(in oklab, var(--hue-blue) 14%, transparent)' }}>
         <span class="card-label">{owed ? 'Owed' : 'Balance'}</span>
-        <span class="detail-big num">{formatMoney(owed ? Math.abs(now) : now)}</span>
+        <CountUp class="detail-big num" value={owed ? Math.abs(now) : now} format={(c) => formatMoney(c)} />
         <span class="card-sub">
           {[a.institution, a.last4 && `•••• ${a.last4}`, a.checkedOn ? `checked against the bank ${formatShortDate(a.checkedOn)}` : 'not checked against the bank yet']
             .filter(Boolean)

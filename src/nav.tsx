@@ -26,6 +26,8 @@ export interface Nav {
   activityFilter: ActivityFilter;
   setActivityFilter(filter: ActivityFilter): void;
   toast(message: string): void;
+  /** A small celebration for a good moment (shown briefly at the top). */
+  celebrate(title: string, sub?: string): void;
 }
 
 export const NavContext = createContext<Nav>(null as unknown as Nav);

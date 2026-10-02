@@ -116,6 +116,7 @@ export function ColumnChart(props: {
           return (
             <g
               class={`col ${i === shown ? 'active' : ''}`}
+              style={{ '--i': i }}
               tabIndex={0}
               role="button"
               aria-label={`${c.label}: ${series.map((s) => `${s.name} ${compactMoneyFull(s.values[i] ?? 0)}`).join(', ')}`}
@@ -291,10 +292,10 @@ export function LineChart(props: {
           </g>
         ))}
         {single && dates.length > 1 && (
-          <path d={`${line(series[0].values)}L${x(dates.length - 1)},${y(Math.max(lo, 0))}L${x(0)},${y(Math.max(lo, 0))}Z`} fill={series[0].color} opacity="0.1" />
+          <path d={`${line(series[0].values)}L${x(dates.length - 1)},${y(Math.max(lo, 0))}L${x(0)},${y(Math.max(lo, 0))}Z`} fill={series[0].color} opacity="0.1" class="draw-area" />
         )}
         {series.map((s) => (
-          <path d={line(s.values)} fill="none" stroke={s.color} stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+          <path d={line(s.values)} pathLength={1} class="draw-line" fill="none" stroke={s.color} stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
         ))}
         {active != null && <line x1={x(shown)} x2={x(shown)} y1={4} y2={H} class="crosshair" />}
         {series.map((s) => (

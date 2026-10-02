@@ -1,5 +1,8 @@
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
+import { CountUp } from '../components/motion';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { useBook, useGoals, useTransactions } from '../hooks';
+import { db, setMeta } from '../db';
 import { useNav } from '../nav';
 import { useRecurringModel } from '../recurringModel';
 import type { Account, AccountType } from '../types';
@@ -110,6 +113,15 @@ export function Accounts() {
     return occurrences(first, until, income.rec, 500);
   }, [rec.statuses, goals, today]);
   const progress = useMemo(() => goals.map((g) => goalProgress(book, g, today, paydays)), [goals, book, today, paydays]);
+  // A goal reached gets a small celebration, once. (Undefined while loading, [] when there's none yet.)
+  const celebrated = useLiveQuery(async () => ((await db.meta.get('celebratedGoals'))?.value as string[] | undefined) ?? [], []);
+  useEffect(() => {
+    if (!celebrated) return;
+    const done = progress.find((p) => p.done && !celebrated.includes(p.goal.id));
+    if (!done) return;
+    void setMeta('celebratedGoals', [...celebrated, done.goal.id]);
+    nav.celebrate(`${done.goal.emoji} ${done.goal.name}: goal reached`, `You saved ${formatMoney(done.goal.target, { whole: true })}.`);
+  }, [progress, celebrated]);
 
   const edit = (account?: Account) => nav.present((close) => <AccountEditor account={account} onClose={close} />);
   const editGoal = (goal?: GoalProgress['goal']) => nav.present((close) => <GoalEditor goal={goal} onClose={close} />);
@@ -158,7 +170,7 @@ export function Accounts() {
       ) : (
         <>
           <div class="hero">
-            <Money cents={net} class="hero-value" />
+            <CountUp class="money hero-value" value={net} format={(c) => formatMoney(c)} />
             <span class={`change-line ${change.total > 0 ? 'pos-text' : change.total < 0 ? 'neg-text' : ''}`}>
               {change.total >= 0 ? '▲' : '▼'} {formatMoney(Math.abs(change.total), { whole: true })}
               {pctText(change.pct)} since {formatShortDate(lastMonthEnd)}

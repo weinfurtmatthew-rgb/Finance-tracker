@@ -204,7 +204,7 @@ export function RecapTeaser(props: { onOpen: () => void }) {
   const recap = useRecap(period);
   if (!recap || recap.days < 14) return null;
   return (
-    <button type="button" class="recap-teaser" onClick={props.onOpen}>
+    <button type="button" class="recap-teaser shimmer" onClick={props.onOpen}>
       <span class="card-label">🎬 {recap.period.label}</span>
       <span class="recap-teaser-main">
         <strong>{formatMoney(recap.spent, { whole: true })}</strong> spent
