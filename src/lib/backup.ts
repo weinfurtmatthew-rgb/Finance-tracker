@@ -71,3 +71,45 @@ export async function restoreBackup(db: FinanceDB, text: string): Promise<void> 
     await db.meta.bulkPut(data.meta.filter((m: { key: string }) => !LOCAL_ONLY_META.has(m.key)));
   });
 }
+
+export interface BackupCheck extends BackupSummary {
+  /** Anything that would go wrong after restoring (empty when the file is sound). */
+  problems: string[];
+}
+
+/** Reads a backup file the way a restore would, without changing anything, and reports what's in it. */
+export function checkBackup(text: string): BackupCheck {
+  const json = validate(JSON.parse(text));
+  const d = json.data;
+  const problems: string[] = [];
+  const accountIds = new Set(d.accounts.map((a: { id: string }) => a.id));
+  const ids = new Set<string>();
+  let dupes = 0;
+  let orphans = 0;
+  for (const t of d.transactions as { id: string; accountId: string }[]) {
+    if (ids.has(t.id)) dupes++;
+    ids.add(t.id);
+    if (!accountIds.has(t.accountId)) orphans++;
+  }
+  if (dupes) problems.push(`${dupes} transaction${dupes === 1 ? ' appears' : 's appear'} twice.`);
+  if (orphans) problems.push(`${orphans} transaction${orphans === 1 ? ' belongs' : 's belong'} to an account that isn't in the file.`);
+  return { accounts: d.accounts.length, transactions: d.transactions.length, exportedAt: json.exportedAt, problems };
+}
+
+/** How often to remind about backups, in days (0 = never). */
+export const DEFAULT_BACKUP_EVERY_DAYS = 14;
+export const BACKUP_INTERVALS = [
+  { days: 7, label: 'Every week' },
+  { days: 14, label: 'Every 2 weeks' },
+  { days: 30, label: 'Every month' },
+  { days: 0, label: 'Never' },
+];
+/** "Later" on the reminder waits this long. */
+export const BACKUP_SNOOZE_DAYS = 3;
+
+/** Whether to show the backup reminder on Today. */
+export function backupDue(opts: { hasData: boolean; lastBackupAt?: number; everyDays: number; snoozedUntil?: number; now: number }): boolean {
+  if (!opts.hasData || opts.everyDays <= 0) return false;
+  if (opts.snoozedUntil && opts.now < opts.snoozedUntil) return false;
+  return !opts.lastBackupAt || opts.now - opts.lastBackupAt >= opts.everyDays * 86_400_000;
+}
