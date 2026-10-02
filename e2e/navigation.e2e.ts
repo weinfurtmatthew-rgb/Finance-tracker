@@ -93,11 +93,15 @@ test('Activity: month card, quick filters and day totals', async ({ app, page })
   await expect(card).toContainText('September 2026');
   await expect(card).toContainText('spent');
   // Quick filter: money in only.
-  await page.locator('.quick-filters').getByRole('button', { name: 'Income', exact: true }).click();
+  await page.getByRole('button', { name: /^Filters/ }).click();
+  await page.getByRole('button', { name: 'Income', exact: true }).click();
+  await expect(page.locator('.filter-button')).toHaveText('Income');
   const rows = app.txnRows();
   await expect(rows.first()).toBeVisible();
   for (const text of await rows.allInnerTexts()) expect(text).toMatch(/Income|Interest/);
-  await page.locator('.quick-filters').getByRole('button', { name: 'All', exact: true }).click();
+  await page.getByRole('button', { name: /^Filters/ }).click();
+  await page.getByRole('button', { name: 'All', exact: true }).click();
+  await expect(page.locator('.filter-button')).toHaveText('Filters');
   // The arrows show one month at a time.
   await card.getByRole('button', { name: 'Previous month' }).click();
   await expect(card).toContainText('August 2026');
