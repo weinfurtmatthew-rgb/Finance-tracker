@@ -1,4 +1,5 @@
 import { useId } from 'preact/hooks';
+import { CountUp } from './motion';
 import type { Pillar, PillarKey } from '../lib/health';
 import type { GlyphName, Hue } from './icons';
 
@@ -44,14 +45,14 @@ export function HealthRing(props: { pillars: Pillar[]; score: number; band: stri
         {segs.map((s) => (
           <path d={s.track} fill="none" stroke="var(--track)" stroke-width={stroke} stroke-linecap="round" />
         ))}
-        <g filter={`url(#${id})`} opacity={0.5}>
+        <g filter={`url(#${id})`} opacity={0.5} class="ring-glow">
           {segs.map((s) => s.fill && <path d={s.fill} fill="none" stroke={s.color} stroke-width={stroke} stroke-linecap="round" />)}
         </g>
-        {segs.map((s) => s.fill && <path d={s.fill} fill="none" stroke={s.color} stroke-width={stroke} stroke-linecap="round" />)}
+        {segs.map((s, i) => s.fill && <path d={s.fill} pathLength={1} class="ring-fill" style={{ '--i': i }} fill="none" stroke={s.color} stroke-width={stroke} stroke-linecap="round" />)}
       </svg>
       <div class="health-center">
         <span class="health-score num" style={{ fontSize: `${Math.round(size / 3.6)}px` }}>
-          {props.score}
+          <CountUp value={props.score} format={String} />
         </span>
         <span class="health-band" style={{ fontSize: `${Math.max(11, Math.round(size / 13))}px` }}>
           {props.band}

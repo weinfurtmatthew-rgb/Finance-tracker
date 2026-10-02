@@ -1,4 +1,5 @@
 import type { Readiness } from '../lib/today';
+import { CountUp } from '../components/motion';
 import { Sheet } from '../components/ui';
 import { Gauge, verdictColor } from '../components/Gauge';
 
@@ -18,7 +19,7 @@ export function ReadinessSheet(props: { readiness: Readiness; onClose: () => voi
         <div class="gauge-wrap big">
           <Gauge score={score} verdict={verdict} size={200} stroke={15} />
           <div class="gauge-center">
-            <span class="gauge-score num">{score}</span>
+            <CountUp class="gauge-score num" value={score} format={String} />
             <span class="gauge-of">of 10</span>
           </div>
         </div>

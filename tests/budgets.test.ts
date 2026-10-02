@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { budgetProgress, monthElapsed, roundLimit, spendingByMonth, suggestLimits } from '../src/lib/budgets';
+import { budgetProgress, heldEveryBudget, monthElapsed, roundLimit, spendingByMonth, suggestLimits } from '../src/lib/budgets';
 import { DEFAULT_CATEGORIES } from '../src/lib/categories';
 import type { Recurring, Transaction } from '../src/types';
 
@@ -76,5 +76,18 @@ describe('helpers', () => {
   it('monthElapsed', () => {
     expect(monthElapsed('2026-09', '2026-09-15')).toBe(0.5);
     expect(monthElapsed('2026-08', '2026-09-15')).toBe(1);
+  });
+});
+
+describe('heldEveryBudget', () => {
+  const start = new Date('2026-08-01T00:00:00').getTime();
+  const b = (createdAt: number) => ({ categoryId: 'dining', limit: 20000, createdAt });
+  const p = (spent: number) => ({ categoryId: 'dining', limit: 20000, spent, remaining: 20000 - spent, ratio: spent / 20000, state: 'ok' as const, offPace: false });
+  it('celebrates only a month where every budget (set beforehand) held', () => {
+    expect(heldEveryBudget([b(start - 1)], [p(19000)], start)).toBe(true);
+    expect(heldEveryBudget([b(start - 1)], [p(20000)], start)).toBe(true);
+    expect(heldEveryBudget([b(start - 1)], [p(20001)], start)).toBe(false);
+    expect(heldEveryBudget([b(start + 1)], [p(100)], start)).toBe(false);
+    expect(heldEveryBudget([], [], start)).toBe(false);
   });
 });

@@ -19,6 +19,8 @@ import { MoneyHealth } from './screens/MoneyHealth';
 import { Search } from './screens/Search';
 import { Glyph, type GlyphName } from './components/icons';
 import { Ambient } from './components/Ambient';
+import { IntroContext } from './components/motion';
+import { Celebration } from './components/Celebration';
 
 const TABS: { id: Tab; label: string; glyph: GlyphName }[] = [
   { id: 'home', label: 'Today', glyph: 'today' },
@@ -58,11 +60,19 @@ export function App() {
   }));
   const [locked, setLocked] = useState<boolean | null>(null);
   const [tab, setTab] = useState<Tab | Page>('home');
+  // Screens already seen this visit: their numbers and charts just appear instead of building in again.
+  const seen = useRef(new Set<Tab | Page>());
+  useEffect(() => () => void seen.current.add(tab), [tab]);
+  const intro = !seen.current.has(tab);
   // Where Search's back button returns to.
   const [beforeSearch, setBeforeSearch] = useState<Tab | Page>('home');
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>({});
   const [sheets, setSheets] = useState<SheetEntry[]>([]);
+  // With a sheet open the screen behind shrinks back a little, like iOS. Scaling the screen would unpin
+  // anything fixed inside it (Search's bar, a sheet or story the screen opened itself), so not then.
+  const receded = sheets.some((s) => !s.closing) && !document.querySelector('main :is(.tabbar-wrap, .sheet-backdrop, .story)');
   const [toastMsg, setToastMsg] = useState<string>();
+  const [party, setParty] = useState<{ id: number; title: string; sub?: string }>();
   const hiddenAt = useRef<number | null>(null);
   const nextId = useRef(1);
 
@@ -74,6 +84,8 @@ export function App() {
   // Auto-lock after the app has been in the background for a while.
   useEffect(() => {
     const onVis = () => {
+      // Looping animations pause while the app is in the background.
+      document.documentElement.classList.toggle('app-hidden', document.visibilityState === 'hidden');
       if (document.visibilityState === 'hidden') hiddenAt.current = Date.now();
       else if (hiddenAt.current != null && lockState?.passcode) {
         const away = Date.now() - hiddenAt.current;
@@ -122,6 +134,7 @@ export function App() {
     activityFilter,
     setActivityFilter,
     toast,
+    celebrate: (title, sub) => setParty({ id: nextId.current++, title, sub }),
   };
 
   if (!lockState || locked === null) return <div class="splash" />;
@@ -151,7 +164,12 @@ export function App() {
   return (
     <NavContext.Provider value={nav}>
       <Ambient tone={tab} />
-      <main class="screen" key={tab}>
+      <main
+        class={`screen${intro ? ' intro' : ''}${receded ? ' receded' : ''}`}
+        key={tab}
+        style={receded ? { transformOrigin: `50% ${window.scrollY + window.innerHeight / 2}px` } : undefined}
+      >
+        <IntroContext.Provider value={intro}>
         {isPage(tab) && (
           <button type="button" class="back-pill" onClick={() => nav.setTab('browse')}>
             <Glyph name="chevronLeft" />
@@ -166,10 +184,17 @@ export function App() {
         {tab === 'health' && <MoneyHealth />}
         {tab === 'recurring' && <Recurring />}
         {tab === 'accounts' && <Accounts />}
+        </IntroContext.Provider>
       </main>
       {tab !== 'search' && (
         <nav class="tabbar-wrap" aria-label="Main">
           <div class="tabbar">
+            {/* The selected tab's pill slides from tab to tab. */}
+            <span
+              class="tab-pill"
+              aria-hidden="true"
+              style={{ transform: `translateX(${Math.max(0, TABS.findIndex((t) => t.id === (isPage(tab) ? 'browse' : tab))) * 100}%)` }}
+            />
             {TABS.map((t) => {
               const on = tab === t.id || (t.id === 'browse' && isPage(tab));
               return (
@@ -192,6 +217,7 @@ export function App() {
           <Suspense fallback={null}>{s.render(() => closeSheet(s.id))}</Suspense>
         </div>
       ))}
+      {party && <Celebration key={party.id} title={party.title} sub={party.sub} onDone={() => setParty(undefined)} />}
       {toastMsg && (
         <div class="toast" role="status">
           {toastMsg}

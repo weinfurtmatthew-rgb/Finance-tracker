@@ -16,7 +16,8 @@ export const verdictColor = (v: Verdict) =>
   v === 'Go For It' || v === 'On Track' ? 'var(--status-good)' : v === 'Pace Yourself' ? 'var(--status-warning)' : 'var(--status-critical)';
 
 /** The Spend Readiness dial: ten segments over three quarters of a circle, lit up to the score. */
-export function Gauge(props: { score: number; verdict: Verdict; size: number; stroke: number }) {
+/** `live` gives the lit part a slow glow, for the dial on Today. */
+export function Gauge(props: { score: number; verdict: Verdict; size: number; stroke: number; live?: boolean }) {
   const { size, stroke } = props;
   const c = size / 2;
   const r = size / 2 - stroke / 2 - 2;
@@ -31,13 +32,13 @@ export function Gauge(props: { score: number; verdict: Verdict; size: number; st
           <feGaussianBlur stdDeviation={stroke * 0.7} />
         </filter>
       </defs>
-      <g filter={`url(#${id})`} opacity={0.55}>
+      <g filter={`url(#${id})`} opacity={0.55} class={props.live ? 'gauge-glow live-glow' : 'gauge-glow'}>
         {segs.filter((s) => s.on).map((s) => (
           <path d={s.d} fill="none" stroke={color} stroke-width={stroke} stroke-linecap="round" />
         ))}
       </g>
-      {segs.map((s) => (
-        <path d={s.d} fill="none" stroke={s.on ? color : 'var(--track)'} stroke-width={stroke} stroke-linecap="round" />
+      {segs.map((s, i) => (
+        <path d={s.d} fill="none" stroke={s.on ? color : 'var(--track)'} stroke-width={stroke} stroke-linecap="round" class={s.on ? 'seg-on' : undefined} style={{ '--i': i }} />
       ))}
     </svg>
   );

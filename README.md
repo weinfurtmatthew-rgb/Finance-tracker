@@ -50,7 +50,15 @@ balance your bank confirmed.
   home & bills yellow, money coming in aqua. Categories you make (or give your own emoji) keep their emoji
 - Light and dark mode each have their own colors; Reduce Transparency gives solid surfaces, and Reduce Motion turns
   the animations off
-- Motion: screens fade between tabs, sheets slide up and back down, and cards give a little when you press them
+- Motion (subtle, Apple-like): the first time you open a screen in a visit its cards rise in one after another,
+  big numbers count up, and charts draw themselves (bars grow, lines draw, the Spend Readiness dial lights segment by
+  segment, the Money Health ring sweeps to its score). Numbers roll to new values when they change. The tab pill
+  slides between tabs, the screen recedes behind an open sheet, sheets slide back down when closed, and cards and
+  toggles respond to a press
+- Two gentle things keep moving: on Today, your spot on the pace chart pulses slowly and the dial's glow breathes;
+  the Year in Review and Money Health cards get an occasional sheen. They pause while the app is in the background
+- Small celebrations for good moments: your first backup, reaching a savings goal, and finishing a month with every
+  budget held (once each)
 - Accessibility: every control has a VoiceOver name, keyboard focus shows a tinted ring, and an automated check (axe)
   scans the main screens and sheets in the browser tests, along with a check that nothing scrolls sideways
 - Fast to open: Import, Plan and Settings load the first time you open them (they're still saved for offline use)

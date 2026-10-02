@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
 import type { Category, Cents, RecurringKind } from '../types';
 import { formatMoney } from '../lib/money';
 import { useNav } from '../nav';
+import { IntroContext } from './motion';
 import { Glyph, isGlyph } from './icons';
 import { categoryLook, kindLook, type Look } from './look';
 
@@ -44,7 +45,8 @@ export function Sheet(props: {
           )}
         </header>
         <div class="sheet-body" tabIndex={props.readable ? 0 : undefined}>
-          {props.children}
+          {/* Everything in a sheet builds in as it opens. */}
+          <IntroContext.Provider value={true}>{props.children}</IntroContext.Provider>
         </div>
       </div>
     </div>

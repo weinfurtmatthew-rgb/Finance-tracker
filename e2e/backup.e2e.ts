@@ -31,7 +31,7 @@ test('back up with a password, check the file, and restore it @smoke', async ({ 
   const text = await readFile(path, 'utf8');
   expect(JSON.parse(text).format).toBe('finance-tracker-backup-encrypted');
   expect(text).not.toContain('Chipotle');
-  await expect(page.getByText('Backup saved')).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'First backup saved' })).toBeVisible();
   await expect(app.sheet()).toContainText('Last backup:');
 
   // Checking the file asks for its password, and a wrong one doesn't open it.

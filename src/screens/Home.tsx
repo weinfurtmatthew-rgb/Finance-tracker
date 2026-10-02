@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'preact/hooks';
+import { CountUp } from '../components/motion';
 import { useAccounts, useBook, useMeta, useTransactions } from '../hooks';
 import { staleValued } from '../lib/networth';
 import { UpdateValues } from './UpdateValues';
@@ -6,9 +7,9 @@ import { useNav } from '../nav';
 import { useRecurringModel } from '../recurringModel';
 import { useSpending } from '../spendingModel';
 import { usePlanData } from '../planModel';
-import { addDays, diffDays, formatLongDay, formatShortDate, monthKey, monthLabel } from '../lib/dates';
+import { addDays, addMonths, daysInMonth, diffDays, formatLongDay, formatShortDate, monthKey, monthLabel } from '../lib/dates';
 import { formatMoney } from '../lib/money';
-import { budgetProgress } from '../lib/budgets';
+import { budgetProgress, heldEveryBudget } from '../lib/budgets';
 import { accountBalance } from '../lib/balances';
 import { isOutflow } from '../lib/recurring';
 import { categoryChanges, isEverydayCategory, pace, paceTarget, spendReadiness, todayFacts, todaySummary, type CategoryChange, type Phrase } from '../lib/today';
@@ -120,6 +121,18 @@ export function Home() {
   // The year in review opens by itself once: in December (this year) or early January (last year),
   // when the app starts (never in the middle of something, like an import).
   const recapYear = autoRecapYear(today);
+  // A new month: if every budget held last month, a small celebration (once).
+  const celebratedMonth = useLiveQuery(async () => ((await db.meta.get('celebratedMonth'))?.value as string | undefined) ?? '', []);
+  useEffect(() => {
+    const prev = addMonths(month, -1);
+    const spent = months.get(prev);
+    if (celebratedMonth === undefined || celebratedMonth === prev || !spent || !budgets.length) return;
+    const [y, m] = prev.split('-').map(Number);
+    const progress = budgetProgress(budgets, spent, prev, `${prev}-${String(daysInMonth(y, m)).padStart(2, '0')}`);
+    if (!heldEveryBudget(budgets, progress, new Date(`${prev}-01T00:00:00`).getTime())) return;
+    void setMeta('celebratedMonth', prev);
+    nav.celebrate(`${monthLabel(prev).split(' ')[0]}: under budget`, 'Every category stayed within its limit.');
+  }, [celebratedMonth, months, budgets, month]);
   const recapCheck = useLiveQuery(async () => {
     if (recapYear == null) return null;
     const shown = (await db.meta.get('recapShownFor'))?.value;
@@ -282,9 +295,9 @@ export function Home() {
                 <span class="chevron" aria-hidden="true">›</span>
               </span>
               <span class="gauge-wrap">
-                <Gauge score={readiness.score} verdict={readiness.verdict} size={124} stroke={11} />
+                <Gauge score={readiness.score} verdict={readiness.verdict} size={124} stroke={11} live />
                 <span class="gauge-center">
-                  <span class="gauge-score num">{readiness.score}</span>
+                  <CountUp class="gauge-score num" value={readiness.score} format={String} />
                   <span class="gauge-of">of 10</span>
                 </span>
               </span>
@@ -297,7 +310,7 @@ export function Home() {
             {target && p ? (
               <button type="button" class="card left-tile" onClick={budgets.length ? () => nav.setTab('spending') : editBudgets}>
                 <span class="card-label">{p.left >= 0 ? 'Left to spend' : 'Over by'}</span>
-                <span class={`left-value num ${p.left < 0 ? 'neg-text' : ''}`}>{whole(Math.abs(p.left))}</span>
+                <CountUp class={`left-value num ${p.left < 0 ? 'neg-text' : ''}`} value={Math.abs(p.left)} format={whole} />
                 <span class="left-sub">
                   {p.daysLeft} day{p.daysLeft === 1 ? '' : 's'} left
                   {p.left > 0 && (
@@ -321,7 +334,7 @@ export function Home() {
             ) : (
               <button type="button" class="card left-tile" onClick={editBudgets}>
                 <span class="card-label">This month</span>
-                <span class="left-value num">{whole(facts.spent)}</span>
+                <CountUp class="left-value num" value={facts.spent} format={whole} />
                 <span class="left-sub">everyday spending so far</span>
                 <span class="pill left-cta">Set budgets</span>
               </button>
@@ -339,11 +352,11 @@ export function Home() {
               </div>
               <div class="pace-numbers">
                 <div>
-                  <span class="pace-big num">{whole(facts.spent)}</span>
+                  <CountUp class="pace-big num" value={facts.spent} format={whole} />
                   <span class="card-sub">spent so far</span>
                 </div>
                 <div>
-                  <span class="pace-big num muted">{whole(p.expected)}</span>
+                  <CountUp class="pace-big num muted" value={p.expected} format={whole} />
                   <span class="card-sub">at an even pace</span>
                 </div>
               </div>
@@ -542,7 +555,7 @@ export function Home() {
           )}
 
           {health && (
-            <button type="button" class="card lit health-teaser" style={{ '--lit': 'color-mix(in oklab, var(--hue-aqua) 14%, transparent)' }} onClick={() => nav.setTab('health')}>
+            <button type="button" class="card lit health-teaser shimmer" style={{ '--lit': 'color-mix(in oklab, var(--hue-aqua) 14%, transparent)' }} onClick={() => nav.setTab('health')}>
               <HealthRing pillars={health.pillars} score={health.score} band={health.band} size={92} stroke={9} />
               <span class="health-teaser-text">
                 <span class="health-teaser-label">

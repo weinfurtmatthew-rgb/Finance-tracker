@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'preact/hooks';
+import { CountUp } from '../components/motion';
 import { db, setMeta } from '../db';
 import { useMeta, useTransactions } from '../hooks';
 import { useNav } from '../nav';
@@ -92,7 +93,7 @@ export function CategoryDetail(props: { categoryId: string; month: string; onClo
 
       <section class="card lit detail-hero-card" style={{ '--lit': `color-mix(in oklab, ${hue} 14%, transparent)` }}>
         <span class="card-label">Average a month</span>
-        <span class="detail-big num">{whole(avg)}</span>
+        <CountUp class="detail-big num" value={avg} format={whole} />
         <span class="card-sub">
           {labels[0]} – {labels[labels.length - 1]} · {whole(values[values.length - 1])} so far this month
         </span>

@@ -26,6 +26,7 @@ const plural = (n: number, one: string) => `${n.toLocaleString()} ${one}${n === 
 export function BackupSheet(props: { onClose: () => void }) {
   const nav = useNav();
   const remembered = useMeta<boolean>('backupProtect');
+  const lastBackupAt = useMeta<number>('lastBackupAt');
   const [protect, setProtect] = useState<boolean>();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -64,7 +65,8 @@ export function BackupSheet(props: { onClose: () => void }) {
     try {
       await saveFile(ready.name, ready.file, 'application/json');
       await setMeta('lastBackupAt', Date.now());
-      nav.toast('Backup saved');
+      if (lastBackupAt) nav.toast('Backup saved');
+      else nav.celebrate('First backup saved', 'Your data now has a copy off this phone.');
       props.onClose();
     } catch (e) {
       if ((e as Error).name !== 'AbortError') setError(`Couldn't save: ${(e as Error).message}`);
