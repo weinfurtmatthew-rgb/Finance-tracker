@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'preact/hooks';
+import { useStore } from '../store';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, newId } from '../db';
 import { useNav } from '../nav';
@@ -83,9 +84,9 @@ function guessInstitution(format: string, fileName: string): string {
 
 export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
   const nav = useNav();
-  const accounts = useLiveQuery(() => db.accounts.toArray(), []);
-  const rules = useLiveQuery(() => db.rules.toArray(), []);
-  const categories = useLiveQuery(() => db.categories.toArray(), []);
+  const accounts = useStore().raw.accounts;
+  const rules = useStore().raw.rules;
+  const categories = useStore().raw.categories;
   const [parsed, setParsed] = useState<Parsed>();
   const [error, setError] = useState<string>();
   const [accountId, setAccountId] = useState<string>(props.accountId ?? NEW);
@@ -99,7 +100,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
   const [busy, setBusy] = useState<false | 'import' | 'ai'>(false);
   const [done, setDone] = useState<{ added: number; skipped: number; account: Account; balanceSet: boolean; uncategorized: number; byAi: number; merged: number; waiting: number }>();
   // What you've categorized yourself teaches new imports: same payee, same category.
-  const allTxns = useLiveQuery(() => db.transactions.toArray(), []);
+  const allTxns = useStore().raw.transactions;
   const nudges = usePaymentAppNudges();
   const history = useMemo(() => payeeHistory(allTxns ?? []), [allTxns]);
 

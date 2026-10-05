@@ -5,7 +5,8 @@ import { useNav } from '../nav';
 import { useSpending } from '../spendingModel';
 import { useAsk, type Reply } from '../askModel';
 import { allTags } from '../lib/lines';
-import { addRecent, looksLikeQuestion, matchesQuery, topHit, type PlaceMatch } from '../lib/search';
+import { addRecent, buildSearchIndex, looksLikeQuestion, searchPlaces, searchTransactions, topHit, type PlaceMatch } from '../lib/search';
+import { useStore } from '../store';
 import { addDays, monthKey, todayISO } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { placeKey } from '../lib/detail';
@@ -71,23 +72,25 @@ export function Search(props: { back: { label: string; glyph: GlyphName; go: () 
   const month = monthKey(today);
 
   const q = query.trim().toLowerCase();
+  // Prepared once per change to the data, so typing only scans (see buildSearchIndex).
+  const store = useStore();
+  const index = store.derive('searchIndex', [txns, cats], () => buildSearchIndex(txns, (id) => cats.get(id)?.name));
+  const tagList = store.derive('allTags', [txns], () => allTags(txns));
   const results = useMemo(() => {
     if (!q) return null;
     const visible = categories.filter((c) => !c.hidden);
-    const places = matchingPlaces(txns, q, 20);
+    const places = searchPlaces(index, q, 20);
     const hit = topHit(q, visible, places);
     return {
       hit,
       hitPlace: hit?.kind === 'place' ? places.find((p) => p.key === hit.key) : undefined,
       categories: visible.filter((c) => c.name.toLowerCase().includes(q) && !(hit?.kind === 'category' && hit.id === c.id)).slice(0, 6),
       places: places.filter((p) => !(hit?.kind === 'place' && hit.key === p.key)).slice(0, 5),
-      tags: allTags(txns)
-        .filter((t) => t.tag.toLowerCase().includes(q.replace(/^#/, '')))
-        .slice(0, 6),
+      tags: tagList.filter((t) => t.tag.toLowerCase().includes(q.replace(/^#/, ''))).slice(0, 6),
       // "coffee" also finds Starbucks: transactions in a matching category count too.
-      txns: txns.filter((t) => matchesQuery(t, q) || !!cats.get(t.categoryId)?.name.toLowerCase().includes(q)),
+      txns: searchTransactions(index, q),
     };
-  }, [q, txns, categories, cats]);
+  }, [q, index, tagList, categories]);
   const frequent = useMemo(() => {
     const since = addDays(today, -90);
     return matchingPlaces(

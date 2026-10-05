@@ -6,6 +6,7 @@
  * paid for someone else lands in "Owed to Me", which isn't spending or income.
  */
 import type { Cents, ISODate, Split, Transaction } from '../types';
+import { pushTo } from './collections';
 import { OWED } from './categories';
 
 /** One category's share of a transaction (the whole transaction when it isn't split). */
@@ -59,7 +60,7 @@ export function owedItems(txns: Transaction[]): OwedItem[] {
 /** Still-unpaid totals per person, largest first. */
 export function owedByPerson(items: OwedItem[]): { who: string; total: Cents; items: OwedItem[] }[] {
   const m = new Map<string, OwedItem[]>();
-  for (const i of items) if (!i.settledBy) m.set(i.who, [...(m.get(i.who) ?? []), i]);
+  for (const i of items) if (!i.settledBy) pushTo(m, i.who, i);
   return [...m].map(([who, list]) => ({ who, total: list.reduce((s, i) => s + i.amount, 0), items: list })).sort((a, b) => b.total - a.total);
 }
 

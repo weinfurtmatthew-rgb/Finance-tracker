@@ -8,6 +8,7 @@
  * one by amount, date (a few days apart at most) and store name.
  */
 import type { Account, Cents, ISODate, Transaction } from '../types';
+import { pushTo } from './collections';
 import { addDays, diffDays } from './dates';
 import { cleanPayee } from './payee';
 
@@ -124,13 +125,13 @@ export interface DuplicateCopy {
 export function findImportCopies(txns: Transaction[]): DuplicateCopy[] {
   const out: DuplicateCopy[] = [];
   const byAccount = new Map<string, Transaction[]>();
-  for (const t of txns) if (t.source !== 'manual' && t.importId && !t.p2p?.role) byAccount.set(t.accountId, [...(byAccount.get(t.accountId) ?? []), t]);
+  for (const t of txns) if (t.source !== 'manual' && t.importId && !t.p2p?.role) pushTo(byAccount, t.accountId, t);
   for (const list of byAccount.values()) {
     // One import = rows saved together from one kind of file.
     const batches = new Map<string, Transaction[]>();
     for (const t of list) {
       const key = `${t.createdAt}|${t.importId!.includes(':ofx:') ? 'ofx' : 'csv'}`;
-      batches.set(key, [...(batches.get(key) ?? []), t]);
+      pushTo(batches, key, t);
     }
     const ordered = [...batches.values()].sort((a, b) => a[0].createdAt - b[0].createdAt);
     const removed = new Set<string>();

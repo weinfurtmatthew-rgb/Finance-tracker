@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'preact/hooks';
+import { pushTo } from '../lib/collections';
 import type { Category } from '../types';
 import { addMonths, dayInMonth, daysInMonth, monthKey, monthLabel } from '../lib/dates';
 import { isOutflow, nextOnSchedule, occurrences, type RecurringStatus } from '../lib/recurring';
@@ -34,7 +35,7 @@ export function BillCalendar(props: { statuses: RecurringStatus[]; today: string
   }, [props.statuses, month, props.today]);
 
   const byDay = new Map<string, Entry[]>();
-  for (const e of entries) byDay.set(e.date, [...(byDay.get(e.date) ?? []), e]);
+  for (const e of entries) pushTo(byDay, e.date, e);
   const [y, m] = month.split('-').map(Number);
   const leading = new Date(y, m - 1, 1).getDay();
   const total = entries.filter((e) => isOutflow(e.status.rec)).reduce((s, e) => s + Math.abs(e.status.expected), 0);

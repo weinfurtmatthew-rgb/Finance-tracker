@@ -1,10 +1,9 @@
 import { useMemo } from 'preact/hooks';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from './db';
+import { useStore } from './store';
 import { allTags } from './lib/lines';
 import { people } from './lib/p2p';
 import { usePlanData } from './planModel';
-import { byId, useAccounts, useBook, useCategories, useTransactions } from './hooks';
+import { byId, useBook, useCategories, useTransactions } from './hooks';
 import { useRecurringModel } from './recurringModel';
 import { useSpending } from './spendingModel';
 import { addMonths, dayInMonth, formatShortDate, monthKey } from './lib/dates';
@@ -27,9 +26,7 @@ export interface Reply {
  */
 export function useAsk() {
   const ai = useAi();
-  // How much there is, to tell an empty list that's still loading from one that's really empty.
-  const counts = useLiveQuery(async () => ({ txns: await db.transactions.count(), categories: await db.categories.count(), accounts: await db.accounts.count() }), []);
-  const accounts = useAccounts();
+  const store = useStore();
   const txns = useTransactions();
   const categories = useCategories();
   const cats = useMemo(() => byId(categories), [categories]);
@@ -72,14 +69,7 @@ export function useAsk() {
       }),
     };
   };
-  // The hooks above give empty lists until their first read finishes; ready once each has caught up.
-  const ready =
-    !!counts &&
-    txns.length === counts.txns &&
-    categories.length === counts.categories &&
-    accounts.length === counts.accounts &&
-    rec.loaded &&
-    budgetsLoaded &&
-    plan !== undefined;
+  // Until every table has been read, a question would be answered from nothing.
+  const ready = store.loaded && rec.loaded && budgetsLoaded && plan !== undefined;
   return { ask, ready };
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { allTags, categoriesOf, tagKey } from '../lib/lines';
 import { byId, useAccounts, useCategories, useTransactions } from '../hooks';
 import { useNav } from '../nav';
@@ -22,7 +22,8 @@ const KINDS = [
   ['review', 'Needs review'],
 ] as const;
 
-const PAGE = 200;
+/** Rows drawn at first; more load as you scroll near the end (each glass row costs layout and paint). */
+const PAGE = 60;
 
 export function Activity() {
   const nav = useNav();
@@ -69,6 +70,15 @@ export function Activity() {
         matchesQuery(t, q),
     );
   }, [txns, f, query, cats]);
+  // Scrolling near the end of the list loads the next rows; the button stays for VoiceOver and keyboards.
+  const more = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const el = more.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver((entries) => entries[0]?.isIntersecting && setLimit((l) => l + PAGE), { rootMargin: '600px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [limit, filtered.length]);
 
   const total = filtered.reduce((s, t) => s + t.amount, 0);
   const groups = useMemo(() => {
@@ -258,7 +268,7 @@ export function Activity() {
             </section>
           ))}
           {filtered.length > limit && (
-            <button type="button" class="button wide" onClick={() => setLimit((l) => l + PAGE)}>
+            <button type="button" class="button wide" ref={more} onClick={() => setLimit((l) => l + PAGE)}>
               Show more ({filtered.length - limit} remaining)
             </button>
           )}
