@@ -6,7 +6,7 @@
  *   own accounts, card payments, money you're owed) and income never count.
  * - Spent splits into Bills (rent, utilities, insurance… anything in a bill category, plus charges for a
  *   bill or subscription you track) and Everyday (the rest). Bill categories count as bills right away,
- *   before you confirm anything in Recurring.
+ *   before you confirm anything in Bills & Subscriptions.
  */
 import type { Category, Cents, Recurring, Transaction } from '../types';
 import { lines } from './lines';

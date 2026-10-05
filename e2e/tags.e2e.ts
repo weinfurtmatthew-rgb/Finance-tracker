@@ -3,8 +3,8 @@ import { expect, test } from './helpers';
 test('tag a trip by dates and see what it cost @smoke', async ({ app, page }) => {
   await app.importFile('discover.csv');
   await app.closeSheets();
-  await app.tab('Settings');
-  await page.locator('.row', { hasText: 'Tags' }).first().click();
+  await app.tab('Browse');
+  await app.browseCard('Trips & Tags').click();
   await app.sheet().getByRole('button', { name: 'Tag a Trip or Event…' }).click();
   await app.sheet().getByLabel('Trip tag').fill('Boston Weekend');
   await app.sheet().getByLabel('From').fill('2026-09-20');

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { CountUp } from '../components/motion';
 import { useAccounts, useBook, useMeta, useTransactions } from '../hooks';
 import { staleValued } from '../lib/networth';
@@ -13,16 +13,13 @@ import { budgetProgress, heldEveryBudget } from '../lib/budgets';
 import { accountBalance } from '../lib/balances';
 import { isOutflow } from '../lib/recurring';
 import { billsShown, isBillCategory } from '../lib/spend';
-import { categoryChanges, pace, paceTarget, spendReadiness, todayFacts, todaySummary, type CategoryChange, type Phrase } from '../lib/today';
-import { CategoryIcon, Empty, Section } from '../components/ui';
-import { Glyph, IconChip, Icons } from '../components/icons';
-import { categoryLook } from '../components/look';
+import { categoryChanges, pace, paceTarget, spendReadiness, todayFacts, todaySummary, type Phrase } from '../lib/today';
+import { Empty, Section } from '../components/ui';
+import { Glyph, IconChip, Icons, type GlyphName, type Hue } from '../components/icons';
+import { TransactionRow } from '../components/TransactionRow';
 import { Gauge, verdictColor } from '../components/Gauge';
 import { PaceChart } from '../components/PaceChart';
 import { ProfileButton } from '../components/ProfileButton';
-import { HealthRing } from '../components/HealthRing';
-import { nextWin } from '../lib/health';
-import { useMoneyHealth } from '../healthModel';
 import { RecurringRow } from '../components/RecurringRow';
 import { AccountEditor } from './AccountEditor';
 import { ImportFlow } from '../lazy';
@@ -39,7 +36,7 @@ import { TidyUp, useOldGuesses } from './TidyUp';
 import { OwedSheet } from './Owed';
 import { usePaymentAppNudges, WhatWasThis } from './People';
 import { DuplicatesSheet, useImportCopies } from './Duplicates';
-import { RecapPage, RecapStories, RecapTeaser } from './Recap';
+import { RecapStories } from './Recap';
 import { RunwayCalc } from './plan/Runway';
 import { autoRecapYear, yearPeriod } from '../lib/recap';
 import { db, setMeta } from '../db';
@@ -50,8 +47,7 @@ import { useAi } from '../ai/client';
 /** The automatic year in review is only considered once per app launch. */
 let recapCheckedThisLaunch = false;
 
-const isStandalone = () =>
-  window.matchMedia?.('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
+const isStandalone = () => window.matchMedia?.('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
 
 const whole = (c: number) => formatMoney(c, { whole: true });
 
@@ -65,34 +61,71 @@ const dayName = (date: string, today: string) => {
 };
 
 function Sentence(props: { phrases: Phrase[] }) {
+  return <>{props.phrases.map((p) => (p.tone ? <span class={p.tone === 'good' ? 'pos-text' : 'neg-text'}>{p.text}</span> : p.text))} </>;
+}
+
+/** Something on the To do list: one line, tap to deal with it. */
+interface Todo {
+  key: string;
+  glyph: GlyphName;
+  hue: Hue;
+  title: string;
+  sub: string;
+  /** What tapping does (nothing for a plain tip). */
+  open?: () => void;
+  /** Snooze it for a while. */
+  later?: () => void;
+}
+
+/** Shows the first few; the rest are a tap away. */
+function TodoList(props: { items: Todo[] }) {
+  const [all, setAll] = useState(false);
+  if (!props.items.length) return null;
+  const shown = all ? props.items : props.items.slice(0, TODO_SHOWN);
+  const hidden = props.items.length - shown.length;
   return (
-    <>
-      {props.phrases.map((p) => (p.tone ? <span class={p.tone === 'good' ? 'pos-text' : 'neg-text'}>{p.text}</span> : p.text))}{' '}
-    </>
+    <Section title="To do">
+      {shown.map((t) => (
+        <div class="row todo-row" key={t.key}>
+          {t.open ? (
+            <button type="button" class="todo-main" onClick={t.open}>
+              <IconChip name={t.glyph} hue={t.hue} size="sm" />
+              <span class="row-main">
+                <span class="row-title">{t.title}</span>
+                <span class="row-subtitle">{t.sub}</span>
+              </span>
+              {!t.later && (
+                <span class="chevron" aria-hidden="true">
+                  ›
+                </span>
+              )}
+            </button>
+          ) : (
+            <span class="todo-main">
+              <IconChip name={t.glyph} hue={t.hue} size="sm" />
+              <span class="row-main">
+                <span class="row-title">{t.title}</span>
+                <span class="row-subtitle wrap">{t.sub}</span>
+              </span>
+            </span>
+          )}
+          {t.later && (
+            <button type="button" class="pill todo-later" onClick={t.later} aria-label={`Later: ${t.title}`}>
+              Later
+            </button>
+          )}
+        </div>
+      ))}
+      {hidden > 0 && (
+        <button type="button" class="row todo-more" onClick={() => setAll(true)}>
+          <span class="row-title link">{hidden} more</span>
+        </button>
+      )}
+    </Section>
   );
 }
 
-/** This month vs the usual by this point, as two bars. */
-function CompareBars(props: { change: CategoryChange; color: string }) {
-  const max = Math.max(props.change.spent, props.change.usual, 1);
-  const rows: [string, number, boolean][] = [
-    ['This month', props.change.spent, true],
-    ['Usual', props.change.usual, false],
-  ];
-  return (
-    <div class="compare-bars">
-      {rows.map(([label, v, on]) => (
-        <div class="compare-row">
-          <span class="compare-label">{label}</span>
-          <span class="compare-track">
-            <span class="compare-fill" style={{ width: `${(v / max) * 100}%`, background: on ? props.color : 'var(--track)' }} />
-          </span>
-          <span class="compare-value num">{whole(v)}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
+const TODO_SHOWN = 3;
 
 /** Today: how the day and month look, what to watch, and what's coming up. */
 export function Home() {
@@ -114,7 +147,7 @@ export function Home() {
   const stale = staleValued(book, today);
   const uncategorized = txns.filter((t) => t.categoryId === 'uncategorized').length;
   const aiPicks = txns.filter((t) => t.categorySource === 'ai').length;
-  // One-time nudge to review old guessed categories (also always in Settings → Organize).
+  // One-time nudge to review old guessed categories (also always in Settings → Categories & Rules).
   const oldGuesses = useOldGuesses()?.length ?? 0;
   const tidyDone = useMeta<number>('tidyUpDone');
   const owed = useMemo(() => owedByPerson(owedItems(txns)), [txns]);
@@ -155,9 +188,13 @@ export function Home() {
 
   // ---- The day in numbers
   const facts = useMemo(() => todayFacts(txns, cats, rec.recurring, today), [txns, cats, rec.recurring, today]);
-  const budgetTotal = useMemo(() => budgetProgress(budgets, months.get(month), month, today)
-          .filter((b) => !isBillCategory(b.categoryId))
-          .reduce((s, b) => s + b.limit, 0), [budgets, months, month, today]);
+  const budgetTotal = useMemo(
+    () =>
+      budgetProgress(budgets, months.get(month), month, today)
+        .filter((b) => !isBillCategory(b.categoryId))
+        .reduce((s, b) => s + b.limit, 0),
+    [budgets, months, month, today],
+  );
   const target = paceTarget(facts, budgetTotal);
   // Bills paid so far this month: Spending's total is everyday + bills.
   const billsPaid = Math.max(0, months.get(month)?.bills ?? 0);
@@ -186,17 +223,145 @@ export function Home() {
   });
   const hot = changes.hot[0];
   const cool = changes.cool[0];
-  const health = useMoneyHealth();
   const cushionMonths = plan && plan.monthlySpending > 0 ? plan.cash / plan.monthlySpending : null;
 
   const addAccount = () => nav.present((close) => <AccountEditor onClose={close} />);
   const importFile = () => nav.present((close) => <ImportFlow onClose={close} />);
   const editBudgets = () => nav.present((close) => <BudgetsEditor onClose={close} />);
+
+  // ---- Money on hand: cash you can spend, savings, and what's on your cards.
+  const accountsById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
+  const onHand = useMemo(() => {
+    const sum = (types: string[]) => {
+      const list = open.filter((a) => types.includes(a.type));
+      return list.length ? list.reduce((s, a) => s + accountBalance(a, txns), 0) : null;
+    };
+    const cash = sum(['checking', 'cash', 'wallet']);
+    const savings = sum(['savings']);
+    const cards = sum(['credit']);
+    return [
+      cash != null && { label: 'checking & cash', amount: cash },
+      savings != null && { label: 'savings', amount: savings },
+      cards != null && { label: 'on cards', amount: -cards, owed: true },
+    ].filter((h): h is { label: string; amount: number; owed?: boolean } => !!h);
+  }, [open, txns]);
+
+  // ---- The latest few transactions (not ones dated in the future).
+  const recent = useMemo(() => txns.filter((t) => t.date <= today).slice(0, 3), [txns, today]);
+
+  // ---- To do: everything that wants a minute of your time, most important first, in one list.
+  const todos: Todo[] = [];
+  if (showBackup)
+    todos.push({
+      key: 'backup',
+      glyph: 'shield',
+      hue: 'red',
+      title: 'Back up your data',
+      sub: `${lastBackup ? `Last backup ${Math.floor((Date.now() - lastBackup) / 86_400_000)} days ago.` : 'No backup yet.'} It only lives on this phone.`,
+      open: () => nav.present((close) => <BackupSheet onClose={close} />),
+      later: () => void setMeta('backupSnoozeUntil', Date.now() + BACKUP_SNOOZE_DAYS * 86_400_000),
+    });
+  if (uncategorized > 0)
+    todos.push({
+      key: 'uncategorized',
+      glyph: 'tag',
+      hue: 'orange',
+      title: `${uncategorized} transaction${uncategorized === 1 ? '' : 's'} to categorize`,
+      sub: ai.embed ? 'Or let the on-device AI suggest categories' : 'The app offers to remember each one',
+      open: () => (ai.embed ? nav.present((close) => <SuggestCategories onClose={close} />) : nav.showActivity({ categoryId: 'uncategorized' })),
+    });
+  if (rec.suggestions.length > 0 && rec.recurring.length === 0)
+    todos.push({
+      key: 'bills',
+      glyph: 'repeat',
+      hue: 'violet',
+      title: `Review ${rec.suggestions.length} possible bill${rec.suggestions.length === 1 ? '' : 's'}`,
+      sub: 'Subscriptions and bills that repeat',
+      open: () => nav.present((close) => <RecurringReview onClose={close} />),
+    });
+  if (budgets.length === 0 && txns.length > 0)
+    todos.push({
+      key: 'budgets',
+      glyph: 'target',
+      hue: 'yellow',
+      title: 'Set up monthly budgets',
+      sub: 'Suggested from your last 3 months',
+      open: editBudgets,
+    });
+  if (appNudges.paybacks.length > 0 || appNudges.unexplained.length > 0)
+    todos.push({
+      key: 'payments',
+      glyph: 'swap',
+      hue: 'blue',
+      title:
+        appNudges.paybacks.length > 0
+          ? appNudges.paybacks.length === 1
+            ? `${appNudges.paybacks[0].who} paid you back ${formatMoney(appNudges.paybacks[0].txn.amount)}?`
+            : `${appNudges.paybacks.length} friends paid you back?`
+          : appNudges.unexplained.length === 1
+            ? 'What was this payment?'
+            : `What were these ${appNudges.unexplained.length} payments?`,
+      sub: appNudges.paybacks.length > 0 ? 'One tap marks it paid back' : 'Venmo, Cash App or Apple Cash',
+      open: () => nav.present((close) => <WhatWasThis onClose={close} />),
+    });
+  if (owed.length > 0)
+    todos.push({
+      key: 'owed',
+      glyph: 'users',
+      hue: 'blue',
+      title: `${formatMoney(owedTotal)} owed to you`,
+      sub: `${owed
+        .slice(0, 2)
+        .map((o) => `${o.who} ${formatMoney(o.total)}`)
+        .join(' · ')}${owed.length > 2 ? ` · +${owed.length - 2} more` : ''}`,
+      open: () => nav.present((close) => <OwedSheet onClose={close} />),
+    });
+  if (aiPicks > 0)
+    todos.push({
+      key: 'ai',
+      glyph: 'spark',
+      hue: 'violet',
+      title: `Check ${aiPicks} AI-categorized transaction${aiPicks === 1 ? '' : 's'}`,
+      sub: 'Confirming them teaches it',
+      open: () => nav.present((close) => <ReviewAiPicks onClose={close} />),
+    });
+  if (oldGuesses > 0 && !tidyDone)
+    todos.push({
+      key: 'tidy',
+      glyph: 'wrench',
+      hue: 'gray',
+      title: `Tidy up ${oldGuesses} guessed categor${oldGuesses === 1 ? 'y' : 'ies'}`,
+      sub: 'Older transactions filed by a guess',
+      open: () => nav.present((close) => <TidyUp onClose={close} />),
+    });
+  if (stale.length > 0)
+    todos.push({
+      key: 'values',
+      glyph: 'trend',
+      hue: 'aqua',
+      title: `Update ${stale.length === 1 ? stale[0].name : 'investment & vehicle values'}`,
+      sub: 'Over a month old. Keeps net worth right',
+      open: () => nav.present((close) => <UpdateValues onClose={close} />),
+    });
+  if (cushionMonths != null && cushionMonths < 3 && plan)
+    todos.push({
+      key: 'cushion',
+      glyph: 'vault',
+      hue: 'blue',
+      title: 'Grow your cushion to 3 months',
+      sub: `Your cash covers ${cushionMonths.toFixed(1)} months of spending`,
+      open: () => nav.present((close) => <RunwayCalc data={plan} onClose={close} />),
+    });
+  if (!isStandalone())
+    todos.push({
+      key: 'install',
+      glyph: 'phone',
+      hue: 'gray',
+      title: 'Add to your Home Screen',
+      sub: 'In Safari: Share → Add to Home Screen. Opens full-screen and works offline',
+    });
+
   const openCategory = (id: string) => nav.present((close) => <CategoryDetail categoryId={id} month={month} onClose={close} />);
-  const lookColor = (id: string) => {
-    const look = categoryLook(cats.get(id));
-    return 'glyph' in look ? look.background.replace('--deep-', '--hue-') : 'var(--chart-1)';
-  };
 
   return (
     <>
@@ -211,30 +376,16 @@ export function Home() {
               <button type="button" class="icon-button" aria-label="Ask a question" onClick={() => nav.setTab('search')}>
                 {Icons.sparkle()}
               </button>
-              <button type="button" class="icon-button" aria-label="Import a file" onClick={importFile}>
-                {Icons.import()}
-              </button>
             </>
           )}
           <ProfileButton />
         </div>
       </header>
 
-      {!isStandalone() && (
-        <div class="callout">
-          <strong>Install on your iPhone</strong>
-          <p>
-            In Safari, tap <b>Share</b> → <b>Add to Home Screen</b>. It will open full-screen and work offline, and your data
-            stays on this phone.
-          </p>
-        </div>
-      )}
-
       {open.length === 0 ? (
         <Empty icon="shield" title="Welcome">
           <p>
-            Everything you enter stays on this device. Nothing is sent anywhere. Start by adding an account, or import a file you
-            downloaded from your bank.
+            Everything you enter stays on this device. Nothing is sent anywhere. Start by adding an account, or import a file you downloaded from your bank.
           </p>
           <div class="button-stack">
             <button type="button" class="button primary" onClick={importFile}>
@@ -251,7 +402,7 @@ export function Home() {
           {copies.length > 0 && (
             <button type="button" class="callout warn top-callout" onClick={() => nav.present((close) => <DuplicatesSheet onClose={close} />)}>
               <strong>
-                ⚠️ {copies.length} transaction{copies.length === 1 ? ' was' : 's were'} imported twice
+                <Glyph name="alert" /> {copies.length} transaction{copies.length === 1 ? ' was' : 's were'} imported twice
               </strong>
               <p>The same month came in from two kinds of file (like CSV and QFX). Tap to review and remove the copies.</p>
             </button>
@@ -269,12 +420,15 @@ export function Home() {
                   <Sentence phrases={s} />
                 ))}
               </p>
-              {(hot || billItems.length > 0) && (
+              {(hot || cool || billItems.length > 0) && (
                 <div class="day-summary-actions">
-                  {hot && (
-                    <button type="button" class="pill" onClick={() => openCategory(hot.categoryId)}>
-                      See {catName(hot.categoryId)}
-                    </button>
+                  {[hot, cool].map(
+                    (c) =>
+                      c && (
+                        <button type="button" class="pill" onClick={() => openCategory(c.categoryId)}>
+                          See {catName(c.categoryId)}
+                        </button>
+                      ),
                   )}
                   {billItems.length > 0 && (
                     <button type="button" class="pill" onClick={() => document.getElementById('bills')?.scrollIntoView({ behavior: 'smooth' })}>
@@ -296,7 +450,9 @@ export function Home() {
             >
               <span class="tile-head">
                 <span class="card-label">Spend Readiness</span>
-                <span class="chevron" aria-hidden="true">›</span>
+                <span class="chevron" aria-hidden="true">
+                  ›
+                </span>
               </span>
               <span class="gauge-wrap">
                 <Gauge score={readiness.score} verdict={readiness.verdict} size={124} stroke={11} live />
@@ -350,21 +506,14 @@ export function Home() {
               <div class="pace-head">
                 <IconChip name="trend" hue="blue" size="sm" />
                 <h2 id="pace-h">{monthName} everyday spending</h2>
-                <span class={`pace-status ${p.under >= 0 ? 'pos-text' : 'neg-text'}`}>
-                  {whole(Math.abs(p.under))} {p.under >= 0 ? 'under' : 'over'} pace
-                </span>
               </div>
-              <div class="pace-numbers">
-                <div>
-                  <CountUp class="pace-big num" value={facts.spent} format={whole} />
-                  <span class="card-sub">everyday so far</span>
-                </div>
-                <div>
-                  <CountUp class="pace-big num muted" value={p.expected} format={whole} />
-                  <span class="card-sub">at an even pace</span>
-                </div>
-              </div>
-              <PaceChart curve={facts.curve} days={facts.days} target={target.amount} targetLabel={target.kind === 'budget' ? 'Budget' : 'Usual'} monthShort={monthShort} />
+              <PaceChart
+                curve={facts.curve}
+                days={facts.days}
+                target={target.amount}
+                targetLabel={target.kind === 'budget' ? 'Budget' : 'Usual'}
+                monthShort={monthShort}
+              />
               {billsPaid > 0 && (
                 <button type="button" class="pace-foot" onClick={() => nav.setTab('spending')}>
                   Plus {whole(billsShown(facts.spent, billsPaid))} in bills like rent: {whole(facts.spent + billsPaid)} spent in all
@@ -377,34 +526,12 @@ export function Home() {
             <AlertCard key={a.key} alert={a} />
           ))}
 
-          {(hot || cool) && (
-            <>
-              <h2 class="section-heading today-heading">Highlights</h2>
-              {[hot, cool].filter((c): c is CategoryChange => !!c).map((c) => (
-                <button type="button" class="card highlight" onClick={() => openCategory(c.categoryId)}>
-                  <span class="highlight-head">
-                    <CategoryIcon category={cats.get(c.categoryId)} size="sm" />
-                    <span class="highlight-title">{catName(c.categoryId)}</span>
-                    <span class="card-sub">This month</span>
-                    <span class="chevron" aria-hidden="true">›</span>
-                  </span>
-                  <span class="highlight-text">
-                    {c.diff > 0
-                      ? `${catName(c.categoryId)} is running hot: ${whole(c.spent)} so far, ${whole(c.diff)} more than usual by this point.`
-                      : `You’ve spent ${whole(-c.diff)} less on ${catName(c.categoryId).toLowerCase()} than usual by now. Nice.`}
-                  </span>
-                  <CompareBars change={c} color={lookColor(c.categoryId)} />
-                </button>
-              ))}
-            </>
-          )}
-
           {billItems.length > 0 && (
             <div id="bills">
               <Section
                 title={
                   <>
-                    <span>{flow ? 'Before payday' : 'Due this week'}</span>
+                    <span>{flow ? 'Before payday' : 'Coming up this week'}</span>
                     <button type="button" class="link" onClick={() => nav.setTab('recurring')}>
                       All bills
                     </button>
@@ -423,164 +550,50 @@ export function Home() {
             </div>
           )}
 
-          <h2 class="section-heading today-heading">For you</h2>
-
-          {cushionMonths != null && cushionMonths < 3 && plan && (
-            <div class="card foryou">
-              <div class="foryou-top">
-                <IconChip name="vault" hue="blue" />
-                <div>
-                  <h3>Grow your cushion to 3 months</h3>
-                  <p>
-                    Your cash covers {cushionMonths.toFixed(1)} months of spending. Three months is a solid emergency fund; see what it takes to
-                    get there.
-                  </p>
-                </div>
-              </div>
-              <div class="foryou-actions">
-                <button type="button" class="pill primary" onClick={() => nav.present((close) => <RunwayCalc data={plan} onClose={close} />)}>
-                  Make a plan
-                </button>
-              </div>
-            </div>
-          )}
-
-          {budgets.length === 0 && txns.length > 0 && (
-            <div class="card foryou">
-              <div class="foryou-top">
-                <IconChip name="target" hue="yellow" />
-                <div>
-                  <h3>Set up monthly budgets</h3>
-                  <p>Limits are suggested from your last 3 months of everyday spending, and you can adjust any of them.</p>
-                </div>
-              </div>
-              <div class="foryou-actions">
-                <button type="button" class="pill primary" onClick={editBudgets}>
-                  Set budgets
-                </button>
-              </div>
-            </div>
-          )}
-
-          {stale.length > 0 && (
-            <button type="button" class="callout" onClick={() => nav.present((close) => <UpdateValues onClose={close} />)}>
-              <strong>Time to update {stale.length === 1 ? stale[0].name : 'investment & vehicle values'}</strong>
-              <p>It's been over a month (or they were never set). Keeps your net worth history accurate.</p>
-            </button>
-          )}
-
-          {rec.suggestions.length > 0 && rec.recurring.length === 0 && (
-            <button type="button" class="callout" onClick={() => nav.present((close) => <RecurringReview onClose={close} />)}>
-              <strong>Found {rec.suggestions.length} possible subscriptions &amp; bills</strong>
-              <p>Tap to review them. Confirmed ones show up here before they're due.</p>
-            </button>
-          )}
-
-
-          {owed.length > 0 && (
-            <button type="button" class="callout" onClick={() => nav.present((close) => <OwedSheet onClose={close} />)}>
-              <strong>🤝 {formatMoney(owedTotal)} owed to you</strong>
-              <p>
-                {owed
-                  .slice(0, 3)
-                  .map((p) => `${p.who} ${formatMoney(p.total)}`)
-                  .join(' · ')}
-                {owed.length > 3 ? ` · +${owed.length - 3} more` : ''}. Tap when you’re paid back.
-              </p>
-            </button>
-          )}
-
-          {(appNudges.paybacks.length > 0 || appNudges.unexplained.length > 0) && (
-            <button type="button" class="callout" onClick={() => nav.present((close) => <WhatWasThis onClose={close} />)}>
-              <strong>
-                💸{' '}
-                {appNudges.paybacks.length > 0
-                  ? appNudges.paybacks.length === 1
-                    ? `${appNudges.paybacks[0].who} paid you back ${formatMoney(appNudges.paybacks[0].txn.amount)}?`
-                    : `${appNudges.paybacks.length} friends paid you back?`
-                  : appNudges.unexplained.length === 1
-                    ? 'What was this payment?'
-                    : `What were these ${appNudges.unexplained.length} payments?`}
-              </strong>
-              <p>
-                {appNudges.paybacks.length > 0
-                  ? 'Money from friends that matches what they owe you. One tap marks it paid back.'
-                  : 'Venmo, Cash App or Apple Cash payments with no clue about what they were for.'}
-                {appNudges.paybacks.length > 0 && appNudges.unexplained.length > 0 ? ` Plus ${appNudges.unexplained.length} payment${appNudges.unexplained.length === 1 ? '' : 's'} to explain.` : ''}
-              </p>
-            </button>
-          )}
-
-          {oldGuesses > 0 && !tidyDone && (
-            <button type="button" class="callout" onClick={() => nav.present((close) => <TidyUp onClose={close} />)}>
-              <strong>
-                🧹 Tidy up {oldGuesses} guessed categor{oldGuesses === 1 ? 'y' : 'ies'}
-              </strong>
-              <p>Older transactions filed as “Other”, unknown money-in as Income, or not at all. A quick review makes your charts and budgets right.</p>
-            </button>
-          )}
-
-          {aiPicks > 0 && (
-            <button type="button" class="callout" onClick={() => nav.present((close) => <ReviewAiPicks onClose={close} />)}>
-              <strong>
-                ✨ {aiPicks} AI-categorized transaction{aiPicks === 1 ? '' : 's'} to check
-              </strong>
-              <p>The on-device AI filed these at import. A quick look confirms them, and any fixes teach it.</p>
-            </button>
-          )}
-
-          {uncategorized > 0 && (
-            <div class="callout">
-              <button type="button" class="callout-body" onClick={() => nav.showActivity({ categoryId: 'uncategorized' })}>
-                <strong>
-                  {uncategorized} transaction{uncategorized === 1 ? '' : 's'} to categorize
-                </strong>
-                <p>Tap to review. When you pick a category, the app offers to remember it for next time.</p>
-              </button>
-              {ai.embed && (
-                <button type="button" class="pill" onClick={() => nav.present((close) => <SuggestCategories onClose={close} />)}>
-                  ✨ Suggest categories
-                </button>
-              )}
-            </div>
-          )}
-
-          {showBackup && (
-            <section class="callout warn backup-callout">
-              <strong>Back up your data</strong>
-              <p>
-                {lastBackup ? `Your last backup was ${Math.floor((Date.now() - lastBackup) / 86_400_000)} days ago.` : "You haven't made a backup yet."} Your data
-                only lives on this phone.
-              </p>
-              <div class="callout-actions">
-                <button type="button" class="pill primary" onClick={() => nav.present((close) => <BackupSheet onClose={close} />)}>
-                  Back up now
-                </button>
-                <button type="button" class="pill" onClick={() => void setMeta('backupSnoozeUntil', Date.now() + BACKUP_SNOOZE_DAYS * 86_400_000)}>
-                  Later
-                </button>
-              </div>
-            </section>
-          )}
-
-          {health && (
-            <button type="button" class="card lit health-teaser shimmer" style={{ '--lit': 'color-mix(in oklab, var(--hue-aqua) 14%, transparent)' }} onClick={() => nav.setTab('health')}>
-              <HealthRing pillars={health.pillars} score={health.score} band={health.band} size={92} stroke={9} />
-              <span class="health-teaser-text">
-                <span class="health-teaser-label">
-                  <Glyph name="shield" /> Money Health
+          {onHand.length > 0 && (
+            <button
+              type="button"
+              class="card on-hand"
+              onClick={() => nav.setTab('accounts')}
+              aria-label={`Money on hand: ${onHand.map((h) => `${h.label} ${whole(h.amount)}`).join(', ')}. Open Net Worth.`}
+            >
+              <span class="tile-head">
+                <span class="card-label">Money on hand</span>
+                <span class="chevron" aria-hidden="true">
+                  ›
                 </span>
-                <span class="health-teaser-title">Next win: {nextWin(health)?.name.toLowerCase()}</span>
-                <span class="card-sub">{nextWin(health)?.tip}</span>
               </span>
-              <span class="chevron" aria-hidden="true">›</span>
+              <span class="on-hand-stats">
+                {onHand.map((h) => (
+                  <span class="on-hand-stat">
+                    <span class={`on-hand-value num ${h.owed && h.amount > 0 ? 'neg-text' : ''}`}>{whole(h.amount)}</span>
+                    <span class="card-sub">{h.label}</span>
+                  </span>
+                ))}
+              </span>
             </button>
           )}
 
-          <RecapTeaser onOpen={() => nav.present((close) => <RecapPage onClose={close} />)} />
+          {recent.length > 0 && (
+            <Section
+              title={
+                <>
+                  <span>Recent</span>
+                  <button type="button" class="link" onClick={() => nav.setTab('activity')}>
+                    All activity
+                  </button>
+                </>
+              }
+            >
+              {recent.map((t) => (
+                <TransactionRow txn={t} category={cats.get(t.categoryId)} account={accountsById.get(t.accountId)} showDate />
+              ))}
+            </Section>
+          )}
+
+          <TodoList items={todos} />
         </>
       )}
     </>
   );
 }
-

@@ -60,7 +60,7 @@ function Form(props: {
         {first && props.suggestions.size
           ? 'Pre-filled with your average everyday spending over the last 3 months, rounded up. Adjust any amount, or clear it for no budget.'
           : 'A monthly limit for each category. Leave blank for no budget.'}{' '}
-        Bills and subscriptions you track under Recurring are counted separately, so budgets are just for everyday spending.
+        Bills and subscriptions you track under Bills & Subscriptions are counted separately, so budgets are just for everyday spending.
       </p>
       <Section title={`Total ${formatMoney(total, { whole: true })} / month`}>
         {ordered.map((c) => (

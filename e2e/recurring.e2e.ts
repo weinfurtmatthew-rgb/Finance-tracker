@@ -4,7 +4,7 @@ test('finds subscriptions and bills, and tracks them @smoke', async ({ app, page
   await app.importAll();
   await app.tab('Recurring');
   await page.getByText(/Found \d+ possible recurring/).click();
-  await expect(page.getByRole('heading', { name: 'Possible Recurring' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Possible Bills & Subscriptions' })).toBeVisible();
   await expect(page.locator('.suggestion', { hasText: 'Netflix' })).toBeVisible();
   await page.getByRole('button', { name: 'Add All' }).click();
   await expect(page.locator('.cards .card').first()).toBeVisible();

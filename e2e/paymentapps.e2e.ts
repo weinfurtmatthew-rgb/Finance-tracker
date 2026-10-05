@@ -14,7 +14,7 @@ test('bank first, then Venmo: bank-paid payments merge, paybacks settle @smoke',
   await app.sheet().getByRole('button', { name: 'Save', exact: true }).click();
 
   await app.tab('Today');
-  await page.getByRole('button', { name: /Import a Bank File|Import a file/ }).first().click();
+  await app.openImport();
   await page.locator('.drop input[type=file]').setInputFiles(await import('./helpers').then((h) => h.fixture('venmo.csv')));
   await expect(app.sheet().getByText('Venmo statement')).toBeVisible();
   await expect(app.field('Name').locator('input')).toHaveValue('Venmo');
@@ -41,7 +41,7 @@ test('bank first, then Venmo: bank-paid payments merge, paybacks settle @smoke',
 
   // Importing the same statement again adds nothing.
   await app.tab('Today');
-  await page.getByRole('button', { name: /Import a Bank File|Import a file/ }).first().click();
+  await app.openImport();
   await page.locator('.drop input[type=file]').setInputFiles(await import('./helpers').then((h) => h.fixture('venmo.csv')));
   await expect(app.sheet().getByText(/6 already imported/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Import 0' })).toBeDisabled();
@@ -67,7 +67,7 @@ test('Cash App: what was this, people, log an Apple Cash payment, ask', async ({
   await app.importFile('cashapp.csv');
   await app.closeSheets();
   await app.tab('Today');
-  const callout = page.locator('.callout', { hasText: 'What was this payment?' });
+  const callout = await app.todo('What was this payment?');
   await callout.click();
   const row = app.sheet().locator('.what-row', { hasText: 'Jamie Fox' });
   await expect(row).toContainText('“gas money”');
@@ -77,8 +77,8 @@ test('Cash App: what was this, people, log an Apple Cash payment, ask', async ({
   await app.closeSheets();
   await expect(callout).toHaveCount(0);
 
-  await app.tab('Settings');
-  await app.sheet().getByRole('button', { name: /^People/ }).click();
+  await app.tab('Browse');
+  await app.browseCard('People').click();
   await expect(app.sheet().locator('.row', { hasText: 'Morgan Diaz' })).toContainText('sent $40');
   await app.sheet().getByRole('button', { name: '＋ Log a Payment' }).click();
   await app.field(/^App/).locator('select').selectOption('applecash');
@@ -100,10 +100,10 @@ test('Cash App: what was this, people, log an Apple Cash payment, ask', async ({
   await expect(page.locator('.answer-card').getByText('You sent Morgan Diaz $40.00 and received $0.00 overall.')).toBeVisible();
 });
 
-test('a bank line from Apple Cash asks who it was for', async ({ app, page }) => {
+test('a bank line from Apple Cash asks who it was for', async ({ app }) => {
   await app.importFile('bank-venmo.csv', { type: 'checking' });
   await app.closeSheets();
-  const callout = page.locator('.callout', { hasText: /What were these|What was this/ });
+  const callout = await app.todo(/What were these|What was this/);
   await callout.click();
   await expect(app.sheet().locator('.what-row', { hasText: 'Apple Cash' })).toBeVisible();
   // The bank-funded Venmo payment asks too, until the Venmo statement explains it.

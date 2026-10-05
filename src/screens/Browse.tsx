@@ -15,22 +15,32 @@ import { formatMoney } from '../lib/money';
 import { Glyph, IconChip, type GlyphName, type Hue } from '../components/icons';
 import { ProfileButton } from '../components/ProfileButton';
 import { useMoneyHealth } from '../healthModel';
+import { nextWin } from '../lib/health';
 import { BudgetsEditor } from './BudgetsEditor';
 import { CategoryDetail } from './CategoryDetail';
 import { CategoryIcon } from '../components/ui';
 import type { Category } from '../types';
-import { CategoriesSheet } from './Categories';
 import { PeopleSheet } from './People';
-import { OwedSheet } from './Owed';
 import { TagsSheet } from './Tags';
 import { Plan } from '../lazy';
-import { RecapPage } from './Recap';
-import { ImportFlow } from '../lazy';
+import { RecapPage, RecapTeaser } from './Recap';
 
-type ItemId = 'spending' | 'bills' | 'budgets' | 'networth' | 'health' | 'categories' | 'people' | 'owed' | 'tags' | 'plan' | 'recap' | 'import';
+type ItemId = 'spending' | 'bills' | 'budgets' | 'networth' | 'health' | 'people' | 'tags' | 'plan' | 'recap';
+type GroupId = 'money' | 'plan' | 'people';
+
+/** Every feature has one home. Setup (categories, rules) lives in Settings; importing lives in Activity. */
+const GROUPS: { id: GroupId; title: string }[] = [
+  { id: 'money', title: 'Money' },
+  { id: 'plan', title: 'Plan & Look Back' },
+  { id: 'people', title: 'People & Trips' },
+];
+
+/** Browse as a grouped list (compact, numbers on the right) or as big tiles; you pick, it's remembered. */
+export type BrowseLayout = 'list' | 'tiles';
 
 interface Item {
   id: ItemId;
+  group: GroupId;
   title: string;
   glyph: GlyphName;
   hue: Exclude<Hue, 'gray'>;
@@ -44,7 +54,7 @@ interface Item {
   open: () => void;
 }
 
-const DEFAULT_PINS: ItemId[] = ['networth', 'bills'];
+const DEFAULT_PINS: ItemId[] = ['networth', 'spending', 'health', 'recap'];
 
 const whole = (cents: number) => formatMoney(cents, { whole: true });
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -59,6 +69,7 @@ export function Browse() {
   const { months, budgets } = useSpending();
   const book = useBook();
   const pins = useMeta<ItemId[]>('browsePins') ?? DEFAULT_PINS;
+  const layout = useMeta<BrowseLayout>('browseLayout') ?? 'list';
   const health = useMoneyHealth();
   const [editing, setEditing] = useState(false);
   const today = rec.today;
@@ -80,19 +91,20 @@ export function Browse() {
     const tags = allTags(txns).length;
     const present = (render: (close: () => void) => ComponentChildren) => () => nav.present(render);
     return [
-      { id: 'spending', title: 'Spending', glyph: 'bag', hue: 'orange', sub: `${whole(spent)} this month`, value: whole(spent), note: 'this month', open: () => nav.setTab('spending') },
       {
-        id: 'bills',
-        title: 'Bills & Subscriptions',
-        glyph: 'repeat',
-        hue: 'violet',
-        sub: active.length ? `${active.length} active · ${whole(perMonth)} a month` : 'Find what repeats',
-        value: active.length ? `${whole(perMonth)}/mo` : undefined,
-        note: plural(active.length, 'active item'),
-        open: () => nav.setTab('recurring'),
+        id: 'spending',
+        group: 'money',
+        title: 'Spending',
+        glyph: 'bag',
+        hue: 'orange',
+        sub: `${whole(spent)} this month`,
+        value: whole(spent),
+        note: 'this month',
+        open: () => nav.setTab('spending'),
       },
       {
         id: 'budgets',
+        group: 'money',
         title: 'Budgets',
         glyph: 'target',
         hue: 'yellow',
@@ -102,32 +114,80 @@ export function Browse() {
         open: present((close) => <BudgetsEditor onClose={close} />),
       },
       {
+        id: 'bills',
+        group: 'money',
+        title: 'Bills & Subscriptions',
+        glyph: 'repeat',
+        hue: 'violet',
+        sub: active.length
+          ? `${active.length} active · ${whole(perMonth)} a month`
+          : rec.suggestions.length
+            ? `${rec.suggestions.length} to review`
+            : 'Find what repeats',
+        value: active.length ? `${whole(perMonth)}/mo` : undefined,
+        note: plural(active.length, 'active item'),
+        open: () => nav.setTab('recurring'),
+      },
+      {
+        id: 'networth',
+        group: 'money',
+        title: 'Net Worth',
+        glyph: 'trend',
+        hue: 'aqua',
+        sub: `${whole(net)} · ${plural(open, 'account')}`,
+        value: whole(net),
+        note: plural(open, 'account'),
+        open: () => nav.setTab('accounts'),
+      },
+      {
         id: 'health',
+        group: 'money',
         title: 'Money Health',
         glyph: 'shield',
         hue: 'green',
         sub: health ? `${health.score} · ${health.band}` : 'Your bigger picture, 0–100',
         value: health ? String(health.score) : undefined,
-        note: health?.band,
+        note: health ? `${health.band}${nextWin(health) ? ` · next: ${nextWin(health)!.name.toLowerCase()}` : ''}` : undefined,
         open: () => nav.setTab('health'),
       },
-      { id: 'networth', title: 'Net Worth', glyph: 'trend', hue: 'aqua', sub: `${whole(net)} · ${plural(open, 'account')}`, value: whole(net), note: plural(open, 'account'), open: () => nav.setTab('accounts') },
-      { id: 'categories', title: 'Categories', glyph: 'grid', hue: 'blue', sub: plural(categories.filter((c) => !c.hidden).length, 'category', 'categories'), open: present((close) => <CategoriesSheet onClose={close} />) },
-      { id: 'people', title: 'People', glyph: 'users', hue: 'blue', sub: friends ? `${plural(friends, 'person', 'people')} · payment apps` : 'Venmo, Cash App & Apple Cash', open: present((close) => <PeopleSheet onClose={close} />) },
       {
-        id: 'owed',
-        title: 'Owed to You',
-        glyph: 'swap',
-        hue: 'red',
-        sub: owedTotal ? `${whole(owedTotal)} from ${plural(owed.length, 'person', 'people')}` : 'Nobody owes you',
-        value: owedTotal ? whole(owedTotal) : undefined,
-        note: `from ${plural(owed.length, 'person', 'people')}`,
-        open: present((close) => <OwedSheet onClose={close} />),
+        id: 'plan',
+        group: 'plan',
+        title: 'Plan',
+        glyph: 'calc',
+        hue: 'yellow',
+        sub: 'Rent, debt, savings & more',
+        open: present((close) => <Plan onClose={close} />),
       },
-      { id: 'tags', title: 'Trips & Tags', glyph: 'tag', hue: 'violet', sub: tags ? plural(tags, 'tag') : 'Tag a trip or event', open: present((close) => <TagsSheet onClose={close} />) },
-      { id: 'plan', title: 'Plan', glyph: 'calc', hue: 'yellow', sub: 'Rent, debt, savings & more', open: present((close) => <Plan onClose={close} />) },
-      { id: 'recap', title: 'Year in Review', glyph: 'play', hue: 'magenta', sub: `${today.slice(0, 4)} so far`, open: present((close) => <RecapPage onClose={close} />) },
-      { id: 'import', title: 'Import', glyph: 'upload', hue: 'blue', sub: 'Bank files & statements', open: present((close) => <ImportFlow onClose={close} />) },
+      {
+        id: 'recap',
+        group: 'plan',
+        title: 'Year in Review',
+        glyph: 'play',
+        hue: 'magenta',
+        sub: `${today.slice(0, 4)} so far`,
+        open: present((close) => <RecapPage onClose={close} />),
+      },
+      {
+        id: 'people',
+        group: 'people',
+        title: 'People',
+        glyph: 'users',
+        hue: 'blue',
+        sub: owedTotal ? `${whole(owedTotal)} owed to you` : friends ? `${plural(friends, 'person', 'people')} · payment apps` : 'Venmo, Cash App & Apple Cash',
+        value: owedTotal ? whole(owedTotal) : undefined,
+        note: owedTotal ? `owed to you by ${plural(owed.length, 'person', 'people')}` : undefined,
+        open: present((close) => <PeopleSheet onClose={close} />),
+      },
+      {
+        id: 'tags',
+        group: 'people',
+        title: 'Trips & Tags',
+        glyph: 'tag',
+        hue: 'violet',
+        sub: tags ? plural(tags, 'tag') : 'Tag a trip or event',
+        open: present((close) => <TagsSheet onClose={close} />),
+      },
     ];
   }, [txns, accounts, categories, rec, months, budgets, book, month, today, health]);
 
@@ -137,7 +197,18 @@ export function Browse() {
     const c = categories.find((x) => x.id === id);
     if (!c) return undefined;
     const spent = Math.max(0, months.get(month)?.allByCategory.get(id) ?? 0);
-    return { id: pin as ItemId, title: c.name, glyph: 'tag', hue: 'blue', category: c, sub: 'this month', value: whole(spent), note: 'this month', open: () => nav.present((close) => <CategoryDetail categoryId={id} month={month} onClose={close} />) };
+    return {
+      id: pin as ItemId,
+      group: 'money',
+      title: c.name,
+      glyph: 'tag',
+      hue: 'blue',
+      category: c,
+      sub: 'this month',
+      value: whole(spent),
+      note: 'this month',
+      open: () => nav.present((close) => <CategoryDetail categoryId={id} month={month} onClose={close} />),
+    };
   };
   const pinned = pins.map((id) => (id.startsWith('cat:') ? categoryItem(id) : items.find((i) => i.id === id))).filter((i): i is Item => !!i);
   const togglePin = (id: ItemId) => void setMeta('browsePins', pins.includes(id) ? pins.filter((p) => p !== id) : [...pins, id]);
@@ -147,10 +218,17 @@ export function Browse() {
       <header class="large-title">
         <h1>Browse</h1>
         <div class="header-actions">
+          <button
+            type="button"
+            class="icon-button"
+            aria-label={layout === 'list' ? 'Show as tiles' : 'Show as a list'}
+            onClick={() => void setMeta('browseLayout', layout === 'list' ? 'tiles' : 'list')}
+          >
+            <Glyph name={layout === 'list' ? 'grid' : 'list'} />
+          </button>
           <ProfileButton />
         </div>
       </header>
-
       <div class="browse-head">
         <h2 class="section-heading">
           <Glyph name="pin" /> Pinned
@@ -162,50 +240,95 @@ export function Browse() {
       {editing && <p class="section-footer browse-hint">Tap a card to pin or unpin it.</p>}
       {pinned.length > 0 ? (
         <div class="browse-grid">
-          {pinned.map((i) => (
-            <button type="button" class="card browse-pin" onClick={editing ? () => togglePin(i.id) : i.open}>
-              <span class="browse-pin-top">
-                {i.category ? <CategoryIcon category={i.category} size="sm" /> : <IconChip name={i.glyph} hue={i.hue} size="sm" />}
-                <span class="browse-pin-title">{i.title}</span>
-              </span>
-              {i.value ? (
-                <>
-                  <span class="browse-pin-value num">{i.value}</span>
-                  <span class="card-sub">{i.note ?? i.sub}</span>
-                </>
-              ) : (
-                <span class="browse-pin-empty">{i.sub}</span>
-              )}
-            </button>
-          ))}
+          {pinned.map((i) =>
+            // Year in Review keeps its own card (this year's totals), across the full width.
+            i.id === 'recap' && !editing ? (
+              <div class="browse-pin-wide">
+                <RecapTeaser onOpen={i.open} />
+              </div>
+            ) : (
+              <button type="button" class={`card browse-pin ${i.id === 'health' ? 'shimmer' : ''}`} onClick={editing ? () => togglePin(i.id) : i.open}>
+                <span class="browse-pin-top">
+                  {i.category ? <CategoryIcon category={i.category} size="sm" /> : <IconChip name={i.glyph} hue={i.hue} size="sm" />}
+                  <span class="browse-pin-title">{i.title}</span>
+                </span>
+                {i.value ? (
+                  <>
+                    <span class="browse-pin-value num">{i.value}</span>
+                    <span class="card-sub">{i.note ?? i.sub}</span>
+                  </>
+                ) : (
+                  <span class="browse-pin-empty">{i.sub}</span>
+                )}
+              </button>
+            ),
+          )}
         </div>
       ) : (
         <p class="section-footer browse-hint">Nothing pinned. Tap Edit, then the cards you check most.</p>
       )}
 
-      <h2 class="section-heading browse-all">Everything</h2>
-      <div class="browse-grid">
-        {items.map((i) => (
-          <button
-            type="button"
-            class={`card browse-card ${editing && pins.includes(i.id) ? 'pinned' : ''}`}
-            style={{ '--lit': `color-mix(in oklab, var(--hue-${i.hue}) 30%, transparent)` }}
-            aria-pressed={editing ? pins.includes(i.id) : undefined}
-            onClick={editing ? () => togglePin(i.id) : i.open}
-          >
-            <IconChip name={i.glyph} hue={i.hue} />
-            {editing && (
-              <span class="browse-pin-mark" aria-hidden="true">
-                <Glyph name={pins.includes(i.id) ? 'check' : 'plus'} />
-              </span>
+      {GROUPS.map((g) => {
+        const list = items.filter((i) => i.group === g.id);
+        return (
+          <>
+            <h2 class="section-heading browse-all">{g.title}</h2>
+            {layout === 'list' ? (
+              <div class="group browse-list">
+                {list.map((i) => (
+                  <button
+                    type="button"
+                    class={`row browse-row ${editing && pins.includes(i.id) ? 'pinned' : ''}`}
+                    aria-pressed={editing ? pins.includes(i.id) : undefined}
+                    onClick={editing ? () => togglePin(i.id) : i.open}
+                  >
+                    <IconChip name={i.glyph} hue={i.hue} size="sm" />
+                    <span class="row-main">
+                      <span class="row-title browse-card-title">{i.title}</span>
+                      {!i.value && <span class="row-subtitle">{i.sub}</span>}
+                    </span>
+                    {editing ? (
+                      <span class="browse-pin-mark" aria-hidden="true">
+                        <Glyph name={pins.includes(i.id) ? 'check' : 'plus'} />
+                      </span>
+                    ) : (
+                      <>
+                        {i.value && <span class="row-detail num">{i.value}</span>}
+                        <span class="chevron" aria-hidden="true">
+                          ›
+                        </span>
+                      </>
+                    )}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div class="browse-grid">
+                {list.map((i) => (
+                  <button
+                    type="button"
+                    class={`card browse-card ${editing && pins.includes(i.id) ? 'pinned' : ''}`}
+                    style={{ '--lit': `color-mix(in oklab, var(--hue-${i.hue}) 30%, transparent)` }}
+                    aria-pressed={editing ? pins.includes(i.id) : undefined}
+                    onClick={editing ? () => togglePin(i.id) : i.open}
+                  >
+                    <IconChip name={i.glyph} hue={i.hue} />
+                    {editing && (
+                      <span class="browse-pin-mark" aria-hidden="true">
+                        <Glyph name={pins.includes(i.id) ? 'check' : 'plus'} />
+                      </span>
+                    )}
+                    <span class="browse-card-text">
+                      <span class="browse-card-title">{i.title}</span>
+                      <span class="browse-card-sub">{i.sub}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
             )}
-            <span class="browse-card-text">
-              <span class="browse-card-title">{i.title}</span>
-              <span class="browse-card-sub">{i.sub}</span>
-            </span>
-          </button>
-        ))}
-      </div>
+          </>
+        );
+      })}
     </>
   );
 }

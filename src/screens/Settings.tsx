@@ -12,9 +12,6 @@ import { ACCENTS, SUPPORT_URL, type Accent } from '../lib/appearance';
 import { ActionSheet, Field, Row, Section, Sheet } from '../components/ui';
 import { TidyUp, useOldGuesses } from './TidyUp';
 import { IMPORT_UNDO_KEY, undoLastImport, type ImportRecord } from '../lib/importUndo';
-import { OwedSheet } from './Owed';
-import { TagsSheet } from './Tags';
-import { PeopleSheet } from './People';
 import { DuplicatesSheet } from './Duplicates';
 import { SetPasscode } from './Lock';
 import { CategoriesSheet } from './Categories';
@@ -56,11 +53,9 @@ function Settings() {
   const accent = useMeta<Accent>('accent') ?? 'blue';
   const lastImport = useMeta<ImportRecord[]>(IMPORT_UNDO_KEY)?.[0];
   const [ask, setAsk] = useState<null | 'remove-passcode' | 'erase' | 'autolock' | 'amount-mode' | 'reminder' | 'backup-every' | 'accent' | 'undo-import' | { restore: string; summary: BackupSummary }>(null);
-  const [persisted, setPersisted] = useState<boolean>();
   const [usage, setUsage] = useState<string>();
 
   useEffect(() => {
-    navigator.storage?.persisted?.().then(setPersisted).catch(() => {});
     navigator.storage?.estimate?.().then((e) => e.usage != null && setUsage(`${(e.usage / 1024 / 1024).toFixed(1)} MB`)).catch(() => {});
   }, [txns.length]);
 
@@ -109,51 +104,6 @@ function Settings() {
 
   return (
     <>
-      <Section title="Security" footer="The passcode protects this app when someone else has your unlocked phone. There is no way to recover a forgotten passcode.">
-        {passcode ? (
-          <>
-            <Row title="Change Passcode" onClick={setPasscode} />
-            <Row title="Lock" detail={AUTO_LOCK.find((a) => a.minutes === autoLock)?.label} onClick={() => setAsk('autolock')} />
-            <Row title="Turn Passcode Off" danger onClick={() => setAsk('remove-passcode')} chevron={false} />
-          </>
-        ) : (
-          <Row title="Turn Passcode On" onClick={setPasscode} />
-        )}
-      </Section>
-
-      <Section title="Subscriptions & bills">
-        <Row title="Predict variable bills" detail={AMOUNT_MODES.find((m) => m.value === amountMode)?.short} onClick={() => setAsk('amount-mode')} />
-        <Row title="Price increase alerts" detail={describeRule(priceAlert)} onClick={() => nav.present((close) => <PriceAlertSheet rule={priceAlert} onClose={close} />)} />
-        <Row title="Show upcoming" detail={`${reminderDays} day${reminderDays === 1 ? '' : 's'} ahead`} onClick={() => setAsk('reminder')} />
-        {dismissedCount > 0 && (
-          <Row
-            title="Restore dismissed suggestions"
-            detail={dismissedCount}
-            onClick={async () => {
-              await setMeta('dismissedRecurring', []);
-              nav.toast('Suggestions restored');
-            }}
-          />
-        )}
-      </Section>
-
-      <AiSettings />
-
-      <Section title="Organize">
-        <Row title="Categories" detail={categories.length} onClick={() => nav.present((close) => <CategoriesSheet onClose={close} />)} />
-        <Row title="Rules" subtitle="Auto-rename and categorize imports" detail={rules.length} onClick={() => nav.present((close) => <RulesSheet onClose={close} />)} />
-        <Row title="Tags" subtitle="Trips, events and what they cost" onClick={() => nav.present((close) => <TagsSheet onClose={close} />)} />
-        <Row title="Owed to you" subtitle="Things you paid for someone else" onClick={() => nav.present((close) => <OwedSheet onClose={close} />)} />
-        <Row title="Duplicate imports" subtitle="Find transactions that came in twice" onClick={() => nav.present((close) => <DuplicatesSheet onClose={close} />)} />
-        <Row title="People" subtitle="Venmo, Cash App & Apple Cash: who you pay and who pays you" onClick={() => nav.present((close) => <PeopleSheet onClose={close} />)} />
-        <Row
-          title="Tidy up old categories"
-          subtitle="Review transactions filed by a guess"
-          detail={oldGuessCount || undefined}
-          onClick={() => nav.present((close) => <TidyUp onClose={close} />)}
-        />
-      </Section>
-
       <Section
         title="Backup"
         footer={
@@ -165,7 +115,7 @@ function Settings() {
       >
         <Row title="Back Up Now…" onClick={() => nav.present((close) => <BackupSheet onClose={close} />)} />
         <Row
-          title="Remind Me to Back Up"
+          title="Backup Reminder"
           detail={BACKUP_INTERVALS.find((i) => i.days === backupEvery)?.label ?? `Every ${backupEvery} days`}
           onClick={() => setAsk('backup-every')}
         />
@@ -181,11 +131,16 @@ function Settings() {
         )}
       </Section>
 
-      <Section title="Storage" footer="Stored in this browser's private database on your iPhone. Nothing is uploaded; the app has no server.">
-        <Row title="Transactions" detail={txns.length.toLocaleString()} chevron={false} />
-        {usage && <Row title="Space used" detail={usage} chevron={false} />}
-        <Row title="Protected from cleanup" detail={persisted == null ? '—' : persisted ? 'Yes' : 'Not granted'} chevron={false} />
-        <Row title="Erase All Data" danger chevron={false} onClick={() => setAsk('erase')} />
+      <Section title="Security" footer="The passcode protects this app when someone else has your unlocked phone. There is no way to recover a forgotten passcode.">
+        {passcode ? (
+          <>
+            <Row title="Change Passcode" onClick={setPasscode} />
+            <Row title="Lock" detail={AUTO_LOCK.find((a) => a.minutes === autoLock)?.label} onClick={() => setAsk('autolock')} />
+            <Row title="Turn Passcode Off" danger onClick={() => setAsk('remove-passcode')} chevron={false} />
+          </>
+        ) : (
+          <Row title="Turn Passcode On" onClick={setPasscode} />
+        )}
       </Section>
 
       <Section title="Appearance">
@@ -195,6 +150,42 @@ function Settings() {
           detail={ACCENTS.find((a) => a.id === accent)?.label}
           onClick={() => setAsk('accent')}
         />
+      </Section>
+
+      <Section title="Bills & Subscriptions">
+        <Row title="Predict Variable Bills" detail={AMOUNT_MODES.find((m) => m.value === amountMode)?.short} onClick={() => setAsk('amount-mode')} />
+        <Row title="Price Increase Alerts" detail={describeRule(priceAlert)} onClick={() => nav.present((close) => <PriceAlertSheet rule={priceAlert} onClose={close} />)} />
+        <Row title="Show Upcoming" detail={`${reminderDays} day${reminderDays === 1 ? '' : 's'} ahead`} onClick={() => setAsk('reminder')} />
+        {dismissedCount > 0 && (
+          <Row
+            title="Restore Dismissed Suggestions"
+            detail={dismissedCount}
+            onClick={async () => {
+              await setMeta('dismissedRecurring', []);
+              nav.toast('Suggestions restored');
+            }}
+          />
+        )}
+      </Section>
+
+      <Section title="Categories & Rules">
+        <Row title="Categories" detail={categories.length} onClick={() => nav.present((close) => <CategoriesSheet onClose={close} />)} />
+        <Row title="Rules" subtitle="Auto-rename and categorize imports" detail={rules.length} onClick={() => nav.present((close) => <RulesSheet onClose={close} />)} />
+        <Row title="Duplicate Imports" subtitle="Find transactions that came in twice" onClick={() => nav.present((close) => <DuplicatesSheet onClose={close} />)} />
+        <Row
+          title="Tidy Up Old Categories"
+          subtitle="Review transactions filed by a guess"
+          detail={oldGuessCount || undefined}
+          onClick={() => nav.present((close) => <TidyUp onClose={close} />)}
+        />
+      </Section>
+
+      <AiSettings />
+
+      <Section title="Storage" footer="Stored in this browser's private database on your iPhone. Nothing is uploaded; the app has no server.">
+        <Row title="Transactions" detail={txns.length.toLocaleString()} chevron={false} />
+        {usage && <Row title="Space Used" detail={usage} chevron={false} />}
+        <Row title="Erase All Data" danger chevron={false} onClick={() => setAsk('erase')} />
       </Section>
 
       <Section title="About">
@@ -253,7 +244,7 @@ function Settings() {
       )}
       {ask === 'reminder' && (
         <ActionSheet
-          title="Show upcoming bills on Overview"
+          title="Show Upcoming Bills on Today"
           actions={[1, 3, 7, 14].map((d) => ({
             label: `${d} day${d === 1 ? '' : 's'} ahead`,
             bold: d === reminderDays,

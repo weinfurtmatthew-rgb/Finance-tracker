@@ -517,7 +517,7 @@ export function answer(q: Query, d: AnswerData): Answer {
       return {
         headline: subs.length
           ? `You have ${subs.length} subscription${subs.length === 1 ? '' : 's'} costing about ${money(monthly)} a month (${money(monthly * 12)} a year).`
-          : `You aren't tracking any subscriptions yet. Review suggestions on the Recurring tab.`,
+          : `You aren't tracking any subscriptions yet. Review suggestions in Browse → Bills & Subscriptions.`,
         items: subs.slice(0, 8).map((s) => ({ label: s.rec.name, value: Math.abs(s.expected), note: FREQUENCIES[s.rec.frequency].label })),
         interpretation,
       };

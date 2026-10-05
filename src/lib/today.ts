@@ -283,6 +283,8 @@ export function todaySummary(input: SummaryInput): Phrase[][] {
   if (hot.length) {
     const c = hot[0];
     out.push([{ text: `${input.categoryName(c.categoryId)} is running hot: ` }, { text: `${money(c.diff)} more`, tone: 'bad' }, { text: ' than usual by this point.' }]);
+    // The coolest category too, briefly: Today's chips offer both.
+    if (cool.length) out.push([{ text: `${input.categoryName(cool[0].categoryId)} is ` }, { text: `${money(cool[0].diff)} under`, tone: 'good' }, { text: '.' }]);
   } else if (cool.length) {
     const c = cool[0];
     out.push([{ text: `${input.categoryName(c.categoryId)} is ` }, { text: `${money(c.diff)} under`, tone: 'good' }, { text: ' your usual. Nice.' }]);

@@ -64,7 +64,7 @@ test('every main screen has accessible names and roles, and fits the phone @smok
 
 test('the sheets opened from Browse are accessible too', async ({ app, page }) => {
   await app.importAll();
-  for (const card of ['Plan', 'Import', 'Year in Review', 'Budgets', 'Categories', 'People', 'Trips & Tags']) {
+  for (const card of ['Plan', 'Year in Review', 'Budgets', 'People', 'Trips & Tags']) {
     await app.tab('Browse');
     await app.browseCard(card).click();
     await expect(app.sheet()).toBeVisible();

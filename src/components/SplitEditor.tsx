@@ -16,7 +16,7 @@ export const partCents = (p: PartDraft) => parseUserAmount(p.amount) ?? 0;
 
 /**
  * Split one transaction into parts, each with its own category. A part can be "for someone else": it
- * goes on your Owed to you list instead of counting as your spending.
+ * goes on your Owed to You list instead of counting as your spending.
  */
 export function SplitEditor(props: {
   total: Cents;

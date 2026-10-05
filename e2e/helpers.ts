@@ -83,9 +83,24 @@ export class App {
     else await this.browseCard(name === 'Recurring' ? 'Bills & Subscriptions' : name).click();
   }
 
-  /** A card in Browse → Everything, by its title. */
+  /** Opens Import: it lives in Activity (and on the first-run screen). */
+  async openImport() {
+    const importButton = this.page.getByRole('button', { name: /Import a Bank File|Import a file/ });
+    if (!(await importButton.count())) await this.tab('Activity');
+    await importButton.first().click();
+  }
+
+  /** A row on Today's To do list (showing the whole list first). */
+  async todo(text: string | RegExp) {
+    await this.tab('Today');
+    const more = this.page.locator('.todo-more');
+    if (await more.count()) await more.click();
+    return this.page.locator('.todo-row', { hasText: text });
+  }
+
+  /** A feature in Browse (list or tiles), by its title. */
   browseCard(title: string) {
-    return this.page.locator('.browse-card').filter({ has: this.page.locator('.browse-card-title', { hasText: new RegExp(`^${title}$`) }) });
+    return this.page.locator('.browse-card, .browse-row').filter({ has: this.page.locator('.browse-card-title', { hasText: new RegExp(`^${title}$`) }) });
   }
 
   /** Browse → Plan. */
@@ -97,7 +112,7 @@ export class App {
   /** Import a bank file through the real flow and return the summary text. */
   async importFile(file: string, opts: { type?: string; newAccountName?: string } = {}) {
     const { page } = this;
-    await page.getByRole('button', { name: /Import a Bank File|Import a file/ }).first().click();
+    await this.openImport();
     await page.locator('.drop input[type=file]').setInputFiles(fixture(file));
     await expect(page.getByText('Review Import')).toBeVisible();
     if (opts.newAccountName) {

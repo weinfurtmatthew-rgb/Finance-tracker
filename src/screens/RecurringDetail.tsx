@@ -24,7 +24,7 @@ export function RecurringDetail(props: { id: string; onClose: () => void }) {
   if (!model.loaded) return null;
   if (!s) {
     return (
-      <Sheet title="Recurring" onClose={props.onClose}>
+      <Sheet title="Bill or Subscription" onClose={props.onClose}>
         <p class="padded muted">This item was deleted.</p>
       </Sheet>
     );

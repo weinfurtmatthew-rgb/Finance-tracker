@@ -3,16 +3,16 @@ import { expect, test } from './helpers';
 test('Browse opens every part of the app, and pinned cards come first @smoke', async ({ app, page }) => {
   await app.importAll();
   await app.tab('Browse');
-  // Net worth and bills are pinned to start with.
-  await expect(page.locator('.browse-pin')).toHaveCount(2);
-  await expect(page.locator('.browse-pin').first()).toContainText('Net Worth');
+  // Net Worth, Spending, Money Health and Year in Review (its own wide card) are pinned to start with.
+  await expect(page.locator('.browse-pin')).toHaveText([/Net Worth/, /Spending/, /Money Health/]);
+  await expect(page.locator('.browse-pin-wide .recap-teaser')).toBeVisible();
 
-  // Pin Spending, unpin Bills.
+  // Unpin Spending, pin Bills.
   await page.getByRole('button', { name: 'Edit' }).click();
   await app.browseCard('Spending').click();
   await app.browseCard('Bills & Subscriptions').click();
   await page.getByRole('button', { name: 'Done' }).click();
-  await expect(page.locator('.browse-pin')).toHaveText([/Net Worth/, /Spending/]);
+  await expect(page.locator('.browse-pin')).toHaveText([/Net Worth/, /Money Health/, /Bills & Subscriptions/]);
 
   // A Browse screen shows Browse lit and a way back.
   await app.browseCard('Net Worth').click();
@@ -70,19 +70,20 @@ test('Today: the day in money, Spend Readiness, pace and bills @smoke', async ({
   await app.closeSheets();
   // With a few months of history, the month is measured against the usual.
   await expect(page.locator('.left-tile')).toContainText('usual');
-  await expect(page.locator('.pace-card')).toContainText(/under pace|over pace/);
+  await expect(page.locator('.day-summary')).toContainText(/under pace|over pace|on pace/);
 });
 
-test('Money Health scores six parts, from Browse and from Today @smoke', async ({ app, page }) => {
+test('Money Health scores six parts, pinned in Browse @smoke', async ({ app, page }) => {
   await app.importAll();
-  await app.tab('Today');
-  const teaser = page.locator('.health-teaser');
-  await expect(teaser).toContainText(/Great|Good|Fair|Needs work/);
-  await teaser.click();
+  await app.tab('Browse');
+  const pin = page.locator('.browse-pin', { hasText: 'Money Health' });
+  await expect(pin).toContainText(/Great|Good|Fair|Needs work/);
+  await pin.click();
   await expect(page.getByRole('heading', { name: 'Money Health', level: 1 })).toBeVisible();
   await expect(page.locator('.pillar')).toHaveCount(6);
   await expect(page.locator('.pillar', { hasText: 'Cash cushion' })).toContainText('months of spending in cash');
   await app.tab('Browse');
+  await page.getByRole('button', { name: 'Show as tiles' }).click();
   await expect(app.browseCard('Money Health')).toContainText(/\d+ · (Great|Good|Fair|Needs work)/);
 });
 

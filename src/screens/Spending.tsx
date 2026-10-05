@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'preact/hooks';
+import { Glyph } from '../components/icons';
 import { CountUp } from '../components/motion';
 import { useBook, useTransactions } from '../hooks';
 import { changeSince, netWorthOn } from '../lib/networth';
@@ -126,7 +127,7 @@ export function Spending() {
             const s = budgetStatusText(p);
             return (
               <p>
-                <span aria-hidden="true">{s.icon} </span>
+                {s.icon && <Glyph name={s.icon} class="status-glyph" />}
                 {cats.get(p.categoryId)?.name}: {s.text}
               </p>
             );

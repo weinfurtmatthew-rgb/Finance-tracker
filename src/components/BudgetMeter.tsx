@@ -1,13 +1,14 @@
 import type { Category } from '../types';
+import { Glyph, type GlyphName } from './icons';
 import { formatMoney } from '../lib/money';
 import type { BudgetProgress } from '../lib/budgets';
 
-export function budgetStatusText(p: BudgetProgress): { icon: string; text: string } {
+export function budgetStatusText(p: BudgetProgress): { icon?: GlyphName; text: string } {
   const pct = Math.round(p.ratio * 100);
-  if (p.state === 'over') return { icon: '⛔', text: `Over by ${formatMoney(-p.remaining, { whole: true })}` };
-  if (p.state === 'warning') return { icon: '⚠️', text: `${pct}% used · ${formatMoney(p.remaining, { whole: true })} left` };
-  if (p.offPace && p.projected != null) return { icon: '📈', text: `On pace for ${formatMoney(p.projected, { whole: true })} (+${formatMoney(p.projected - p.limit, { whole: true })})` };
-  return { icon: '', text: `${formatMoney(p.remaining, { whole: true })} left` };
+  if (p.state === 'over') return { icon: 'alert', text: `Over by ${formatMoney(-p.remaining, { whole: true })}` };
+  if (p.state === 'warning') return { icon: 'alert', text: `${pct}% used · ${formatMoney(p.remaining, { whole: true })} left` };
+  if (p.offPace && p.projected != null) return { icon: 'trend', text: `On pace for ${formatMoney(p.projected, { whole: true })} (+${formatMoney(p.projected - p.limit, { whole: true })})` };
+  return { text: `${formatMoney(p.remaining, { whole: true })} left` };
 }
 
 export function BudgetMeter(props: { progress: BudgetProgress; category?: Category; elapsed: number; onClick?: () => void }) {
@@ -36,7 +37,7 @@ export function BudgetMeter(props: { progress: BudgetProgress; category?: Catego
         {props.elapsed > 0 && props.elapsed < 1 && <span class="meter-pace" style={{ left: `calc(${props.elapsed * 100}% - 1px)` }} title="Where you'd be at an even pace" />}
       </span>
       <span class="meter-sub">
-        {status.icon && <span aria-hidden="true">{status.icon} </span>}
+        {status.icon && <Glyph name={status.icon} class="status-glyph" />}
         <span class={p.state !== 'ok' || p.offPace ? 'status' : ''}>{status.text}</span>
       </span>
     </button>

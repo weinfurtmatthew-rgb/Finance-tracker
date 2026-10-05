@@ -13,7 +13,7 @@ export function AiSettings() {
   return (
     <Section title="On-device AI" footer={footer}>
       {ai.phase === 'checking' && <Row title="Checking…" chevron={false} />}
-      {ai.phase === 'unavailable' && <Row title="Not available" subtitle="The AI files aren't published with this copy of the app." chevron={false} />}
+      {ai.phase === 'unavailable' && <Row title="Not Available" subtitle="Not included in this copy of the app" chevron={false} />}
       {ai.phase === 'off' && (
         <Row title="Download On-Device AI" subtitle="Category suggestions and questions in your own words." detail={mb(ai.sizeBytes)} onClick={() => void enableAi()} />
       )}
@@ -32,13 +32,13 @@ export function AiSettings() {
       )}
       {ai.phase === 'ready' && (
         <>
-          <Row title="Categorizing & questions" subtitle="Suggests categories; understands questions in your own words" detail="On ✓" chevron={false} />
+          <Row title="Categorizing & Questions" subtitle="Suggests categories; understands questions in your own words" detail="On ✓" chevron={false} />
           <Row title="Remove AI from This Phone" danger chevron={false} onClick={() => setConfirm(true)} />
         </>
       )}
       {ai.phase === 'error' && (
         <>
-          <Row title="AI couldn't start" subtitle={ai.error} chevron={false} />
+          <Row title="AI Couldn’t Start" subtitle={ai.error} chevron={false} />
           <Row title="Try Again" onClick={() => void enableAi()} />
           <Row title="Remove AI from This Phone" danger chevron={false} onClick={() => setConfirm(true)} />
         </>

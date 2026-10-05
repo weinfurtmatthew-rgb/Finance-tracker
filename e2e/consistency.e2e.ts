@@ -10,8 +10,9 @@ test('Today, Spending and Activity agree on what September cost', async ({ app, 
   const foot = page.locator('.pace-foot');
   await expect(foot).toContainText(/Plus \$[\d,]+ in bills like rent: \$[\d,]+ spent in all/);
   const [, billsText, totalText] = (await foot.innerText()).match(/Plus (\$[\d,]+) in bills.*: (\$[\d,]+) spent/)!;
-  const everyday = page.locator('.pace-numbers .pace-big').first();
-  await expect.poll(async () => dollars(await everyday.innerText()) + dollars(billsText)).toBe(dollars(totalText));
+  const everyday = page.locator('.left-tile .left-foot span').first();
+  // "$363 of $391": the everyday part.
+  await expect.poll(async () => dollars((await everyday.innerText()).split(' of ')[0]) + dollars(billsText)).toBe(dollars(totalText));
 
   // Spending: the same total, and the same bills.
   await app.tab('Spending');

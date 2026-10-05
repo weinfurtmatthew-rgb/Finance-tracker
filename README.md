@@ -19,7 +19,7 @@ The first launch shows a short intro (what stays private, how to bring in transa
 
 ## Getting transactions in
 
-Download a file from your bank's **website** and import it (Overview or Activity → ⬇︎ button):
+Download a file from your bank's **website** and import it (Activity → ⬇︎ button):
 
 | Bank | Best format | Notes |
 |---|---|---|
@@ -36,7 +36,7 @@ Any other bank's CSV works through the column mapper, which is remembered per fi
 skips transactions you already have, even from a different kind of file (a CSV month, then the same month as a QFX statement):
 rows are matched one to one by amount, store name and date (a few days apart for posting dates), and listed on the review
 screen with an "Import these anyway" switch. A QFX file finds the account an earlier CSV went into and remembers its number.
-Settings → Duplicate imports (and an Overview card) finds and removes copies from before this, keeping your edits and the
+Settings → Duplicate Imports (and a card on Today) finds and removes copies from before this, keeping your edits and the
 balance your bank confirmed.
 
 **Undo an import** from its summary screen (Undo This Import), or later from Settings → Backup → Undo Last Import (the
@@ -47,7 +47,7 @@ set, payment-app lines it merged, remembered file columns (`src/lib/importUndo.t
 
 ### Look & feel
 
-- Frosted-glass cards over soft, still light that takes its color from the screen (green on Overview, blue on
+- Frosted-glass cards over soft, still light that takes its color from the screen (green on Today, blue on
   Activity, violet on Recurring…), with a fine grain so large areas don't look flat
 - A floating glass tab bar, glass buttons and controls, and rounded numerals for amounts
 - Line icons for the built-in categories, colored by family: food orange, getting around violet, shopping magenta,
@@ -80,8 +80,11 @@ set, payment-app lines it merged, remembered file columns (`src/lib/importUndo.t
   7–8 On Track, 4–6 Pace Yourself, 0–3 Hold Off. Tap it to see each part
 - **Left to spend** and a day-by-day **pace chart**, against your budgets, or your usual month when you have none.
   Everyday spending leaves out rent, bills and subscriptions
-- **Highlights** (categories well above or below usual by this point), **bills before payday**, and **For you**
-  suggestions. The month-by-month dashboard and charts are in **Browse → Spending**
+- The summary offers the category running hottest and coolest against your usual, a tap away
+- **Coming up:** bills before payday (or this week), **Money on hand** (checking & cash, savings, what's on your cards)
+  and your three most **Recent** transactions
+- **To do:** one list for everything that wants a minute (back up, categorize, review bills, set budgets, paybacks,
+  AI picks…), most important first, three at a time. The month-by-month dashboard and charts are in **Browse → Spending**
 
 ### What "spent" means
 
@@ -123,14 +126,17 @@ One rule everywhere (`src/lib/spend.ts`), so Today, Spending, Activity, the plan
 ### Getting around
 
 - Three tabs: **Today**, **Activity** and **Browse**, plus a round **Search** button
-- **Browse** has a card for every part of the app (bills & subscriptions, budgets, net worth, categories,
-  people, owed money, trips & tags, Plan, year in review, import). **Edit** pins your favorites to the top
-  with their number (net worth and bills are pinned to start)
+- **Browse** has every feature once, grouped: **Money** (Spending, Budgets, Bills & Subscriptions, Net Worth, Money
+  Health), **Plan & Look Back** (Plan, Year in Review) and **People & Trips** (People, with money owed to you, and
+  Trips & Tags). Show it as a list or as tiles (the button at the top; remembered). **Edit** pins your favorites to
+  the top with their number (Net Worth, Spending, Money Health and Year in Review to start)
+- Each feature has one home: what you look at is in Browse, setup (categories, rules, duplicates, backup) is in
+  Settings, and importing is in Activity
 - **Search** puts its box at the bottom, by your thumb. Before you type it shows your recent searches, the places you go
   most and example questions; as you type, a **top hit** (the category or store you most likely mean), then categories,
   places, #tags and transactions (by store, note, amount or category). Type a question ("how much did I spend on
   dining last month?") and press return to get the answer right there
-- **Settings** opens from the profile button on Today and Browse
+- **Settings** opens from the profile button, top right on every tab
 
 ### Venmo, Cash App & Apple Cash
 
@@ -144,7 +150,7 @@ One rule everywhere (`src/lib/spend.ts`), so Today, Spending, Activity, the plan
   it, and the payment isn't counted as income.
 - Payments are categorized from the note, emoji included (🍕 Dining, 🏠 Rent, 🍻 Bars…), plus your history with that
   person and the on-device AI. Money from friends is never guessed as income. Ones with no clue go to
-  **What was this?** (Overview).
+  **What was this?** (Today's To do list).
 - **People** (Settings): what you've sent to and received from each person, and what they owe you. Ask "how much have
   I sent Alex?" or "who owes me?". **Log a Payment** there covers Apple Cash, which has no export.
 
@@ -153,7 +159,7 @@ One rule everywhere (`src/lib/spend.ts`), so Today, Spending, Activity, the plan
 - **Split a transaction** into parts that add up to the total, each with its own category (a Target run: $80
   Groceries + $40 Household). Budgets, charts, Ask and the calculators count each part in its category.
 - **Paid for someone else:** mark a whole transaction, or one part of a split, as owed by a person. It's not your
-  spending; it shows on **Owed to you** (Overview and Settings) until you mark it paid back, picking the Venmo or
+  spending; it shows on **Owed to You** (Today's To do list, and Browse → People) until you mark it paid back, picking the Venmo or
   deposit that repaid you (that repayment isn't counted as income) or "paid in cash".
 - **More built-in categories:** Coffee, Alcohol & Bars, Clothing, Electronics, Home & Garden, Pets, Kids, Car Payment,
   Car Maintenance, Fitness, Taxes, Charity (plus Owed to Me), with import keywords for common stores.
@@ -167,13 +173,13 @@ One rule everywhere (`src/lib/spend.ts`), so Today, Spending, Activity, the plan
 - After a CSV import, type what your bank shows; OFX/QFX files are checked automatically. Differences are explained
   (possible duplicates, a missing date range, pending charges, a never-set starting balance) with a fix for each.
   Accounts show when they last matched.
-- **Tidy up old categories** (Settings → Organize): a one-time review of older guessed categories, with confident AI
+- **Tidy Up Old Categories** (Settings → Categories & Rules): a one-time review of older guessed categories, with confident AI
   picks filled in.
 
 ### Year in review
 
 A Spotify Wrapped–style recap of your money, as tap-through story cards and as a scrolling page with charts. It's
-always on the Overview ("2026 so far") and in Plan, for this year, the last 12 months or any past year, and it opens by
+pinned in Browse ("2026 so far") and in Plan, for this year, the last 12 months or any past year, and it opens by
 itself once in December (and in early January for the year just ended). Cards appear only when your data supports
 them: totals and savings rate, top categories and places, your #1 spot, biggest purchase and priciest/lightest
 months, no-spend days and streaks, your busiest weekday, subscriptions (new, cancelled and what that saved), net
@@ -182,7 +188,7 @@ any raise, and a playful spending style. **Save as Image** draws a summary on yo
 
 ### Plan: financial calculators
 
-Tap the calculator button on the Overview. Every calculator starts from your own numbers (cash, 3-month average
+Open **Browse → Plan**. Every calculator starts from your own numbers (cash, 3-month average
 spending and income, investments, card and loan balances, savings APY) and says where each came from; change any of
 them to try a what-if. Results are estimates, not advice.
 
@@ -221,7 +227,7 @@ It uses a small embedding model (all-MiniLM-L6-v2) running in the browser with
     never teach the AI, so a mistake can't reinforce itself.
   - **Learns silently:** fixing a category also offers to fix the same payee's other guessed transactions, and future
     imports from that payee (including refunds) use your choice, with no rule needed.
-- **Monthly recap** on the Overview, computed exactly from your data.
+- **Monthly recap** on Spending, computed exactly from your data.
 - **"What is this?"** on a transaction: decodes bank codes (TST*, SQ*, AMZN Mktp…) and suggests a name and category.
 
 A 490 MB language model (Qwen2.5-0.5B) was tried and removed: it was unreliable at understanding questions, invented
@@ -242,7 +248,7 @@ published site and runs `tests/ai-smoke.test.ts` against it.
 
 ### Budgets & spending (Phase 3)
 
-- **Overview dashboard** with a month switcher: "left to spend" hero number, Spent / Bills paid / Net worth tiles
+- **Spending dashboard** (Browse → Spending) with a month switcher: "left to spend" hero number, Spent / Bills paid / Net worth tiles
 - **Monthly category budgets**, pre-filled from your last 3 months of everyday spending (rounded up), fresh start each month
 - Bills & subscriptions tracked under Recurring are **bills**: shown separately, never counted against budgets
 - Budget bars with an even-pace marker; warnings at **80% used** and when you're **on pace to overspend**
@@ -252,7 +258,7 @@ published site and runs `tests/ai-smoke.test.ts` against it.
 
 ### Subscriptions & bills (Phase 2)
 
-- **Recurring tab** with Upcoming, Calendar and All views
+- **Bills & Subscriptions** (Browse) with Upcoming, Calendar and All views
 - **Detection:** the app suggests repeating charges (weekly, every 2 weeks, twice a month, monthly, quarterly, yearly) and you confirm each one.
   Apple's `APPLE.COM/BILL` charges are split by amount into separate subscriptions. Charges that have stopped aren't suggested.
 - Tracks subscriptions, bills & utilities, rent & loans, credit card payments, paychecks and **free trials**
@@ -261,7 +267,7 @@ published site and runs `tests/ai-smoke.test.ts` against it.
 - **Price increase alerts** for charges whose price used to be steady (rule set in Settings: %, $, any, or off)
 - **Predicting variable bills:** average of last 3 / same as last / manual, set in Settings with a per-bill override
 - **Cancelling:** links to cancel pages for well-known services, "money saved since cancelling", and a warning if it charges again
-- **Upcoming** bills on the Overview (3 days ahead by default, configurable)
+- **Upcoming** bills on Today (3 days ahead by default, configurable)
 
 ### Basics (Phase 1)
 

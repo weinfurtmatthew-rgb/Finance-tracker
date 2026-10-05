@@ -775,6 +775,17 @@ label.row:active,
   margin: 6px 4px 0;
 }
 
+/* A line icon inside text sizes with the text (anything more specific sets its own size). */
+:where(svg.glyph) {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.14em;
+  flex: none;
+}
+.status-glyph {
+  margin-right: 4px;
+}
+
 /* Buttons */
 .button {
   display: block;
@@ -2848,6 +2859,18 @@ button.hero-card {
 .browse-all {
   margin: 26px 4px 10px;
 }
+.browse-row .browse-pin-mark {
+  position: static;
+  flex: none;
+}
+.browse-row.pinned .browse-pin-mark {
+  color: #fff;
+  background: var(--tint-strong);
+}
+.browse-row .row-detail {
+  font-weight: 700;
+  color: var(--ink);
+}
 .browse-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2908,6 +2931,16 @@ button.hero-card {
   gap: 8px;
   padding: 14px;
 }
+.browse-pin-wide {
+  grid-column: 1 / -1;
+  display: grid;
+}
+.browse-pin-wide:empty {
+  display: none;
+}
+.browse-pin-wide .recap-teaser {
+  margin-top: 0;
+}
 .browse-pin-top {
   display: flex;
   align-items: center;
@@ -2917,9 +2950,8 @@ button.hero-card {
 .browse-pin-title {
   font-size: 14px;
   font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 .browse-pin-value {
   font-size: 24px;
@@ -3250,24 +3282,6 @@ button.hero-card {
   font-size: 16px;
   font-weight: 700;
 }
-.pace-status {
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.pace-numbers {
-  display: flex;
-  gap: 18px;
-}
-.pace-numbers > div {
-  display: flex;
-  flex-direction: column;
-}
-.pace-big {
-  font-size: 28px;
-  line-height: 1.15;
-  font-weight: 800;
-}
 .pace-chart {
   margin: 0;
 }
@@ -3358,89 +3372,54 @@ button.hero-card {
   border-top: 2px dashed var(--text-2);
   vertical-align: middle;
 }
-.today-heading {
-  margin: 28px 4px 10px;
+#bills {
+  scroll-margin-top: 16px;
 }
-.highlight {
-  gap: 12px;
-  padding: 16px;
+
+/* Today: money on hand, and the To do list */
+.on-hand {
+  gap: 8px;
+  padding: 14px 16px;
   margin-top: 12px;
   width: 100%;
 }
-.highlight-head {
+.on-hand-stats {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px 22px;
 }
-.highlight-title {
-  flex: 1;
-  font-size: 15px;
-  font-weight: 700;
-}
-.highlight-text {
-  font-size: 17px;
-  line-height: 1.35;
-  font-weight: 600;
-  text-wrap: pretty;
-}
-.compare-bars {
+.on-hand-stat {
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
-.compare-row {
-  display: grid;
-  grid-template-columns: 84px minmax(0, 1fr) 64px;
-  align-items: center;
-  gap: 10px;
-}
-.compare-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-2);
-}
-.compare-track {
-  height: 12px;
-}
-.compare-fill {
-  display: block;
-  height: 12px;
-  min-width: 2px;
-  border-radius: 0 6px 6px 0;
-}
-.compare-value {
-  font-size: 15px;
+.on-hand-value {
+  font-size: 22px;
   font-weight: 800;
-  text-align: right;
+  line-height: 1.2;
 }
-.foryou {
-  gap: 10px;
-  padding: 16px;
-  margin-top: 12px;
+.todo-row {
+  padding: 0;
+  gap: 0;
 }
-.foryou-top {
+.todo-main {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
+  padding: 10px 16px;
+  text-align: left;
 }
-.foryou-top h3 {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 700;
+.todo-later {
+  margin-right: 14px;
+  font-size: 14px;
 }
-.foryou-top p {
-  margin: 4px 0 0;
-  font-size: 15px;
-  line-height: 1.4;
-  color: var(--ink-2);
+.row-subtitle.wrap {
+  white-space: normal;
 }
-.foryou-actions {
-  display: flex;
-  gap: 8px;
-  padding-left: 48px;
-}
-#bills {
-  scroll-margin-top: 16px;
+.todo-more .row-title {
+  color: var(--tint);
+  font-weight: 600;
 }
 
 /* Spend Readiness sheet */

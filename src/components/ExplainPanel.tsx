@@ -1,4 +1,5 @@
 import { useState } from 'preact/hooks';
+import { Glyph } from './icons';
 import type { Category, Transaction } from '../types';
 import { explainDescription } from '../ai/explain';
 import { useAi } from '../ai/client';
@@ -27,7 +28,7 @@ export function ExplainPanel(props: { txn: Transaction; categories: Category[]; 
   if (!open) {
     return (
       <button type="button" class="row link-row" onClick={run}>
-        ✨ What is this?
+        <Glyph name="spark" /> What is this?
       </button>
     );
   }
