@@ -39,6 +39,10 @@ screen with an "Import these anyway" switch. A QFX file finds the account an ear
 Settings → Duplicate imports (and an Overview card) finds and removes copies from before this, keeping your edits and the
 balance your bank confirmed.
 
+**Undo an import** from its summary screen (Undo This Import), or later from Settings → Backup → Undo Last Import (the
+last 5, newest first). It removes what the import added and puts back anything it changed: a new account, a balance it
+set, payment-app lines it merged, remembered file columns (`src/lib/importUndo.ts`).
+
 ## Features
 
 ### Look & feel
@@ -273,6 +277,11 @@ published site and runs `tests/ai-smoke.test.ts` against it.
   is read back and compared with the app's data before it's offered to save, and **Check a Backup File…** confirms
   an older backup still opens without changing anything
 - Light & dark mode
+- **Updates never interrupt you.** A new version downloads in the background and waits, then is put in place at a quiet
+  moment: right as the app opens, or when you leave it with nothing open on screen (you come back to the same screen).
+  A half-filled form is never reloaded away (`src/updates.ts`)
+- **What's New** shows once after an update, listing what changed since the last notes you saw; it's always in Settings →
+  About. Notes live in `src/releaseNotes.ts`: add an entry with each change people would notice
 
 ## Development
 

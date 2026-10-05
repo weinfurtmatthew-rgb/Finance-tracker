@@ -25,6 +25,7 @@ import { formatDay } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { CategoryIcon, Empty, Field, Money, Section, Sheet, Toggle } from '../components/ui';
 import { ACCOUNT_TYPES } from './AccountEditor';
+import { recordImport, takeSnapshot, undoLastImport } from '../lib/importUndo';
 
 interface CsvState {
   kind: 'csv';
@@ -226,6 +227,8 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
     setBusy('import');
     try {
       const source: TransactionSource = parsed.kind === 'ofx' ? 'ofx' : 'csv';
+      // A copy of what the import can touch, so it can be undone.
+      const before = await takeSnapshot();
       const result = await db.transaction('rw', [db.accounts, db.transactions, db.csvMappings], async () => {
         let account = accountId === NEW ? undefined : await db.accounts.get(accountId);
         // Remember the account number from a QFX/OFX file, so the next one finds this account directly.
@@ -301,6 +304,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
           // The import itself worked; AI is a bonus.
         }
       }
+      await recordImport(before, `${result.added} transaction${result.added === 1 ? '' : 's'} into ${result.account.name}`);
       const saved = await db.transactions.bulkGet(result.rows.map((r) => r.id));
       const uncategorized = saved.filter((t) => t?.categoryId === 'uncategorized').length;
       if (group) setDoneGroups((d) => [...d, group]);
@@ -367,6 +371,17 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
             </button>
             <button type="button" class="button" onClick={props.onClose}>
               Done
+            </button>
+            <button
+              type="button"
+              class="button danger"
+              onClick={async () => {
+                const undone = await undoLastImport();
+                nav.toast(undone ? 'Import undone' : 'Nothing to undo');
+                props.onClose();
+              }}
+            >
+              Undo This Import
             </button>
           </div>
         </Empty>

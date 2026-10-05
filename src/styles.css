@@ -798,6 +798,9 @@ label.row:active,
 .pill:active {
   filter: brightness(0.94);
 }
+.button.danger {
+  color: var(--red);
+}
 .button.wide {
   margin-top: 16px;
 }
@@ -4003,6 +4006,19 @@ button.hero-card {
 .prose ul {
   margin: 4px 0;
   padding-left: 22px;
+}
+.whats-new section + section {
+  margin-top: 28px;
+}
+.whats-new h3 {
+  margin-top: 8px;
+}
+.whats-new-date {
+  font-size: 14px !important;
+  color: var(--text-2) !important;
+}
+.whats-new li + li {
+  margin-top: 6px;
 }
 
 /* ==== Motion ==== */

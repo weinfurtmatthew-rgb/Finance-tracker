@@ -7,9 +7,11 @@ import { saveFile } from '../lib/files';
 import { BACKUP_INTERVALS, checkBackup, DEFAULT_BACKUP_EVERY_DAYS, restoreBackup, summarizeBackup, type BackupSummary } from '../lib/backup';
 import { BackupCheckSheet, BackupSheet, openBackupFile } from './Backup';
 import { AboutSheet, PrivacySheet, versionLabel } from './About';
+import { WhatsNewSheet } from './WhatsNew';
 import { ACCENTS, SUPPORT_URL, type Accent } from '../lib/appearance';
 import { ActionSheet, Field, Row, Section, Sheet } from '../components/ui';
 import { TidyUp, useOldGuesses } from './TidyUp';
+import { IMPORT_UNDO_KEY, undoLastImport, type ImportRecord } from '../lib/importUndo';
 import { OwedSheet } from './Owed';
 import { TagsSheet } from './Tags';
 import { PeopleSheet } from './People';
@@ -52,7 +54,8 @@ function Settings() {
   const dismissedCount = useMeta<string[]>('dismissedRecurring')?.length ?? 0;
   const backupEvery = useMeta<number>('backupEveryDays') ?? DEFAULT_BACKUP_EVERY_DAYS;
   const accent = useMeta<Accent>('accent') ?? 'blue';
-  const [ask, setAsk] = useState<null | 'remove-passcode' | 'erase' | 'autolock' | 'amount-mode' | 'reminder' | 'backup-every' | 'accent' | { restore: string; summary: BackupSummary }>(null);
+  const lastImport = useMeta<ImportRecord[]>(IMPORT_UNDO_KEY)?.[0];
+  const [ask, setAsk] = useState<null | 'remove-passcode' | 'erase' | 'autolock' | 'amount-mode' | 'reminder' | 'backup-every' | 'accent' | 'undo-import' | { restore: string; summary: BackupSummary }>(null);
   const [persisted, setPersisted] = useState<boolean>();
   const [usage, setUsage] = useState<string>();
 
@@ -169,6 +172,13 @@ function Settings() {
         <FilePickRow title="Restore from Backup…" onPick={pickRestore} />
         <FilePickRow title="Check a Backup File…" onPick={pickCheck} />
         <Row title="Export Transactions as CSV…" onClick={exportCsv} />
+        {lastImport && (
+          <Row
+            title="Undo Last Import…"
+            subtitle={`${lastImport.label}, ${new Date(lastImport.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`}
+            onClick={() => setAsk('undo-import')}
+          />
+        )}
       </Section>
 
       <Section title="Storage" footer="Stored in this browser's private database on your iPhone. Nothing is uploaded; the app has no server.">
@@ -188,6 +198,7 @@ function Settings() {
       </Section>
 
       <Section title="About">
+        <Row title="What’s New" onClick={() => nav.present((close) => <WhatsNewSheet onClose={close} />)} />
         <Row title="Privacy" onClick={() => nav.present((close) => <PrivacySheet onClose={close} />)} />
         <Row title="About Finance Tracker" detail={versionLabel()} onClick={() => nav.present((close) => <AboutSheet onClose={close} />)} />
         {/* Until there's a pay-what-you-want link (VITE_SUPPORT_URL), this is a placeholder that says so. */}
@@ -295,6 +306,24 @@ function Settings() {
                 await deleteMeta('passcode');
                 setAsk(null);
                 nav.toast('Passcode off');
+              },
+            },
+          ]}
+          onCancel={() => setAsk(null)}
+        />
+      )}
+      {ask === 'undo-import' && lastImport && (
+        <ActionSheet
+          title="Undo this import?"
+          message={`${lastImport.label}. Its transactions are removed and anything it changed goes back to how it was, including edits you've made to those transactions since.`}
+          actions={[
+            {
+              label: 'Undo Import',
+              destructive: true,
+              onClick: async () => {
+                await undoLastImport();
+                setAsk(null);
+                nav.toast('Import undone');
               },
             },
           ]}

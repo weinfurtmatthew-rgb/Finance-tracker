@@ -4,7 +4,9 @@ export const BACKUP_FORMAT = 'finance-tracker-backup';
 export const BACKUP_VERSION = 4;
 
 /** Settings that stay on this device and are never written to a backup file. */
-const LOCAL_ONLY_META = new Set(['passcode']);
+const LOCAL_ONLY_META = new Set(['passcode', 'whatsNewSeen']);
+/** Saved locally but not worth carrying in a backup (a restore clears them along with the rest). */
+const NOT_BACKED_UP = new Set([...LOCAL_ONLY_META, 'importUndo' /* IMPORT_UNDO_KEY */]);
 
 export async function exportBackup(db: FinanceDB): Promise<string> {
   const [accounts, transactions, categories, rules, csvMappings, meta, recurring, budgets, valuations, goals] = await Promise.all([
@@ -23,7 +25,7 @@ export async function exportBackup(db: FinanceDB): Promise<string> {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
-    data: { accounts, transactions, categories, rules, csvMappings, recurring, budgets, valuations, goals, meta: meta.filter((m) => !LOCAL_ONLY_META.has(m.key)) },
+    data: { accounts, transactions, categories, rules, csvMappings, recurring, budgets, valuations, goals, meta: meta.filter((m) => !NOT_BACKED_UP.has(m.key)) },
   });
 }
 

@@ -2,8 +2,10 @@ import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { Suspense } from 'preact/compat';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useRegisterSW } from 'virtual:pwa-register/preact';
-import { db, eraseEverything, setMeta } from './db';
+import { resumeScreen, useQuietUpdates } from './updates';
+import { db, eraseEverything, getMeta, setMeta } from './db';
+import { RELEASES, unseenReleases } from './releaseNotes';
+import { WhatsNewSheet } from './screens/WhatsNew';
 import { NavContext, type ActivityFilter, type Nav, type Page, type Tab } from './nav';
 import type { PasscodeRecord } from './lib/lock';
 import { LockScreen } from './screens/Lock';
@@ -60,7 +62,8 @@ export function App() {
     needsIntro: !(await db.meta.get('onboardedAt')) && (await db.accounts.count()) === 0,
   }));
   const [locked, setLocked] = useState<boolean | null>(null);
-  const [tab, setTab] = useState<Tab | Page>('home');
+  // After an update's reload, back to the screen you were on.
+  const [tab, setTab] = useState<Tab | Page>(() => resumeScreen<Tab | Page>(['home', 'activity', 'browse', ...PAGES]) ?? 'home');
   // The accent color you picked in Settings (null when it's the default; undefined while loading).
   const accent = useLiveQuery(async () => ((await db.meta.get('accent'))?.value as Accent | undefined) ?? null, []);
   useEffect(() => {
@@ -103,8 +106,8 @@ export function App() {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [lockState]);
 
-  // Registers the offline service worker; updates install and reload automatically.
-  useRegisterSW();
+  // The offline service worker; a new version waits for a moment that won't interrupt you.
+  useQuietUpdates(sheets.length > 0 || locked !== false, tab);
 
   const toast = useCallback((message: string) => {
     setToastMsg(message);
@@ -142,6 +145,20 @@ export function App() {
     toast,
     celebrate: (title, sub) => setParty({ id: nextId.current++, title, sub }),
   };
+
+  // What's new, once, after an update brings release notes you haven't seen. Someone just starting out
+  // has nothing to compare with, so they're marked as seen without showing.
+  const whatsNewChecked = useRef(false);
+  useEffect(() => {
+    if (!lockState || locked !== false || whatsNewChecked.current) return;
+    whatsNewChecked.current = true;
+    void (async () => {
+      const seen = await getMeta<string>('whatsNewSeen');
+      if (seen === RELEASES[0].id) return;
+      await setMeta('whatsNewSeen', RELEASES[0].id);
+      if (!lockState.needsIntro) nav.present((close) => <WhatsNewSheet releases={unseenReleases(seen)} onClose={close} />);
+    })();
+  }, [lockState, locked]);
 
   if (!lockState || locked === null) return <div class="splash" />;
   if (locked && lockState.passcode) {
