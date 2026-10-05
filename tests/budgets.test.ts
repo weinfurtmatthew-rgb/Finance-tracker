@@ -24,12 +24,12 @@ const txns = [
 
 describe('spendingByMonth', () => {
   const months = spendingByMonth(txns, cats, [netflix, cardPay]);
-  it('separates fixed costs from flexible spending and ignores transfers', () => {
+  it('separates bills from everyday spending and ignores transfers', () => {
     const aug = months.get('2026-08')!;
     expect(aug.byCategory.get('dining')).toBe(13000); // refund nets out
-    expect(aug.byCategory.has('subscriptions')).toBe(false); // Netflix is a fixed cost
-    expect(aug.fixed).toBe(1549);
-    expect(aug.flexible).toBe(20000);
+    expect(aug.byCategory.has('subscriptions')).toBe(false); // Netflix is a tracked bill
+    expect(aug.bills).toBe(1549);
+    expect(aug.everyday).toBe(20000);
     expect(aug.income).toBe(240000);
   });
 

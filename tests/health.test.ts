@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LATE_FEE, bandFor, moneyHealth, type HealthInput } from '../src/lib/health';
+import { LATE_FEE, bandFor, moneyHealth, nextWin, type HealthInput } from '../src/lib/health';
 
 const base: HealthInput = {
   months: 3,
@@ -13,6 +13,7 @@ const base: HealthInput = {
   budgets: 0,
   goals: 0,
   tracked: 0,
+  has: { cash: true, invest: true, debt: true },
 };
 
 describe('moneyHealth', () => {
@@ -43,6 +44,21 @@ describe('moneyHealth', () => {
   it('rewards planning', () => {
     const h = moneyHealth({ ...base, budgets: 5, goals: 1, tracked: 4 })!;
     expect(h.pillars.find((p) => p.key === 'planning')!.score).toBe(100);
+  });
+
+  it("leaves out what it can't measure instead of scoring it low", () => {
+    const h = moneyHealth({ ...base, monthlyIncome: 0, debt: 50000, has: { cash: true, invest: false, debt: true } })!;
+    const p = Object.fromEntries(h.pillars.map((x) => [x.key, x]));
+    expect(p.earn.score).toBeNull();
+    expect(p.invest).toMatchObject({ score: null, band: null, metric: 'No investment accounts added' });
+    expect(p.debt.score).toBe(0); // owing money with no income found
+    // Bills 100, cushion 75, debt 0 and planning 0, weighted among themselves.
+    expect(h.score).toBe(Math.round((0.15 * 100 + 0.2 * 75) / 0.6));
+    expect(['debt', 'planning']).toContain(nextWin(h)!.key);
+  });
+
+  it('needs at least half the picture for an overall score', () => {
+    expect(moneyHealth({ ...base, monthlyIncome: 0, has: { cash: true, invest: false, debt: false } })).toBeNull();
   });
 
   it('bands', () => {

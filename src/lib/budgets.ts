@@ -1,52 +1,45 @@
 import type { Budget, Category, Cents, ISODate, Recurring, Transaction } from '../types';
 import { lines } from './lines';
 import { addMonths, daysInMonth, dayOfMonth, monthKey } from './dates';
-import { countsAsCost, matchesRecurring } from './recurring';
-
-/**
- * Budgets cover everyday ("flexible") spending. Charges that belong to a tracked subscription, bill
- * or loan are fixed costs: they're shown separately and don't eat into category budgets.
- */
-export function isFixedCost(t: Transaction, recurring: Recurring[]): boolean {
-  return recurring.some((r) => countsAsCost(r) && matchesRecurring(r, t));
-}
+import { isBillCategory, lineKinds } from './spend';
 
 export interface MonthSpending {
   month: string;
-  /** Flexible spending per expense category (positive = spent; refunds reduce it). */
+  /** What budgets measure, per expense category: everything except charges for a tracked bill (positive = spent; refunds reduce it). */
   byCategory: Map<string, Cents>;
-  /** All spending per expense category, fixed costs included ("where it went"). */
+  /** All spending per expense category, bills included ("where it went"). */
   allByCategory: Map<string, Cents>;
-  flexible: Cents;
-  fixed: Cents;
+  /** Spent = everyday + bills, as defined in spend.ts. */
+  everyday: Cents;
+  bills: Cents;
   income: Cents;
 }
 
-/** Spending for every month present in the data, keyed by 'YYYY-MM'. Transfers are ignored. */
+/** Spending for every month present in the data, keyed by 'YYYY-MM' (see spend.ts for what counts). */
 export function spendingByMonth(txns: Transaction[], categories: Map<string, Category>, recurring: Recurring[]): Map<string, MonthSpending> {
   const months = new Map<string, MonthSpending>();
-  const costs = recurring.filter(countsAsCost);
+  const { kind, tracked } = lineKinds(categories, recurring);
   // Split transactions count once per part, each in its own category.
   for (const t of lines(txns)) {
-    const cat = categories.get(t.categoryId);
-    if (!cat || cat.group === 'transfer') continue;
+    const k = kind(t);
+    if (k === 'transfer') continue;
     const key = monthKey(t.date);
     let m = months.get(key);
-    if (!m) months.set(key, (m = { month: key, byCategory: new Map(), allByCategory: new Map(), flexible: 0, fixed: 0, income: 0 }));
-    if (cat.group === 'income') {
+    if (!m) months.set(key, (m = { month: key, byCategory: new Map(), allByCategory: new Map(), everyday: 0, bills: 0, income: 0 }));
+    if (k === 'income') {
       m.income += t.amount;
       continue;
     }
+    if (k === 'bills') m.bills -= t.amount;
+    else m.everyday -= t.amount;
     m.allByCategory.set(t.categoryId, (m.allByCategory.get(t.categoryId) ?? 0) - t.amount);
-    if (costs.some((r) => matchesRecurring(r, t))) {
-      m.fixed -= t.amount;
-    } else {
-      m.flexible -= t.amount;
-      m.byCategory.set(t.categoryId, (m.byCategory.get(t.categoryId) ?? 0) - t.amount);
-    }
+    if (!tracked(t)) m.byCategory.set(t.categoryId, (m.byCategory.get(t.categoryId) ?? 0) - t.amount);
   }
   return months;
 }
+
+/** Everything spent in a month: everyday + bills. */
+export const monthSpent = (m: MonthSpending | undefined): Cents => (m ? m.everyday + m.bills : 0);
 
 /** Round a suggested limit up to a friendly number ($10 steps under $200, then $25, then $50). */
 export function roundLimit(cents: Cents): Cents {
@@ -55,7 +48,7 @@ export function roundLimit(cents: Cents): Cents {
   return Math.max(step, Math.ceil(dollars / step) * step) * 100;
 }
 
-/** Average flexible spending per category over the `n` full months before `month`. */
+/** Average everyday spending per category over the `n` full months before `month`. */
 export function suggestLimits(months: Map<string, MonthSpending>, month: string, n = 3): Map<string, Cents> {
   const totals = new Map<string, Cents>();
   let counted = 0;
@@ -63,7 +56,8 @@ export function suggestLimits(months: Map<string, MonthSpending>, month: string,
     const m = months.get(addMonths(month, -i));
     if (!m) continue;
     counted++;
-    for (const [id, v] of m.byCategory) totals.set(id, (totals.get(id) ?? 0) + v);
+    // Bills like rent aren't budgeted: the suggestions cover everyday categories.
+    for (const [id, v] of m.byCategory) if (!isBillCategory(id)) totals.set(id, (totals.get(id) ?? 0) + v);
   }
   const out = new Map<string, Cents>();
   if (!counted) return out;

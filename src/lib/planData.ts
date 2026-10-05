@@ -73,17 +73,17 @@ export function planSnapshot(args: {
   for (let i = 1; i <= 3; i++) {
     const k = addMonths(current, -i);
     const m = months.get(k);
-    if (m && (m.flexible || m.fixed || m.income)) averagedMonths.unshift(k);
+    if (m && (m.everyday || m.bills || m.income)) averagedMonths.unshift(k);
   }
   const avg = (f: (m: MonthSpending) => Cents) =>
     averagedMonths.length ? Math.round(averagedMonths.reduce((s, k) => s + f(months.get(k)!), 0) / averagedMonths.length) : 0;
   const monthlySpending = Math.max(
     0,
-    avg((m) => m.flexible + m.fixed),
+    avg((m) => m.everyday + m.bills),
   );
   const monthlyFixed = Math.max(
     0,
-    avg((m) => m.fixed),
+    avg((m) => m.bills),
   );
   const monthlyHousing = Math.max(
     0,

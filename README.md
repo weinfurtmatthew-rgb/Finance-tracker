@@ -79,16 +79,29 @@ balance your bank confirmed.
 - **Highlights** (categories well above or below usual by this point), **bills before payday**, and **For you**
   suggestions. The month-by-month dashboard and charts are in **Browse → Spending**
 
+### What "spent" means
+
+One rule everywhere (`src/lib/spend.ts`), so Today, Spending, Activity, the plan and Money Health agree:
+
+- **Spent** = purchases in expense categories, minus refunds. Transfers, card payments, money you're owed back and
+  income never count. Split transactions count once per part
+- Spent = **Everyday** + **Bills**. Bills are rent, utilities, insurance, subscriptions, car payments and taxes (by
+  category, right away, before you confirm anything), plus charges for any bill you track. Everyday is the rest:
+  it's what Today paces and what budgets are suggested for
+
 ### Money Health
 
 - A 0–100 score for the bigger picture (85+ Great · 65–84 Good · 45–64 Fair · under 45 Needs work), drawn as a ring
   of six parts: spend less than you earn (25%), cash cushion (20%), bills on time (15%), long-term savings (15%),
   debt load (15%) and planning (10%)
 - Each part shows where you are and the next step; the weakest one is shown on Today. Open it from Browse
+- A part the app has nothing to go on for (no income found, no investment or card accounts added) says **Not enough
+  info** and is left out; the others count for more. With under half the picture there's no overall score yet
 
 ### Activity
 
-- A month card (spent, came in, number of transactions) with arrows to step through months
+- A month card (spent, came in, number of transactions) with arrows to step through months. Its totals follow the
+  list's filters and search
 - Quick filters: All · Spending · Income · Needs review (no category yet, or an AI guess), plus account, category
   and tag filters and search
 - Transactions grouped by day, with each day's total (transfers between your accounts left out)
@@ -225,9 +238,9 @@ published site and runs `tests/ai-smoke.test.ts` against it.
 
 ### Budgets & spending (Phase 3)
 
-- **Overview dashboard** with a month switcher: "left to spend" hero number, Spent / Fixed bills / Net worth tiles
+- **Overview dashboard** with a month switcher: "left to spend" hero number, Spent / Bills paid / Net worth tiles
 - **Monthly category budgets**, pre-filled from your last 3 months of everyday spending (rounded up), fresh start each month
-- Bills & subscriptions tracked under Recurring are **fixed costs**: shown separately, never counted against budgets
+- Bills & subscriptions tracked under Recurring are **bills**: shown separately, never counted against budgets
 - Budget bars with an even-pace marker; warnings at **80% used** and when you're **on pace to overspend**
 - Charts: **spending by month** (12 months, tap to switch month), **income vs spending** (6 months, with amount saved),
   **where it went** (ranked categories), and **category history** with the budget line. Each chart has a table view.

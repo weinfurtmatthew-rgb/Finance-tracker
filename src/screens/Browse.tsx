@@ -6,7 +6,7 @@ import { useNav } from '../nav';
 import { useRecurringModel } from '../recurringModel';
 import { useSpending } from '../spendingModel';
 import { netWorthOn } from '../lib/networth';
-import { budgetProgress } from '../lib/budgets';
+import { budgetProgress, monthSpent } from '../lib/budgets';
 import { countsAsCost, monthlyCost } from '../lib/recurring';
 import { allTags, owedByPerson, owedItems } from '../lib/lines';
 import { people } from '../lib/p2p';
@@ -66,7 +66,7 @@ export function Browse() {
 
   const items = useMemo<Item[]>(() => {
     const m = months.get(month);
-    const spent = (m?.flexible ?? 0) + (m?.fixed ?? 0);
+    const spent = monthSpent(m);
     const active = rec.statuses.filter((s) => s.rec.status === 'active');
     const bills = active.filter((s) => countsAsCost(s.rec));
     const perMonth = bills.reduce((sum, s) => sum + monthlyCost(s), 0);

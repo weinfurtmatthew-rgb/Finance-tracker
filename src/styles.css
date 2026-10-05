@@ -3268,6 +3268,16 @@ button.hero-card {
 .pace-chart {
   margin: 0;
 }
+.pace-foot {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+}
 .pace-readout {
   display: flex;
   justify-content: space-between;

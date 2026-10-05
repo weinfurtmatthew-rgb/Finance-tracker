@@ -32,7 +32,7 @@ export function HealthRing(props: { pillars: Pillar[]; score: number; band: stri
   const segs = props.pillars.map((p, i) => {
     const a1 = -90 + i * 60 + 3.5;
     const a2 = -90 + (i + 1) * 60 - 3.5;
-    return { track: arc(c, r, a1, a2), fill: p.score > 0 ? arc(c, r, a1, a1 + Math.max(0.5, ((a2 - a1) * p.score) / 100)) : null, color: `var(--hue-${PILLAR_LOOK[p.key].hue})` };
+    return { track: arc(c, r, a1, a2), fill: p.score ? arc(c, r, a1, a1 + Math.max(0.5, ((a2 - a1) * p.score) / 100)) : null, color: `var(--hue-${PILLAR_LOOK[p.key].hue})` };
   });
   return (
     <div class="health-ring" style={{ width: `${size}px`, height: `${size}px` }}>
