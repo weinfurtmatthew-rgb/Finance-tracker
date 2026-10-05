@@ -4,6 +4,8 @@ import { byId, useAccounts, useCategories, useTransactions } from '../hooks';
 import { useNav } from '../nav';
 import { addMonths, formatDay, monthLabel, monthKey, todayISO } from '../lib/dates';
 import { matchesQuery } from '../lib/search';
+import { spendTotals } from '../lib/spend';
+import { useStore } from '../store';
 import { ActionSheet, CategorySelect, Empty, Money } from '../components/ui';
 import { TransactionRow } from '../components/TransactionRow';
 import { TransactionEditor } from './TransactionEditor';
@@ -24,12 +26,14 @@ const KINDS = [
 
 /** Rows drawn at first; more load as you scroll near the end (each glass row costs layout and paint). */
 const PAGE = 60;
+const NONE: never[] = [];
 
 export function Activity() {
   const nav = useNav();
   const txns = useTransactions();
   const accounts = useAccounts();
   const categories = useCategories();
+  const recurring = useStore().raw.recurring ?? NONE;
   const cats = useMemo(() => byId(categories), [categories]);
   const accts = useMemo(() => byId(accounts), [accounts]);
   const [query, setQuery] = useState('');
@@ -42,20 +46,6 @@ export function Activity() {
   const kindOf = (t: Transaction) => (group(t) === 'income' ? 'income' : group(t) === 'expense' ? 'spending' : undefined);
   const needsReview = (t: Transaction) => t.categoryId === 'uncategorized' || t.categorySource === 'ai';
 
-  // The month card: the month you're filtered to, or this month.
-  const shownMonth = f.month ?? monthKey(todayISO());
-  const monthStats = useMemo(() => {
-    let spent = 0;
-    let income = 0;
-    let count = 0;
-    for (const t of txns) {
-      if (monthKey(t.date) !== shownMonth) continue;
-      count++;
-      if (group(t) === 'expense') spent -= t.amount;
-      else if (group(t) === 'income') income += t.amount;
-    }
-    return { spent, income, count };
-  }, [txns, shownMonth, cats]);
   const toReview = useMemo(() => txns.filter(needsReview).length, [txns]);
 
   const filtered = useMemo(() => {
@@ -70,6 +60,13 @@ export function Activity() {
         matchesQuery(t, q),
     );
   }, [txns, f, query, cats]);
+  // The month card adds up the list below (every filter but the month applies), for the month you're
+  // filtered to or this month, with the same rule for "spent" as Today and Spending.
+  const shownMonth = f.month ?? monthKey(todayISO());
+  const monthStats = useMemo(
+    () => spendTotals(f.month ? filtered : filtered.filter((t) => monthKey(t.date) === shownMonth), cats, recurring),
+    [filtered, shownMonth, cats, recurring],
+  );
   // Scrolling near the end of the list loads the next rows; the button stays for VoiceOver and keyboards.
   const more = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -92,6 +89,8 @@ export function Activity() {
   }, [filtered, limit]);
 
   const hasFilter = !!(f.accountId || f.categoryId || f.month || f.tag || f.kind);
+  /** Something besides the month narrows the list (the card's totals follow it). */
+  const narrowed = !!(f.accountId || f.categoryId || f.tag || f.kind || query.trim());
   /** A day's total, leaving out transfers between your own accounts. */
   const dayTotal = (items: Transaction[]) => {
     const counted = items.filter((t) => group(t) !== 'transfer');
@@ -145,7 +144,11 @@ export function Activity() {
               <span class="card-sub">transactions</span>
             </div>
           </div>
-          {!f.month && <span class="month-card-note">The list below shows every month. Use the arrows to see one.</span>}
+          {!f.month ? (
+            <span class="month-card-note">Totals are for this month{narrowed ? ' and your filters' : ''}. The list below shows every month; use the arrows to see one.</span>
+          ) : (
+            narrowed && <span class="month-card-note">Totals are for what matches your filters.</span>
+          )}
         </section>
       )}
 

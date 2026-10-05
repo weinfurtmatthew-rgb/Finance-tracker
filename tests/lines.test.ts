@@ -25,7 +25,7 @@ describe('split transactions', () => {
     expect(m.byCategory.get('groceries')).toBe(8000);
     expect(m.byCategory.get('shopping')).toBe(2500);
     expect(m.byCategory.get('dining')).toBeUndefined();
-    expect(m.flexible).toBe(10500);
+    expect(m.everyday).toBe(10500);
     expect(lines([target]).map((l) => l.categoryId)).toEqual(['groceries', 'shopping', 'owed']);
   });
 

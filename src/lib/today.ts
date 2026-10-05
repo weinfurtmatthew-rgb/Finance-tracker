@@ -6,7 +6,7 @@
 import type { Category, Cents, ISODate, Recurring, Transaction } from '../types';
 import { lines } from './lines';
 import { addDays, addMonths, daysInMonth, dayOfMonth, monthKey } from './dates';
-import { countsAsCost, matchesRecurring } from './recurring';
+import { lineKinds } from './spend';
 
 /** Months of history the "usual" is averaged over. */
 const USUAL_MONTHS = 3;
@@ -30,21 +30,10 @@ export interface TodayFacts {
   usual7: Cents | null;
 }
 
-/** Categories that are fixed costs by nature (rent, utilities…): never "everyday" spending. */
-const FIXED_CATEGORIES = new Set(['housing', 'bills', 'subscriptions', 'insurance', 'car-payment', 'taxes']);
-export const isEverydayCategory = (id: string) => !FIXED_CATEGORIES.has(id);
-
-/**
- * Everyday spending only: expense categories, not transfers or income, not fixed-cost categories like
- * rent, and not charges for a tracked bill or subscription (those are planned; they show up under bills).
- */
+/** Everyday spending only (see spend.ts): not bills, transfers or income. */
 function* everyday(txns: Transaction[], cats: Map<string, Category>, recurring: Recurring[]) {
-  const costs = recurring.filter(countsAsCost);
-  for (const t of lines(txns)) {
-    if (cats.get(t.categoryId)?.group !== 'expense' || !isEverydayCategory(t.categoryId)) continue;
-    if (costs.some((r) => matchesRecurring(r, t))) continue;
-    yield { date: t.date, categoryId: t.categoryId, spent: -t.amount };
-  }
+  const { kind } = lineKinds(cats, recurring);
+  for (const t of lines(txns)) if (kind(t) === 'everyday') yield { date: t.date, categoryId: t.categoryId, spent: -t.amount };
 }
 
 export function todayFacts(txns: Transaction[], cats: Map<string, Category>, recurring: Recurring[], today: ISODate): TodayFacts {

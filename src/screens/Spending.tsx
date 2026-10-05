@@ -7,7 +7,8 @@ import { useRecurringModel } from '../recurringModel';
 import { useSpending } from '../spendingModel';
 import { addMonths, dayInMonth, daysInMonth, dayOfMonth, monthKey, monthLabel } from '../lib/dates';
 import { formatMoney } from '../lib/money';
-import { budgetProgress, monthElapsed } from '../lib/budgets';
+import { budgetProgress, monthElapsed, monthSpent } from '../lib/budgets';
+import { billsShown, isBillCategory } from '../lib/spend';
 import { countsAsCost } from '../lib/recurring';
 import { Money, Section } from '../components/ui';
 import { ColumnChart, RankedBars, compactMoney } from '../components/charts';
@@ -34,13 +35,14 @@ export function Spending() {
   const lastMonthEnd = dayInMonth(`${addMonths(current, -1)}-01`, 0, 31);
   const nwChange = useMemo(() => changeSince(book, lastMonthEnd).total, [book, lastMonthEnd]);
   const m = months.get(month);
-  const spent = (m?.flexible ?? 0) + (m?.fixed ?? 0);
+  const spent = monthSpent(m);
+  const bills = billsShown(m?.everyday ?? 0, m?.bills ?? 0);
   const progress = useMemo(() => budgetProgress(budgets, m, month, today), [budgets, m, month, today]);
   const elapsed = monthElapsed(month, today);
   const budgetTotal = progress.reduce((s, p) => s + p.limit, 0);
   const budgetSpent = progress.reduce((s, p) => s + p.spent, 0);
   const budgeted = new Set(budgets.map((b) => b.categoryId));
-  const otherFlexible = [...(m?.byCategory ?? [])].filter(([id]) => !budgeted.has(id)).reduce((s, [, v]) => s + Math.max(0, v), 0);
+  const otherEveryday = [...(m?.byCategory ?? [])].filter(([id]) => !budgeted.has(id) && !isBillCategory(id)).reduce((s, [, v]) => s + Math.max(0, v), 0);
   const warnings = isCurrent ? progress.filter((p) => p.state !== 'ok' || p.offPace) : [];
   // Card payments aren't bills: the purchases they pay for are already counted as spending.
   const stillDue = isCurrent ? rec.upcomingItems.filter((i) => countsAsCost(i.status.rec) && monthKey(i.date) === month).reduce((s, i) => s + Math.abs(i.amount), 0) : 0;
@@ -52,7 +54,7 @@ export function Spending() {
   // Charts: 12 months of spending; 6 months of income vs spending ending at the viewed month.
   const trendKeys = Array.from({ length: 12 }, (_, i) => addMonths(current, i - 11));
   const flowKeys = Array.from({ length: 6 }, (_, i) => addMonths(month, i - 5));
-  const total = (k: string) => Math.max(0, (months.get(k)?.flexible ?? 0) + (months.get(k)?.fixed ?? 0));
+  const total = (k: string) => Math.max(0, monthSpent(months.get(k)));
   const income = (k: string) => Math.max(0, months.get(k)?.income ?? 0);
   const where = [...(m?.allByCategory ?? [])]
     .filter(([, v]) => v > 0)
@@ -88,7 +90,7 @@ export function Spending() {
           <span class="card-label">Spent in {monthLabel(month, { short: true }).split(' ')[0]}</span>
           <span class="hero-number">{formatMoney(spent, { whole: true })}</span>
           <span class="card-sub">
-            {formatMoney(total(addMonths(month, -1)), { whole: true })} the month before
+            {formatMoney(m?.everyday ?? 0, { whole: true })} everyday · {formatMoney(bills, { whole: true })} bills
           </span>
         </div>
       )}
@@ -97,12 +99,12 @@ export function Spending() {
         <button type="button" class="kpi" onClick={() => nav.showActivity({ month })}>
           <span class="card-label">Spent</span>
           <CountUp class="kpi-value" value={spent} format={tile} />
-          <span class="card-sub">{formatMoney(m?.flexible ?? 0, { whole: true })} everyday</span>
+          <span class="card-sub">{formatMoney(total(addMonths(month, -1)), { whole: true })} the month before</span>
         </button>
         <button type="button" class="kpi" onClick={() => nav.setTab('recurring')}>
-          <span class="card-label">Fixed bills</span>
-          <CountUp class="kpi-value" value={(m?.fixed ?? 0) + stillDue} format={tile} />
-          <span class="card-sub">{isCurrent ? `${formatMoney(stillDue, { whole: true })} still due` : 'paid'}</span>
+          <span class="card-label">Bills paid</span>
+          <CountUp class="kpi-value" value={bills} format={tile} />
+          <span class="card-sub">{isCurrent ? `${formatMoney(stillDue, { whole: true })} still due` : 'rent, utilities & subscriptions'}</span>
         </button>
         <button type="button" class="kpi" onClick={() => nav.setTab('accounts')}>
           <span class="card-label">Net worth</span>
@@ -149,13 +151,13 @@ export function Spending() {
             .map((p) => (
               <BudgetMeter progress={p} category={cats.get(p.categoryId)} elapsed={isCurrent ? elapsed : 0} onClick={() => openCategory(p.categoryId)} />
             ))}
-          {otherFlexible > 0 && (
+          {otherEveryday > 0 && (
             <div class="row">
               <span class="row-main">
                 <span class="row-title">Everything else</span>
                 <span class="row-subtitle">Categories without a budget</span>
               </span>
-              <span class="row-detail">{formatMoney(otherFlexible, { whole: true })}</span>
+              <span class="row-detail">{formatMoney(otherEveryday, { whole: true })}</span>
             </div>
           )}
         </Section>

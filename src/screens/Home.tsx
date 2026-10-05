@@ -12,7 +12,8 @@ import { formatMoney } from '../lib/money';
 import { budgetProgress, heldEveryBudget } from '../lib/budgets';
 import { accountBalance } from '../lib/balances';
 import { isOutflow } from '../lib/recurring';
-import { categoryChanges, isEverydayCategory, pace, paceTarget, spendReadiness, todayFacts, todaySummary, type CategoryChange, type Phrase } from '../lib/today';
+import { billsShown, isBillCategory } from '../lib/spend';
+import { categoryChanges, pace, paceTarget, spendReadiness, todayFacts, todaySummary, type CategoryChange, type Phrase } from '../lib/today';
 import { CategoryIcon, Empty, Section } from '../components/ui';
 import { Glyph, IconChip, Icons } from '../components/icons';
 import { categoryLook } from '../components/look';
@@ -20,6 +21,7 @@ import { Gauge, verdictColor } from '../components/Gauge';
 import { PaceChart } from '../components/PaceChart';
 import { ProfileButton } from '../components/ProfileButton';
 import { HealthRing } from '../components/HealthRing';
+import { nextWin } from '../lib/health';
 import { useMoneyHealth } from '../healthModel';
 import { RecurringRow } from '../components/RecurringRow';
 import { AccountEditor } from './AccountEditor';
@@ -154,9 +156,11 @@ export function Home() {
   // ---- The day in numbers
   const facts = useMemo(() => todayFacts(txns, cats, rec.recurring, today), [txns, cats, rec.recurring, today]);
   const budgetTotal = useMemo(() => budgetProgress(budgets, months.get(month), month, today)
-          .filter((b) => isEverydayCategory(b.categoryId))
+          .filter((b) => !isBillCategory(b.categoryId))
           .reduce((s, b) => s + b.limit, 0), [budgets, months, month, today]);
   const target = paceTarget(facts, budgetTotal);
+  // Bills paid so far this month: Spending's total is everyday + bills.
+  const billsPaid = Math.max(0, months.get(month)?.bills ?? 0);
   const p = target ? pace(facts, target) : null;
   const checking = useMemo(
     () => accounts.filter((a) => !a.archived && (a.type === 'checking' || a.type === 'cash')).reduce((s, a) => s + accountBalance(a, txns), 0),
@@ -345,7 +349,7 @@ export function Home() {
             <section class="card lit pace-card" style={{ '--lit': 'color-mix(in oklab, var(--hue-blue) 12%, transparent)' }} aria-labelledby="pace-h">
               <div class="pace-head">
                 <IconChip name="trend" hue="blue" size="sm" />
-                <h2 id="pace-h">{monthName} spending</h2>
+                <h2 id="pace-h">{monthName} everyday spending</h2>
                 <span class={`pace-status ${p.under >= 0 ? 'pos-text' : 'neg-text'}`}>
                   {whole(Math.abs(p.under))} {p.under >= 0 ? 'under' : 'over'} pace
                 </span>
@@ -353,7 +357,7 @@ export function Home() {
               <div class="pace-numbers">
                 <div>
                   <CountUp class="pace-big num" value={facts.spent} format={whole} />
-                  <span class="card-sub">spent so far</span>
+                  <span class="card-sub">everyday so far</span>
                 </div>
                 <div>
                   <CountUp class="pace-big num muted" value={p.expected} format={whole} />
@@ -361,6 +365,11 @@ export function Home() {
                 </div>
               </div>
               <PaceChart curve={facts.curve} days={facts.days} target={target.amount} targetLabel={target.kind === 'budget' ? 'Budget' : 'Usual'} monthShort={monthShort} />
+              {billsPaid > 0 && (
+                <button type="button" class="pace-foot" onClick={() => nav.setTab('spending')}>
+                  Plus {whole(billsShown(facts.spent, billsPaid))} in bills like rent: {whole(facts.spent + billsPaid)} spent in all
+                </button>
+              )}
             </section>
           )}
 
@@ -561,8 +570,8 @@ export function Home() {
                 <span class="health-teaser-label">
                   <Glyph name="shield" /> Money Health
                 </span>
-                <span class="health-teaser-title">Next win: {[...health.pillars].sort((a, b) => a.score - b.score)[0].name.toLowerCase()}</span>
-                <span class="card-sub">{[...health.pillars].sort((a, b) => a.score - b.score)[0].tip}</span>
+                <span class="health-teaser-title">Next win: {nextWin(health)?.name.toLowerCase()}</span>
+                <span class="card-sub">{nextWin(health)?.tip}</span>
               </span>
               <span class="chevron" aria-hidden="true">›</span>
             </button>

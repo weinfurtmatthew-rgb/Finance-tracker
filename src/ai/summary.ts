@@ -2,7 +2,7 @@
 import type { Category, Cents, ISODate } from '../types';
 import { addMonths, dayOfMonth, monthKey, monthLabel } from '../lib/dates';
 import { formatMoney } from '../lib/money';
-import type { BudgetProgress, MonthSpending } from '../lib/budgets';
+import { monthSpent, type BudgetProgress, type MonthSpending } from '../lib/budgets';
 import type { RecurringStatus } from '../lib/recurring';
 
 export interface SummaryFacts {
@@ -34,8 +34,8 @@ export function summaryFacts(args: {
   const { month, months } = args;
   const m = months.get(month);
   const current = monthKey(args.today) === month;
-  const spent = (m?.flexible ?? 0) + (m?.fixed ?? 0);
-  const previous = current ? args.txnsByDay(addMonths(month, -1), dayOfMonth(args.today)) : (months.get(addMonths(month, -1))?.flexible ?? 0) + (months.get(addMonths(month, -1))?.fixed ?? 0);
+  const spent = monthSpent(m);
+  const previous = current ? args.txnsByDay(addMonths(month, -1), dayOfMonth(args.today)) : monthSpent(months.get(addMonths(month, -1)));
   const name = (id: string) => args.categories.get(id)?.name ?? id;
   const cats = [...(m?.allByCategory ?? [])].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
   const top = cats[0];
