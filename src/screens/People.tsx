@@ -22,11 +22,11 @@ import {
   type Payback,
   type Person,
 } from '../lib/p2p';
-import { owedItems } from '../lib/lines';
+import { owedByPerson, owedItems } from '../lib/lines';
 import { categorize, payeeHistory } from '../lib/categorize';
 import { CategoryIcon, CategorySelect, Empty, Field, Money, Row, Section, Segmented, Sheet, Toggle } from '../components/ui';
 import { TransactionEditor } from './TransactionEditor';
-import { settle } from './Owed';
+import { OwedSheet, settle } from './Owed';
 
 const PAYBACK_DISMISSED = 'paybackDismissed';
 const REVIEW_DISMISSED = 'appReviewDismissed';
@@ -168,9 +168,18 @@ export function PeopleSheet(props: { onClose: () => void }) {
   const accounts = useAccounts();
   const list = useMemo(() => people(txns), [txns]);
   const hasWallet = accounts.some((a) => a.type === 'wallet' && !a.archived);
+  const owed = useMemo(() => owedByPerson(owedItems(txns)), [txns]);
+  const owedTotal = owed.reduce((s, p) => s + p.total, 0);
   return (
     <Sheet title="People" onClose={props.onClose}>
       <Section>
+        {/* Money people owe you lives here too: most of it is settled through these same apps. */}
+        <Row
+          title="Owed to You"
+          subtitle={owed.length ? `From ${owed.length} ${owed.length === 1 ? 'person' : 'people'}` : 'Nobody owes you right now'}
+          detail={owedTotal ? formatMoney(owedTotal) : undefined}
+          onClick={() => nav.present((close) => <OwedSheet onClose={close} />)}
+        />
         <button type="button" class="row link-row" onClick={() => nav.present((close) => <LogPayment onClose={close} />)}>
           ＋ Log a Payment
         </button>

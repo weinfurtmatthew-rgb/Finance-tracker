@@ -17,13 +17,13 @@ test('AI categorizes similar payees at import and asks you to review @smoke', as
   await page.getByRole('button', { name: 'Review AI Picks' }).click();
   await expect(app.sheet()).toContainText('Green Leaf Markets');
   await app.closeSheets();
-  await expect(page.locator('.callout', { hasText: 'AI-categorized' })).toBeVisible();
+  await expect(await app.todo('AI-categorized')).toBeVisible();
   await app.tab('Activity');
-  await expect(app.txnRows('Green Leaf Markets')).toContainText('✨');
+  await expect(app.txnRows('Green Leaf Markets').locator('.ai-mark')).toHaveCount(1);
   await app.tab('Today');
-  await page.locator('.callout', { hasText: 'AI-categorized' }).click();
+  await (await app.todo('AI-categorized')).click();
   await page.getByRole('button', { name: 'Confirm All' }).click();
-  await expect(page.locator('.callout', { hasText: 'AI-categorized' })).toHaveCount(0);
+  await expect(page.locator('.todo-row', { hasText: 'AI-categorized' })).toHaveCount(0);
 });
 
 test('suggest categories offers likely picks for uncategorized payees', async ({ app, page }) => {

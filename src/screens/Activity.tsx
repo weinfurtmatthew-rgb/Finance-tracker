@@ -14,6 +14,7 @@ import { Glyph, IconChip, Icons } from '../components/icons';
 import { formatMoney } from '../lib/money';
 import { SuggestCategories } from './SuggestCategories';
 import { useAi } from '../ai/client';
+import { ProfileButton } from '../components/ProfileButton';
 import type { Transaction } from '../types';
 
 /** What the Filters button can show. */
@@ -116,6 +117,7 @@ export function Activity() {
           >
             {Icons.plus()}
           </button>
+          <ProfileButton />
         </div>
       </header>
 
@@ -226,7 +228,7 @@ export function Activity() {
         </div>
         {f.categoryId === 'uncategorized' && filtered.length > 0 && ai.embed && (
           <button type="button" class="pill suggest-pill" onClick={() => nav.present((close) => <SuggestCategories onClose={close} />)}>
-            ✨ Suggest categories for these
+            <Glyph name="spark" /> Suggest categories for these
           </button>
         )}
         {(hasFilter || query) && filtered.length > 0 && (

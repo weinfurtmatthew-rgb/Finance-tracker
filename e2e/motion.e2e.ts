@@ -17,7 +17,8 @@ test('numbers count up to the right value, and Today has its live marker and shi
   expect(label).toContain(`Spend Readiness ${await score.textContent()} out of 10`);
   await expect(page.locator('.pace-svg .live-ring')).toHaveCount(1);
   await expect(page.locator('.gauge .live-glow')).toHaveCount(1);
-  await expect(page.locator('.recap-teaser.shimmer, .health-teaser.shimmer')).not.toHaveCount(0);
+  await app.tab('Browse');
+  await expect(page.locator('.recap-teaser.shimmer, .browse-pin.shimmer')).not.toHaveCount(0);
 });
 
 test('the tab pill slides to the selected tab', async ({ app, page }) => {

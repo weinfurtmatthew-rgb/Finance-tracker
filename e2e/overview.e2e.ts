@@ -2,7 +2,7 @@ import { expect, test } from './helpers';
 
 test('budgets are suggested, and over-budget categories are flagged @smoke', async ({ app, page }) => {
   await app.importAll();
-  await page.locator('.foryou', { hasText: 'Set up monthly budgets' }).getByRole('button', { name: 'Set budgets' }).click();
+  await (await app.todo('Set up monthly budgets')).click();
   await expect(page.getByRole('heading', { name: 'Monthly Budgets', exact: true })).toBeVisible();
   const dining = app.field('Dining').locator('input');
   await expect(dining).not.toHaveValue('');

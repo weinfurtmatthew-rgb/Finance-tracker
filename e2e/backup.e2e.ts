@@ -6,8 +6,8 @@ test('back up with a password, check the file, and restore it @smoke', async ({ 
 
   // Today reminds you until there's a backup; "Later" snoozes it.
   await app.tab('Today');
-  const reminder = page.locator('.backup-callout');
-  await expect(reminder).toContainText("You haven't made a backup yet.");
+  const reminder = await app.todo('Back up your data');
+  await expect(reminder).toContainText('No backup yet.');
   await reminder.getByRole('button', { name: 'Later' }).click();
   await expect(reminder).toHaveCount(0);
 

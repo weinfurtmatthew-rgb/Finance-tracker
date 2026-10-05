@@ -1,7 +1,8 @@
 import { expect, test } from './helpers';
 
-test('year in review: the Overview card, the page, and the story @smoke', async ({ app, page }) => {
+test('year in review: the Browse card, the page, and the story @smoke', async ({ app, page }) => {
   await app.importAll();
+  await app.tab('Browse');
   const teaser = page.locator('.recap-teaser');
   await expect(teaser).toContainText('2026 so far');
   await teaser.click();
@@ -27,6 +28,7 @@ test('year in review: the Overview card, the page, and the story @smoke', async 
 
 test('a past year and the last 12 months can be picked', async ({ app, page }) => {
   await app.importAll();
+  await app.tab('Browse');
   await page.locator('.recap-teaser').click();
   await app.sheet().getByLabel('Period').selectOption({ label: 'Last 12 months' });
   await expect(app.sheet().locator('.recap-card').first()).toContainText('Last 12 months');

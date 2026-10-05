@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
+import { Glyph } from '../components/icons';
 import { useCategories, byId } from '../hooks';
 import { useNav } from '../nav';
 import { todayISO, monthLabel } from '../lib/dates';
@@ -197,7 +198,7 @@ function MonthsChart(props: { recap: Recap }) {
   );
 }
 
-/** A compact card for the Overview: this year so far, tap for the full recap. */
+/** A compact card for Browse: this year so far, tap for the full recap. */
 export function RecapTeaser(props: { onOpen: () => void }) {
   const today = todayISO();
   const period = useMemo(() => yearPeriod(Number(today.slice(0, 4)), today), [today]);
@@ -205,7 +206,9 @@ export function RecapTeaser(props: { onOpen: () => void }) {
   if (!recap || recap.days < 14) return null;
   return (
     <button type="button" class="recap-teaser shimmer" onClick={props.onOpen}>
-      <span class="card-label">🎬 {recap.period.label}</span>
+      <span class="card-label">
+        <Glyph name="play" /> {recap.period.label}
+      </span>
       <span class="recap-teaser-main">
         <strong>{formatMoney(recap.spent, { whole: true })}</strong> spent
         {recap.earned > 0 && (

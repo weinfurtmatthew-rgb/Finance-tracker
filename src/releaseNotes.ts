@@ -13,6 +13,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-05b',
+    date: 'October 5, 2026',
+    title: 'A simpler app',
+    items: [
+      'Today is about half as long: your recent transactions, money on hand and bills coming up, then one short To do list.',
+      'Browse groups everything into Money, Plan & Look Back, and People & Trips. Show it as a list or as tiles with the button at the top.',
+      'Money Health and Year in Review are pinned in Browse. Money owed to you is in People.',
+      'Settings is just setup now, with Backup first.',
+      'The same names everywhere, like Bills & Subscriptions and Trips & Tags.',
+    ],
+  },
+  {
     id: '2026-10-05',
     date: 'October 5, 2026',
     title: 'Numbers you can trust',

@@ -7,7 +7,7 @@ test('old guessed categories can be tidied up in one review @smoke', async ({ ap
   await app.closeSheets();
   await app.importFile('card2.csv');
   await app.closeSheets();
-  const callout = page.locator('.callout', { hasText: 'Tidy up' });
+  const callout = await app.todo('Tidy up');
   await expect(callout).toBeVisible();
   await callout.click();
   const row = app.sheet().locator('.suggest-row', { hasText: 'Green Leaf Market' });
@@ -20,5 +20,5 @@ test('old guessed categories can be tidied up in one review @smoke', async ({ ap
   await expect(app.txnRows('Green Leaf Market').filter({ hasText: 'Groceries' })).toHaveCount(2);
   // Still reachable later from Settings.
   await app.tab('Settings');
-  await expect(page.locator('.row', { hasText: 'Tidy up old categories' })).toBeVisible();
+  await expect(page.locator('.row', { hasText: 'Tidy Up Old Categories' })).toBeVisible();
 });

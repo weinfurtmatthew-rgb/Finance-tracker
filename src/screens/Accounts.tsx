@@ -15,20 +15,20 @@ import {
 } from '../lib/networth';
 import { Empty, Money, Row, Section, Segmented } from '../components/ui';
 import { LineChart } from '../components/charts';
-import { Icons } from '../components/icons';
+import { Glyph, Icons, type GlyphName } from '../components/icons';
 import { AccountEditor } from './AccountEditor';
 import { AccountDetail } from './AccountDetail';
 import { ImportFlow } from '../lazy';
 import { UpdateValues } from './UpdateValues';
 import { GoalEditor } from './GoalEditor';
 
-const GROUPS: { title: string; types: AccountType[]; icon: string }[] = [
-  { title: 'Cash', types: ['checking', 'savings', 'cash', 'wallet'], icon: '🏦' },
-  { title: 'Investments', types: ['brokerage'], icon: '📈' },
-  { title: 'Vehicles', types: ['vehicle'], icon: '🚗' },
-  { title: 'Credit cards', types: ['credit'], icon: '💳' },
-  { title: 'Loans', types: ['loan'], icon: '🧾' },
-  { title: 'Other', types: ['other'], icon: '📁' },
+const GROUPS: { title: string; types: AccountType[]; icon: GlyphName }[] = [
+  { title: 'Cash', types: ['checking', 'savings', 'cash', 'wallet'], icon: 'bank' },
+  { title: 'Investments', types: ['brokerage'], icon: 'trend' },
+  { title: 'Vehicles', types: ['vehicle'], icon: 'car' },
+  { title: 'Credit cards', types: ['credit'], icon: 'card' },
+  { title: 'Loans', types: ['loan'], icon: 'receipt' },
+  { title: 'Other', types: ['other'], icon: 'box' },
 ];
 
 const pctText = (p: number | null) => (p == null ? '' : ` (${p >= 0 ? '+' : ''}${p.toFixed(1)}%)`);
@@ -37,7 +37,7 @@ function GoalRow(props: { p: GoalProgress; onClick: () => void }) {
   const { p } = props;
   const g = p.goal;
   const lines: string[] = [];
-  if (p.done) lines.push('🎉 Goal reached!');
+  if (p.done) lines.push('Goal reached!');
   else {
     lines.push(`${formatMoney(p.remaining, { whole: true })} to go`);
     if (p.projectedDate) lines.push(`At your recent pace of ${formatMoney(p.pace, { whole: true })}/mo you'll get there around ${monthLabel(monthKey(p.projectedDate))}.`);
@@ -45,8 +45,8 @@ function GoalRow(props: { p: GoalProgress; onClick: () => void }) {
     if (g.targetDate) {
       if (p.neededMonthly != null) {
         const per = p.neededPerPaycheck != null ? ` or ${formatMoney(p.neededPerPaycheck, { whole: true })} per paycheck (${p.paychecksLeft} left)` : '';
-        lines.push(`${p.onTrack ? '✓ On track' : '⚠️ Behind'} for ${formatShortDate(g.targetDate)}: save ${formatMoney(p.neededMonthly, { whole: true })}/mo${per}.`);
-      } else lines.push(`⚠️ Target date ${formatShortDate(g.targetDate)} has passed.`);
+        lines.push(`${p.onTrack ? '✓ On track' : 'Behind'} for ${formatShortDate(g.targetDate)}: save ${formatMoney(p.neededMonthly, { whole: true })}/mo${per}.`);
+      } else lines.push(`Target date ${formatShortDate(g.targetDate)} has passed.`);
     }
   }
   return (
@@ -103,7 +103,7 @@ export function Accounts() {
   const labels = dates.map((d, i) => (i === dates.length - 1 ? 'Today' : monthLabel(monthKey(d), { short: true })));
   const stale = staleValued(book, today);
 
-  // Paydays (from the paycheck tracked under Recurring) for "per paycheck" goal amounts.
+  // Paydays (from the paycheck tracked under Bills & Subscriptions) for "per paycheck" goal amounts.
   const paydays = useMemo(() => {
     const income = rec.statuses.find((s) => s.rec.kind === 'income' && s.rec.status === 'active');
     const until = goals.reduce((m, g) => (g.targetDate && g.targetDate > m ? g.targetDate : m), today);
@@ -265,7 +265,7 @@ export function Accounts() {
                 title={
                   <>
                     <span>
-                      {g.icon} {g.title}
+                      <Glyph name={g.icon} /> {g.title}
                     </span>
                     <Money cents={owed ? -total : total} />
                   </>

@@ -270,7 +270,7 @@ export function Search(props: { back: { label: string; glyph: GlyphName; go: () 
           )}
 
           {results.tags.length > 0 && (
-            <Section title="Tags">
+            <Section title="Trips & Tags">
               {results.tags.map((t) => (
                 <Row
                   icon={<IconChip name="tag" hue="violet" size="sm" />}

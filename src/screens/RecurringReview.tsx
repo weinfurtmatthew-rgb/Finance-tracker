@@ -62,7 +62,7 @@ export function RecurringReview(props: { onClose: () => void }) {
     props.onClose();
   };
   return (
-    <Sheet title="Possible Recurring" onClose={props.onClose} onSave={suggestions.length ? addAll : undefined} saveLabel="Add All">
+    <Sheet title="Possible Bills & Subscriptions" onClose={props.onClose} onSave={suggestions.length ? addAll : undefined} saveLabel="Add All">
       {suggestions.length === 0 ? (
         <Empty icon="check" title="All reviewed">
           <p>New suggestions appear here after you import more transactions.</p>

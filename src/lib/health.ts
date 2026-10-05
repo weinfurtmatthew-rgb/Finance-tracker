@@ -160,7 +160,7 @@ export function moneyHealth(input: HealthInput): Health | null {
     weight: 0.1,
     score: planScore,
     metric: [plural(input.budgets, 'budget'), plural(input.goals, 'goal'), `${input.tracked} bills tracked`].join(' · '),
-    tip: input.budgets < 4 ? 'Budgets for your biggest categories keep surprises small.' : !input.goals ? 'A savings goal gives your extra money a job.' : input.tracked < 3 ? 'Confirm your subscriptions and bills in Recurring.' : 'Well planned.',
+    tip: input.budgets < 4 ? 'Budgets for your biggest categories keep surprises small.' : !input.goals ? 'A savings goal gives your extra money a job.' : input.tracked < 3 ? 'Confirm your bills and subscriptions in Bills & Subscriptions.' : 'Well planned.',
   });
 
   const out: Pillar[] = pillars.map((p) =>

@@ -30,7 +30,7 @@ test('paid for someone else, then paid back @smoke', async ({ app, page }) => {
   await app.sheet().getByRole('button', { name: 'Save', exact: true }).click();
   await expect(app.txnRows('Chipotle').first()).toContainText('Owed by Alex');
   await app.tab('Today');
-  const callout = page.locator('.callout', { hasText: 'owed to you' });
+  const callout = await app.todo('owed to you');
   await expect(callout).toContainText('Alex');
   await callout.click();
   await app.sheet().locator('.row', { hasText: 'Chipotle' }).click();
@@ -69,13 +69,13 @@ test('part of a split paid for someone, settled by a real deposit', async ({ app
   await app.sheet().getByLabel('Part 2 owed by').fill('Sam');
   await app.sheet().getByRole('button', { name: 'Save', exact: true }).click();
   await app.tab('Today');
-  await page.locator('.callout', { hasText: 'owed to you' }).click();
+  await (await app.todo('owed to you')).click();
   await app.sheet().getByRole('button', { name: 'Paid all back' }).click();
   // Pick the first incoming payment offered.
   await app.sheet().locator('.section', { hasText: 'Money that came in' }).locator('button.row').first().click();
   await expect(page.getByText('Marked as paid back')).toBeVisible();
   await app.closeSheets();
-  await expect(page.locator('.callout', { hasText: 'owed to you' })).toHaveCount(0);
+  await expect(page.locator('.todo-row', { hasText: 'owed to you' })).toHaveCount(0);
   await app.tab('Activity');
   await expect(app.txnRows().filter({ hasText: 'Owed to Me' }).first()).toBeVisible();
 });

@@ -75,7 +75,7 @@ export function RecurringEditor(props: { recurring?: Recurring; status?: Recurri
   };
 
   return (
-    <Sheet title={r ? 'Edit' : 'New Recurring'} onClose={props.onClose} onSave={save} saveDisabled={!valid}>
+    <Sheet title={r ? 'Edit' : 'New Bill or Subscription'} onClose={props.onClose} onSave={save} saveDisabled={!valid}>
       <Section>
         <Field label="Name">
           <input value={name} placeholder="e.g. Netflix" onInput={(e) => setName((e.target as HTMLInputElement).value)} autoFocus={!r} />

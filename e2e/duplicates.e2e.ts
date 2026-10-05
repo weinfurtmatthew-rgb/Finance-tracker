@@ -4,7 +4,7 @@ test('a Citizens CSV, then the same month as a QFX statement: nothing doubles @s
   await app.importFile('citizens-sept.csv', { type: 'checking', newAccountName: 'Citizens Checking' });
   await app.closeSheets();
 
-  await page.getByRole('button', { name: /Import a Bank File|Import a file/ }).first().click();
+  await app.openImport();
   await page.locator('.drop input[type=file]').setInputFiles(fixture('citizens-sept.qfx'));
   await expect(page.getByText('Review Import')).toBeVisible();
   // It finds the account the CSV went into, though the CSV had no account number.
@@ -23,7 +23,7 @@ test('a Citizens CSV, then the same month as a QFX statement: nothing doubles @s
   await expect(page.locator('button.row', { hasText: 'Citizens Checking' })).toContainText('$1,445.87');
   // Importing either file again adds nothing.
   await app.tab('Today');
-  await page.getByRole('button', { name: /Import a Bank File|Import a file/ }).first().click();
+  await app.openImport();
   await page.locator('.drop input[type=file]').setInputFiles(fixture('citizens-sept.csv'));
   await expect(page.getByRole('button', { name: 'Import 0' })).toBeDisabled();
 });
@@ -32,7 +32,7 @@ test('copies from before the fix are found and removed, keeping the bank balance
   await app.importFile('citizens-sept.csv', { type: 'checking', newAccountName: 'Citizens Checking' });
   await app.closeSheets();
   // Reproduce the old behavior: import the QFX with the matches included.
-  await page.getByRole('button', { name: /Import a Bank File|Import a file/ }).first().click();
+  await app.openImport();
   await page.locator('.drop input[type=file]').setInputFiles(fixture('citizens-sept.qfx'));
   await app.sheet().locator('.toggle-row', { hasText: 'Import these anyway' }).locator('input').check();
   await page.getByRole('button', { name: 'Import 9', exact: true }).click();
@@ -70,7 +70,7 @@ test('a Rocket Money export imported the old way is repaired, then the Citizens 
   await app.importFile('rocketmoney-plain.csv', { type: 'checking', newAccountName: 'Citizens Checking' });
   await app.closeSheets();
   // ...and the Citizens QFX matched none of it.
-  await page.getByRole('button', { name: /Import a Bank File|Import a file/ }).first().click();
+  await app.openImport();
   await page.locator('.drop input[type=file]').setInputFiles(fixture('citizens-sept.qfx'));
   await app.field('Account').locator('select').selectOption({ label: 'Citizens Checking' });
   await page.getByRole('button', { name: 'Import 9', exact: true }).click();
@@ -78,7 +78,7 @@ test('a Rocket Money export imported the old way is repaired, then the Citizens 
   await app.closeSheets();
 
   // Now: the real Rocket Money file is recognized and offers the repair.
-  await page.getByRole('button', { name: /Import a Bank File|Import a file/ }).first().click();
+  await app.openImport();
   await page.locator('.drop input[type=file]').setInputFiles(fixture('rocketmoney.csv'));
   await expect(app.sheet().getByText('Rocket Money', { exact: true })).toBeVisible();
   const repair = app.sheet().locator('.section', { hasText: 'Fix your earlier Rocket Money import' });
@@ -106,7 +106,7 @@ test('a Rocket Money export imported the old way is repaired, then the Citizens 
 });
 
 test('a fresh Rocket Money export imports each account separately', async ({ app, page }) => {
-  await page.getByRole('button', { name: /Import a Bank File|Import a file/ }).first().click();
+  await app.openImport();
   await page.locator('.drop input[type=file]').setInputFiles(fixture('rocketmoney.csv'));
   await expect(app.field('From').locator('select').locator('option:checked')).toContainText('Citizens Checking ••6789 (8)');
   await expect(app.field('Name').locator('input')).toHaveValue('Citizens Checking');

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'preact/hooks';
+import { Glyph } from '../components/icons';
 import { useStore } from '../store';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, newId } from '../db';
@@ -329,7 +330,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
           </p>
           {merged > 0 && (
             <p class="merge-note">
-              🔗 {merged} payment{merged === 1 ? '' : 's'} paid from your bank {merged === 1 ? 'was' : 'were'} matched to the bank’s own line{merged === 1 ? '' : 's'}, so {merged === 1 ? 'it isn’t' : 'they aren’t'} counted twice.
+              <Glyph name="check" /> {merged} payment{merged === 1 ? '' : 's'} paid from your bank {merged === 1 ? 'was' : 'were'} matched to the bank’s own line{merged === 1 ? '' : 's'}, so {merged === 1 ? 'it isn’t' : 'they aren’t'} counted twice.
             </p>
           )}
           {waiting > 0 && (
@@ -339,7 +340,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
           )}
           {byAi > 0 && (
             <p>
-              ✨ On-device AI categorized {byAi} more. They're marked so you can check them.
+              <Glyph name="spark" /> On-device AI categorized {byAi} more. They're marked so you can check them.
             </p>
           )}
           <div class="button-stack">
@@ -410,7 +411,9 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
               if (f) onFile(f);
               (e.target as HTMLInputElement).value = '';
             }} />
-            <span class="drop-icon" aria-hidden="true">📄</span>
+            <span class="drop-icon" aria-hidden="true">
+              <Glyph name="fileIn" />
+            </span>
             <strong>Choose a File</strong>
             <span class="muted">CSV, OFX, QFX or QBO from your bank, or a Venmo or Cash App statement</span>
           </label>

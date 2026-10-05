@@ -34,7 +34,7 @@ export function TagsSheet(props: { onClose: () => void }) {
   if (!txns) return null;
   const tags = allTags(txns);
   return (
-    <Sheet title="Tags" onClose={props.onClose}>
+    <Sheet title="Trips & Tags" onClose={props.onClose}>
       <Section footer="Tag a trip or event to see what it cost across every category. Add tags on any transaction, or tag a whole date range at once.">
         <button type="button" class="row link-row" onClick={() => nav.present((close) => <TagTripSheet onClose={close} />)}>
           Tag a Trip or Event…

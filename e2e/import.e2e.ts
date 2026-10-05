@@ -17,7 +17,7 @@ test('imports checking, card and savings files @smoke', async ({ app, page }) =>
 test('re-importing the same file skips every duplicate', async ({ app, page }) => {
   await app.importFile('checking.csv', { type: 'checking' });
   await app.closeSheets();
-  await page.getByRole('button', { name: 'Import a file' }).first().click();
+  await app.openImport();
   await page.locator('.drop input[type=file]').setInputFiles(fixture('checking.csv'));
   await expect(page.getByText('Preview · 0 new')).toBeVisible();
 });
