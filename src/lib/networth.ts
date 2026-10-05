@@ -18,7 +18,12 @@ export interface BalanceBook {
 
 export function makeBook(accounts: Account[], txns: Transaction[], valuations: Valuation[]): BalanceBook {
   const byAcct = new Map<string, Transaction[]>();
-  for (const t of txns) byAcct.set(t.accountId, [...(byAcct.get(t.accountId) ?? []), t]);
+  // Appending (not copying the list for every transaction) keeps this linear: years of history are thousands of rows.
+  for (const t of txns) {
+    const list = byAcct.get(t.accountId);
+    if (list) list.push(t);
+    else byAcct.set(t.accountId, [t]);
+  }
   const running = new Map<string, { dates: ISODate[]; totals: Cents[] }>();
   for (const [id, list] of byAcct) {
     list.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
@@ -26,7 +31,11 @@ export function makeBook(accounts: Account[], txns: Transaction[], valuations: V
     running.set(id, { dates: list.map((t) => t.date), totals: list.map((t) => (sum += t.amount)) });
   }
   const values = new Map<string, Valuation[]>();
-  for (const v of valuations) values.set(v.accountId, [...(values.get(v.accountId) ?? []), v]);
+  for (const v of valuations) {
+    const list = values.get(v.accountId);
+    if (list) list.push(v);
+    else values.set(v.accountId, [v]);
+  }
   for (const list of values.values()) list.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   return { accounts, running, values };
 }

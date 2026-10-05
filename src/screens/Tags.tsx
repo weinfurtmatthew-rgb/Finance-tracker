@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'preact/hooks';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useStore } from '../store';
 import { db } from '../db';
 import { byId, useCategories } from '../hooks';
 import { useNav } from '../nav';
@@ -28,7 +28,7 @@ function tagSpending(txns: Transaction[], tag: string, groups: Map<string, strin
 /** Every tag with its total spending, newest first. */
 export function TagsSheet(props: { onClose: () => void }) {
   const nav = useNav();
-  const txns = useLiveQuery(() => db.transactions.toArray(), []);
+  const txns = useStore().raw.transactions;
   const categories = useCategories();
   const groups = useMemo(() => new Map(categories.map((c) => [c.id, c.group as string])), [categories]);
   if (!txns) return null;
@@ -61,7 +61,7 @@ export function TagsSheet(props: { onClose: () => void }) {
 /** What a tag cost, by category, with rename and remove. */
 export function TagDetail(props: { tag: string; onClose: () => void }) {
   const nav = useNav();
-  const txns = useLiveQuery(() => db.transactions.toArray(), []);
+  const txns = useStore().raw.transactions;
   const categories = useCategories();
   const cats = useMemo(() => byId(categories), [categories]);
   const groups = useMemo(() => new Map(categories.map((c) => [c.id, c.group as string])), [categories]);
@@ -159,7 +159,7 @@ export function TagDetail(props: { tag: string; onClose: () => void }) {
  */
 export function TagTripSheet(props: { onClose: () => void }) {
   const nav = useNav();
-  const txns = useLiveQuery(() => db.transactions.toArray(), []);
+  const txns = useStore().raw.transactions;
   const categories = useCategories();
   const cats = useMemo(() => byId(categories), [categories]);
   const today = todayISO();

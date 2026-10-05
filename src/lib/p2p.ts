@@ -7,6 +7,7 @@
  * (right account, right balance) with the person, note and category from the app.
  */
 import Papa from 'papaparse';
+import { pushTo } from './collections';
 import type { Account, Cents, CategorySource, ISODate, PaymentApp, Transaction } from '../types';
 import type { DraftTransaction } from './draft';
 import { OWED, TRANSFER, UNCATEGORIZED } from './categories';
@@ -398,7 +399,7 @@ export function linkWaitingPayments(all: Transaction[], accounts: Account[]): { 
   const remove: string[] = [];
   const used = new Set<string>();
   const byRef = new Map<string, Transaction[]>();
-  for (const t of all) if (t.p2p?.ref) byRef.set(t.p2p.ref, [...(byRef.get(t.p2p.ref) ?? []), t]);
+  for (const t of all) if (t.p2p?.ref) pushTo(byRef, t.p2p.ref, t);
   for (const pair of byRef.values()) {
     const pay = pair.find((t) => t.p2p?.role === 'payment');
     const funding = pair.find((t) => t.p2p?.role === 'funding');

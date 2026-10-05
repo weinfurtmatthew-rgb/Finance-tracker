@@ -1,10 +1,7 @@
-import { useMemo } from 'preact/hooks';
 import { lines } from './lib/lines';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from './db';
-import { byId } from './hooks';
-import { makeBook } from './lib/networth';
-import { spendingByMonth } from './lib/budgets';
+import { useStore } from './store';
+import { useBook } from './hooks';
+import { useSpending } from './spendingModel';
 import { monthlyCost } from './lib/recurring';
 import { planSnapshot, type PlanSnapshot } from './lib/planData';
 import { useRecurringModel } from './recurringModel';
@@ -27,23 +24,15 @@ export interface PlanData extends PlanSnapshot {
 
 /** Everything the calculators start from; `undefined` until loaded so forms can seed from it. */
 export function usePlanData(): PlanData | undefined {
+  const store = useStore();
   const rec = useRecurringModel();
-  const raw = useLiveQuery(async () => {
-    const [accounts, txns, valuations, categories, recurring] = await Promise.all([
-      db.accounts.toArray(),
-      db.transactions.toArray(),
-      db.valuations.toArray(),
-      db.categories.toArray(),
-      db.recurring.toArray(),
-    ]);
-    return { accounts, txns, valuations, categories, recurring };
-  }, []);
-
-  return useMemo(() => {
-    if (!raw || !rec.loaded) return undefined;
-    const cats = byId(raw.categories);
-    const months = spendingByMonth(raw.txns, cats, raw.recurring);
-    const book = makeBook(raw.accounts, raw.txns, raw.valuations);
+  const { months, cats } = useSpending();
+  const book = useBook();
+  const { accounts, transactions: txns, valuations, categories, recurring } = store.raw;
+  const loaded = !!(accounts && txns && valuations && categories && recurring && rec.loaded);
+  return store.derive('plan', [loaded, rec, months, book, cats], () => {
+    if (!loaded) return undefined;
+    const raw = { accounts: accounts!, txns: txns! };
     const snap = planSnapshot({
       accounts: raw.accounts,
       book,
@@ -92,5 +81,5 @@ export function usePlanData(): PlanData | undefined {
       habits: [...habits, ...merchants],
       subscriptionsMonthly: rec.monthlySubscriptions,
     };
-  }, [raw, rec]);
+  });
 }

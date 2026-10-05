@@ -1,4 +1,4 @@
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useStore } from '../store';
 import { db } from '../db';
 import { useNav } from '../nav';
 import type { Transaction } from '../types';
@@ -38,7 +38,7 @@ export function SettleSheet(props: { item?: OwedItem; items?: OwedItem[]; onClos
   const items = props.items ?? (props.item ? [props.item] : []);
   const total = items.reduce((s, i) => s + i.amount, 0);
   const earliest = items.reduce((m, i) => (i.date < m ? i.date : m), items[0]?.date ?? '');
-  const txns = useLiveQuery(() => db.transactions.toArray(), []);
+  const txns = useStore().raw.transactions;
   const settled = items.every((i) => i.settledBy);
   const candidates = txns ? repaymentCandidates(txns, total, addDays(earliest, -3)) : [];
   const who = [...new Set(items.map((i) => i.who))].join(', ');
@@ -95,7 +95,7 @@ export function SettleSheet(props: { item?: OwedItem; items?: OwedItem[]; onClos
 /** Everything you paid for someone else and haven't been paid back for yet. */
 export function OwedSheet(props: { onClose: () => void }) {
   const nav = useNav();
-  const txns = useLiveQuery(() => db.transactions.toArray(), []);
+  const txns = useStore().raw.transactions;
   if (!txns) return null;
   const items = owedItems(txns);
   const people = owedByPerson(items);

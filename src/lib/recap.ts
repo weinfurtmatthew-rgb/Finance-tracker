@@ -4,6 +4,7 @@
  * for it, it's left out rather than shown with a misleading number.
  */
 import type { Account, Budget, Category, Cents, Goal, ISODate, Recurring, Transaction } from '../types';
+import { pushTo } from './collections';
 import { addDays, addMonths, dayInMonth, diffDays, monthKey } from './dates';
 import { balanceOn, netWorthOn, type BalanceBook } from './networth';
 import { isLiability } from './balances';
@@ -305,7 +306,7 @@ export function buildRecap(args: {
   let incomeCard: Recap['income'];
   if (income.length) {
     const byPayer = new Map<string, Transaction[]>();
-    for (const l of income) if (l.categoryId === 'income') byPayer.set(l.payee, [...(byPayer.get(l.payee) ?? []), l]);
+    for (const l of income) if (l.categoryId === 'income') pushTo(byPayer, l.payee, l);
     const main = [...byPayer].sort((a, b) => b[1].length - a[1].length)[0];
     let raise: { from: Cents; to: Cents; pct: number } | undefined;
     if (main && main[1].length >= 6) {

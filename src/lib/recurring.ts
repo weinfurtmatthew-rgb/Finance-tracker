@@ -1,4 +1,5 @@
 import type { AmountMode, Category, Cents, Frequency, ISODate, Recurring, RecurringKind, Transaction } from '../types';
+import { pushTo } from './collections';
 import { addDays, dayInMonth, dayOfMonth, diffDays } from './dates';
 import { formatMoney } from './money';
 
@@ -346,7 +347,7 @@ export function detectRecurring(
     const name = (t.payee || t.description).trim().toLowerCase();
     if (!name) continue;
     const key = `${name}|${t.amount > 0 ? 'in' : 'out'}`;
-    groups.set(key, [...(groups.get(key) ?? []), t]);
+    pushTo(groups, key, t);
   }
 
   const out: Suggestion[] = [];

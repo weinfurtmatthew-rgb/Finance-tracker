@@ -269,12 +269,17 @@ npm run dev        # http://localhost:5173/finance-tracker/
 npm test           # unit tests (parsers, categorizer, dedupe, balances, recurring detection & schedules)
 npm run build      # production build in dist/
 npm run e2e        # phone-size browser tests (builds, serves and clicks through the app in Chromium)
+npm run perf       # speed with three years of history (~4,500 transactions), at full speed and a 4× slower CPU
 ```
 
 The browser tests live in `e2e/` with sample bank files in `e2e/fixtures/`. They run at iPhone size with the
 clock frozen at 29 Sep 2026 (the sample files' dates), in light mode, plus the `@smoke` tests in dark mode. AI
 screens use a small stand-in model. `e2e/a11y.e2e.ts` runs axe on the main screens and sheets. First time: `npx playwright install chromium` (or point `PW_CHROMIUM` at an
 existing Chromium).
+
+All screens read one shared copy of the data (`src/store.tsx`): each table is read once and re-read only when it
+changes, and what's worked out from it (bills, spending by month, balances, the plan numbers, Money Health, the search
+index) is computed once and shared until its inputs change.
 
 Stack: Vite, Preact, TypeScript, Dexie (IndexedDB), vite-plugin-pwa (offline service worker), Papa Parse.
 A strict Content-Security-Policy (`connect-src 'self'`) prevents the app from sending data to any other server.

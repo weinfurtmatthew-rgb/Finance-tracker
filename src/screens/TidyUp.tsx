@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { db, setMeta } from '../db';
 import { byId, useCategories } from '../hooks';
+import { useStore } from '../store';
 import { useNav } from '../nav';
 import type { Transaction } from '../types';
 import { formatMoney } from '../lib/money';
@@ -14,10 +14,9 @@ import { CategoryIcon, CategorySelect, Empty, Section, Sheet } from '../componen
 
 /** Transactions whose category is only an old guess, for the one-time tidy-up. */
 export function useOldGuesses(): Transaction[] | undefined {
-  return useLiveQuery(async () => {
-    const [txns, rules, accounts] = await Promise.all([db.transactions.toArray(), db.rules.toArray(), db.accounts.toArray()]);
-    return oldGuesses(txns, rules, accounts);
-  }, []);
+  const s = useStore();
+  const { transactions: txns, rules, accounts } = s.raw;
+  return s.derive('oldGuesses', [txns, rules, accounts], () => (txns && rules && accounts ? oldGuesses(txns, rules, accounts) : undefined));
 }
 
 const groupKey = (t: Transaction) => `${t.amount > 0 ? 'in' : 'out'}:${payeeKey(t.payee)}`;
@@ -76,7 +75,12 @@ export function TidyUp(props: { onClose: () => void }) {
     props.onClose();
   };
 
-  if (!frozen) return <Sheet title="Tidy Up Categories" onClose={props.onClose}>{null}</Sheet>;
+  if (!frozen)
+    return (
+      <Sheet title="Tidy Up Categories" onClose={props.onClose}>
+        {null}
+      </Sheet>
+    );
   return (
     <Sheet title="Tidy Up Categories" onClose={props.onClose} onSave={groups.length ? apply : undefined} saveLabel={changes ? `Apply ${changes}` : 'Confirm'}>
       {groups.length === 0 ? (
@@ -104,12 +108,19 @@ export function TidyUp(props: { onClose: () => void }) {
                     <span class="row-main">
                       <span class="row-title">{t.payee || t.description}</span>
                       <span class="row-subtitle">
-                        {list.length} transaction{list.length === 1 ? '' : 's'} · {formatMoney(list.reduce((s, x) => s + x.amount, 0))} · now {cats.get(t.categoryId)?.name ?? 'Uncategorized'}
+                        {list.length} transaction{list.length === 1 ? '' : 's'} · {formatMoney(list.reduce((s, x) => s + x.amount, 0))} · now{' '}
+                        {cats.get(t.categoryId)?.name ?? 'Uncategorized'}
                       </span>
                     </span>
                     {hint && <span class={`confidence ${hint.confident ? 'high' : ''}`}>{hint.confident ? 'Likely' : 'Guess'}</span>}
                   </div>
-                  <CategorySelect class="chip" aria-label={`Category for ${t.payee}`} categories={categories} value={value} onChange={(id) => setChoice({ ...choice, [key]: id })} />
+                  <CategorySelect
+                    class="chip"
+                    aria-label={`Category for ${t.payee}`}
+                    categories={categories}
+                    value={value}
+                    onChange={(id) => setChoice({ ...choice, [key]: id })}
+                  />
                   {hint && value !== hint.categoryId && cats.get(hint.categoryId) && (
                     <button type="button" class="link small" onClick={() => setChoice({ ...choice, [key]: hint.categoryId })}>
                       Maybe {cats.get(hint.categoryId)!.emoji} {cats.get(hint.categoryId)!.name}?

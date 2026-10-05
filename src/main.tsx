@@ -1,5 +1,6 @@
 import { render } from 'preact';
 import { App } from './app';
+import { DataProvider } from './store';
 import { initAi } from './ai/client';
 import './styles.css';
 import { applySavedAccent } from './lib/appearance';
@@ -11,7 +12,13 @@ navigator.storage?.persist?.().catch(() => {});
 // The accent color from last time, so the first frame isn't the wrong color.
 applySavedAccent();
 
-render(<App />, document.getElementById('app')!);
+// One shared copy of the data for every screen (see store.tsx).
+render(
+  <DataProvider>
+    <App />
+  </DataProvider>,
+  document.getElementById('app')!,
+);
 
 // Finds out whether the AI models are published, and reloads them from the cache if AI is turned on.
 void initAi();

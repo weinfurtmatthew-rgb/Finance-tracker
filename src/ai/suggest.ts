@@ -1,4 +1,5 @@
 import type { Category, CategoryGroup, Transaction } from '../types';
+import { pushTo } from '../lib/collections';
 import { UNCATEGORIZED } from '../lib/categories';
 import { isWeakCategory } from '../lib/categorize';
 import { vectors } from './vectors';
@@ -19,7 +20,7 @@ function groupByPayee(txns: Transaction[]): Map<string, Transaction[]> {
   const groups = new Map<string, Transaction[]>();
   for (const t of txns) {
     const key = `${directionOf(t)}:${matchText(t)}`;
-    groups.set(key, [...(groups.get(key) ?? []), t]);
+    pushTo(groups, key, t);
   }
   return groups;
 }

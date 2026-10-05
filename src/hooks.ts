@@ -1,29 +1,39 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from './db';
-import type { Account, Category, Goal, Rule, Transaction } from './types';
-import { useMemo } from 'preact/hooks';
+import { useStore } from './store';
+import type { Account, Category, Goal, Rule, Transaction, Valuation } from './types';
 import { makeBook } from './lib/networth';
+
+// All of these read the app's shared copy of the data (see store.tsx); none of them query the database.
 
 const EMPTY: never[] = [];
 
 export function useAccounts(): Account[] {
-  return useLiveQuery(() => db.accounts.orderBy('createdAt').toArray(), []) ?? EMPTY;
+  return useStore().raw.accounts ?? EMPTY;
 }
 
+/** Newest first. */
 export function useTransactions(): Transaction[] {
-  return useLiveQuery(() => db.transactions.orderBy('date').reverse().toArray(), []) ?? EMPTY;
+  return useStore().raw.transactions ?? EMPTY;
 }
 
 export function useCategories(): Category[] {
-  return useLiveQuery(() => db.categories.orderBy('order').toArray(), []) ?? EMPTY;
+  return useStore().raw.categories ?? EMPTY;
 }
 
 export function useRules(): Rule[] {
-  return useLiveQuery(() => db.rules.orderBy('createdAt').reverse().toArray(), []) ?? EMPTY;
+  return useStore().raw.rules ?? EMPTY;
 }
 
+export function useValuations(): Valuation[] {
+  return useStore().raw.valuations ?? EMPTY;
+}
+
+export function useGoals(): Goal[] {
+  return useStore().raw.goals ?? EMPTY;
+}
+
+/** A setting or other small saved value; undefined while loading and when it was never set. */
 export function useMeta<T>(key: string): T | undefined {
-  return useLiveQuery(async () => (await db.meta.get(key))?.value as T | undefined, [key]);
+  return useStore().meta?.get(key) as T | undefined;
 }
 
 /** Map helper for id → record lookups in render code. */
@@ -33,25 +43,17 @@ export function byId<T extends { id: string }>(items: T[]): Map<string, T> {
 
 /** Like the hooks above, but `undefined` until loaded — for forms that seed their state from the data. */
 export function useLoaded() {
-  return useLiveQuery(async () => {
-    const [accounts, transactions, categories, lastAccountId] = await Promise.all([
-      db.accounts.orderBy('createdAt').toArray(),
-      db.transactions.toArray(),
-      db.categories.orderBy('order').toArray(),
-      db.meta.get('lastManualAccount').then((m) => m?.value as string | undefined),
-    ]);
-    return { accounts, transactions, categories, lastAccountId };
-  }, []);
+  const s = useStore();
+  const { accounts, transactions, categories } = s.raw;
+  if (!accounts || !transactions || !categories || !s.meta) return undefined;
+  return { accounts, transactions, categories, lastAccountId: s.meta.get('lastManualAccount') as string | undefined };
 }
 
-/** Balances over time (transactions + values you entered), shared by Net Worth, Overview and goals. */
+/** Balances over time (transactions + values you entered), shared by Net Worth, Today and goals. */
 export function useBook() {
-  const accounts = useAccounts();
-  const txns = useTransactions();
-  const valuations = useLiveQuery(() => db.valuations.toArray(), []) ?? EMPTY;
-  return useMemo(() => makeBook(accounts, txns, valuations), [accounts, txns, valuations]);
-}
-
-export function useGoals(): Goal[] {
-  return useLiveQuery(() => db.goals.orderBy('id').toArray(), []) ?? EMPTY;
+  const s = useStore();
+  const accounts = s.raw.accounts ?? EMPTY;
+  const txns = s.raw.transactions ?? EMPTY;
+  const valuations = s.raw.valuations ?? EMPTY;
+  return s.derive('book', [accounts, txns, valuations], () => makeBook(accounts, txns, valuations));
 }

@@ -55,3 +55,56 @@ export function topHit(text: string, categories: { id: string; name: string }[],
   const placeStart = places.find((p) => p.count >= 2 && starts(p.name));
   return placeStart ? { kind: 'place', key: placeStart.key } : null;
 }
+
+/**
+ * Everything Search looks through, prepared once (lowercased text, store names, amounts) so each
+ * keystroke is a quick scan instead of re-reading every transaction.
+ */
+export interface SearchIndex {
+  rows: { t: Transaction; text: string; tags: string[]; amount: string; category: string }[];
+  /** Every store, most visited first. */
+  places: PlaceMatch[];
+}
+
+export function buildSearchIndex(txns: Transaction[], categoryName: (id: string) => string | undefined): SearchIndex {
+  const places = new Map<string, PlaceMatch>();
+  const rows = txns.map((t) => {
+    const key = (t.payee || t.description).trim().toLowerCase();
+    if (key) {
+      const p = places.get(key);
+      if (p) p.count++;
+      else places.set(key, { key, name: t.payee || t.description, count: 1 });
+    }
+    return {
+      t,
+      // NUL can't be typed, so matches never run across two fields.
+      text: `${t.payee}\u0000${t.description}\u0000${t.notes}`.toLowerCase(),
+      tags: (t.tags ?? []).map(tagKey),
+      amount: (t.amount / 100).toFixed(2),
+      category: categoryName(t.categoryId)?.toLowerCase() ?? '',
+    };
+  });
+  return { rows, places: [...places.values()].sort((a, b) => b.count - a.count) };
+}
+
+/** The same matches as matchesQuery, plus transactions whose category name contains the text ("coffee" finds Starbucks). */
+export function searchTransactions(index: SearchIndex, query: string): Transaction[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return index.rows.map((r) => r.t);
+  const tagQ = q.replace(/^#/, '');
+  const amountQ = q.replace(/[$,-]/g, '');
+  return index.rows
+    .filter((r) => r.tags.some((x) => x.includes(tagQ)) || r.text.includes(q) || r.amount.includes(amountQ) || r.category.includes(q))
+    .map((r) => r.t);
+}
+
+/** Stores whose name contains the text, most visited first. */
+export function searchPlaces(index: SearchIndex, query: string, limit = 5): PlaceMatch[] {
+  const q = query.trim().toLowerCase();
+  const out: PlaceMatch[] = [];
+  for (const p of index.places) {
+    if (p.key.includes(q)) out.push(p);
+    if (out.length >= limit) break;
+  }
+  return out;
+}

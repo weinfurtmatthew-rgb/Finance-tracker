@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { addRecent, looksLikeQuestion, topHit } from '../src/lib/search';
+import { addRecent, buildSearchIndex, looksLikeQuestion, matchesQuery, searchPlaces, searchTransactions, topHit } from '../src/lib/search';
+import type { Transaction } from '../src/types';
 
 describe('looksLikeQuestion', () => {
   it('sends questions to Ask and leaves plain searches alone', () => {
@@ -42,5 +43,33 @@ describe('topHit', () => {
     expect(topHit('she', cats, places)).toBeNull();
     expect(topHit('shell', cats, places)).toEqual({ kind: 'place', key: 'shell' });
     expect(topHit('s', cats, places)).toBeNull();
+  });
+});
+
+describe('search index', () => {
+  const tx = (id: string, payee: string, amount: number, categoryId: string, extra: Partial<Transaction> = {}): Transaction => ({
+    id, accountId: 'a', date: '2026-09-01', amount, description: payee.toUpperCase() + ' #123', payee, categoryId, notes: '', source: 'csv', createdAt: 0, ...extra,
+  });
+  const txns = [
+    tx('1', 'Starbucks', -575, 'coffee'),
+    tx('2', 'Chipotle', -1250, 'dining', { tags: ['Italy 2026'], notes: 'lunch with Sam' }),
+    tx('3', 'Starbucks', -490, 'coffee'),
+    tx('4', 'Payroll', 240000, 'income'),
+    tx('5', '', -1999, 'shopping', { description: 'AMZN MKTP' }),
+  ];
+  const names: Record<string, string> = { coffee: 'Coffee', dining: 'Dining', income: 'Income', shopping: 'Shopping' };
+  const index = buildSearchIndex(txns, (id) => names[id]);
+
+  it('finds exactly what matchesQuery (or the category name) finds', () => {
+    for (const q of ['star', 'STAR', 'coffee', '#italy', 'italy', 'sam', '12.50', '$12', '-5.75', 'amzn', '#123', 'xyz', '2400']) {
+      const expected = txns.filter((t) => matchesQuery(t, q) || names[t.categoryId].toLowerCase().includes(q.trim().toLowerCase())).map((t) => t.id);
+      expect(searchTransactions(index, q).map((t) => t.id), q).toEqual(expected);
+    }
+  });
+
+  it('lists stores by visits', () => {
+    expect(searchPlaces(index, 'star')).toEqual([{ key: 'starbucks', name: 'Starbucks', count: 2 }]);
+    expect(searchPlaces(index, '', 2).map((p) => p.key)).toEqual(['starbucks', 'chipotle']);
+    expect(searchPlaces(index, 'amzn')[0].key).toBe('amzn mktp');
   });
 });
