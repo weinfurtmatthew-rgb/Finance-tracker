@@ -1,5 +1,6 @@
 import type { Account, Cents, Goal, ISODate, Transaction, Valuation } from '../types';
-import { addDays, addMonths, dayInMonth, diffDays, monthKey } from './dates';
+import { addDays, addMonths, dayInMonth, diffDays, monthKey, todayISO } from './dates';
+import { cdValueOn } from './cd';
 import { isLiability } from './balances';
 
 /** Accounts whose balance is a value you enter (market or resale value), not the sum of transactions. */
@@ -58,10 +59,13 @@ function lastOnOrBefore(dates: ISODate[], date: ISODate): number {
 /**
  * Balance of an account at the end of `date` (or now). Investments and vehicles use the latest value
  * you entered on or before that day; before the first value, that first value is used (so history
- * doesn't show a fake jump the day you start tracking).
+ * doesn't show a fake jump the day you start tracking). CDs grow on their own from their deposit.
  */
 export function balanceOn(book: BalanceBook, a: Account, date?: ISODate): Cents {
   const vals = book.values.get(a.id);
+  // A cashed-out CD: the money moved on the day it closed.
+  if (a.closedOn && (date ?? todayISO()) >= a.closedOn) return 0;
+  if (a.type === 'cd' && vals?.length) return cdValueOn(a, vals, date ?? todayISO());
   if (isValued(a) && vals?.length) {
     if (!date) return vals[vals.length - 1].value;
     const i = lastOnOrBefore(
@@ -89,7 +93,8 @@ export function netWorthOn(book: BalanceBook, date?: ISODate): NetWorthPoint {
   let assets = 0;
   let debts = 0;
   for (const a of book.accounts) {
-    if (a.archived) continue;
+    // Hidden accounts don't count, except a cashed-out CD in the days before it closed.
+    if (a.archived && !(date && a.closedOn && date < a.closedOn)) continue;
     const b = balanceOn(book, a, date);
     if (b < 0 || (isLiability(a) && b < 0)) debts -= b;
     else assets += b;

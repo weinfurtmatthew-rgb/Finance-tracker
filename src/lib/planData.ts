@@ -25,7 +25,7 @@ export interface PlanSnapshot {
   savings: Cents;
   /** What goes into savings accounts in a typical month (deposits minus withdrawals, not interest). */
   savingsMonthly: Cents;
-  /** Investment account values. */
+  /** Investment account values (brokerage and CDs). */
   invested: Cents;
   /** Average spending (everyday + bills) per month over the months averaged. */
   monthlySpending: Cents;
@@ -158,7 +158,7 @@ export function planSnapshot(args: {
     cash: sum(['checking', 'savings', 'cash', 'wallet']),
     savings: sum(['savings']),
     savingsMonthly,
-    invested: sum(['brokerage']),
+    invested: sum(['brokerage', 'cd']),
     monthlySpending,
     monthlyFixed,
     monthlyHousing,

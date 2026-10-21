@@ -25,7 +25,7 @@ import { openingBalanceFor } from '../lib/balances';
 import { formatDay } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { CategoryIcon, Empty, Field, Money, Section, Sheet, Toggle } from '../components/ui';
-import { ACCOUNT_TYPES } from './AccountEditor';
+import { ACCOUNT_TYPES, typeName } from './AccountEditor';
 import { recordImport, takeSnapshot, undoLastImport } from '../lib/importUndo';
 
 interface CsvState {
@@ -70,7 +70,7 @@ function guessAccountType(format: string, ofx?: OfxStatement): AccountType {
   if (ofx) {
     if (ofx.kind === 'credit') return 'credit';
     const t = ofx.bankAccountType?.toUpperCase();
-    return t === 'SAVINGS' || t === 'MONEYMRKT' ? 'savings' : t === 'CREDITLINE' ? 'credit' : 'checking';
+    return t === 'SAVINGS' || t === 'MONEYMRKT' ? 'savings' : t === 'CREDITLINE' ? 'credit' : t === 'CD' ? 'cd' : 'checking';
   }
   if (/discover|capital one \(card\)/i.test(format)) return 'credit';
   if (/fidelity/i.test(format)) return 'brokerage';
@@ -145,7 +145,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
         nextAccount ??= await accountWithMostMatches(known, st.transactions);
         setNewType(guessAccountType('', st));
         setNewInstitution(guessInstitution('', file.name));
-        setNewName(`${guessInstitution('', file.name) || 'Bank'} ${ACCOUNT_TYPES.find((t) => t.value === guessAccountType('', st))?.label ?? ''}`.trim());
+        setNewName(`${guessInstitution('', file.name) || 'Bank'} ${typeName(guessAccountType('', st))}`.trim());
       } else {
         const table = readCsv(text);
         if (table.headerIndex < 0) throw new Error("This doesn't look like a transactions file.");
@@ -179,7 +179,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
         const type = guessAccountType(detected.format);
         setNewType(type);
         setNewInstitution(inst);
-        setNewName(`${inst || 'New'} ${ACCOUNT_TYPES.find((t) => t.value === type)?.label ?? ''}`.trim());
+        setNewName(`${inst || 'New'} ${typeName(type)}`.trim());
       }
       setAccountId(nextAccount ?? NEW);
     } catch (e) {

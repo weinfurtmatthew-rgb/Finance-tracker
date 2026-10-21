@@ -13,6 +13,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-21',
+    date: 'October 21, 2026',
+    title: 'CDs',
+    items: [
+      'Add a CD in Net Worth: the deposit, when it opened, the term and the APY. It grows on its own, so there’s no value to update.',
+      'Today reminds you two weeks before a CD matures. After that, tell the app whether it renewed or you moved the money.',
+      'CDs count as investments in Plan and Money Health.',
+    ],
+  },
+  {
     id: '2026-10-05b',
     date: 'October 5, 2026',
     title: 'A simpler app',

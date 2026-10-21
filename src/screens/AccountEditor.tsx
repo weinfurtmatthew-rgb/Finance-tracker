@@ -5,17 +5,19 @@ import { useNav } from '../nav';
 import type { Account, AccountType, Transaction, Valuation } from '../types';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { isValued } from '../lib/networth';
-import { formatShortDate, todayISO } from '../lib/dates';
+import { formatDate, formatShortDate, todayISO } from '../lib/dates';
+import { CD_TERMS, cdValueOn, maturityDate, termLabel, termMonths } from '../lib/cd';
 import { BalanceCheckSheet } from '../components/BalanceCheck';
 import { accountBalance, isLiability, openingBalanceFor } from '../lib/balances';
-import { parseAmount } from '../lib/money';
-import { ActionSheet, Field, Section, Sheet } from '../components/ui';
+import { formatMoney, parseAmount } from '../lib/money';
+import { ActionSheet, Field, Section, Sheet, Toggle } from '../components/ui';
 
 export const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'checking', label: 'Checking' },
   { value: 'savings', label: 'Savings' },
   { value: 'credit', label: 'Credit card' },
   { value: 'brokerage', label: 'Investment' },
+  { value: 'cd', label: 'CD' },
   { value: 'vehicle', label: 'Vehicle' },
   { value: 'cash', label: 'Cash' },
   { value: 'wallet', label: 'Payment app (Venmo, Cash App…)' },
@@ -23,22 +25,32 @@ export const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
+/** A type's short name for naming an account: "Payment app", not "Payment app (Venmo, Cash App…)". */
+export const typeName = (type: AccountType) => (ACCOUNT_TYPES.find((t) => t.value === type)?.label ?? '').replace(/\s*\(.*\)$/, '');
+
 export const INSTITUTIONS = ['Citizens', 'Discover', 'Capital One', 'Fidelity'];
 
 type Props = { account?: Account; onClose: () => void; onCreated?: (a: Account) => void };
 
 export function AccountEditor(props: Props) {
   const data = useLoaded();
-  const lastValue = useLiveQuery(
-    async () => (props.account ? ((await db.valuations.where('accountId').equals(props.account.id).sortBy('date')).at(-1) ?? null) : null),
+  const values = useLiveQuery(
+    async () => (props.account ? await db.valuations.where('accountId').equals(props.account.id).sortBy('date') : []),
     [props.account?.id],
   );
-  return data && lastValue !== undefined ? <AccountForm {...props} txns={data.transactions} lastValue={lastValue} /> : null;
+  return data && values !== undefined ? <AccountForm {...props} txns={data.transactions} values={values} /> : null;
 }
 
-function AccountForm(props: Props & { txns: Transaction[]; lastValue: Valuation | null }) {
+/** "10000", "10,000.50" → cents; undefined unless it's an amount above zero. */
+const positive = (text: string) => {
+  const c = parseAmount(text);
+  return c != null && c !== 0 ? Math.abs(c) : undefined;
+};
+
+function AccountForm(props: Props & { txns: Transaction[]; values: Valuation[] }) {
   const nav = useNav();
-  const { txns, lastValue } = props;
+  const { txns, values } = props;
+  const lastValue = values.at(-1) ?? null;
   const a = props.account;
   const current = a ? (isValued(a) && lastValue ? lastValue.value : accountBalance(a, txns)) : 0;
   const [name, setName] = useState(a?.name ?? '');
@@ -53,6 +65,30 @@ function AccountForm(props: Props & { txns: Transaction[]; lastValue: Valuation 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const liability = isLiability({ type });
   const valued = isValued({ type });
+
+  // CDs: what went in when the current term started, the term and the rate; the value grows from there.
+  const isCd = type === 'cd';
+  const today = todayISO();
+  const termStart = a?.type === 'cd' && a.openedOn ? values.find((v) => v.date === a.openedOn) : undefined;
+  const [deposit, setDeposit] = useState(termStart ? (termStart.value / 100).toFixed(2) : '');
+  const [openedOn, setOpenedOn] = useState(a?.openedOn ?? today);
+  const [termChoice, setTermChoice] = useState(() => {
+    const m = a?.openedOn && a.maturesOn ? termMonths(a.openedOn, a.maturesOn) : 12;
+    return m && CD_TERMS.includes(m) ? String(m) : a?.maturesOn ? 'other' : '12';
+  });
+  const [otherDate, setOtherDate] = useState(a?.maturesOn ?? '');
+  const [paidOut, setPaidOut] = useState(!!a?.interestPaidOut);
+  const maturesOn = termChoice === 'other' ? otherDate : maturityDate(openedOn || today, Number(termChoice));
+  const depositCents = positive(deposit);
+  const cdValid = !!depositCents && !!openedOn && !!maturesOn && maturesOn > openedOn;
+  // A CD that came in from a bank file can keep its balance from its transactions until you add its terms.
+  const cdTerms = isCd && (!a || !!termStart || deposit.trim() !== '');
+  const rate = (text: string) => {
+    const n = parseFloat(text.replace('%', ''));
+    return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 10000 : undefined;
+  };
+  const estimate = (date: string) =>
+    cdValueOn({ apy: rate(apy), maturesOn, interestPaidOut: paidOut }, [{ id: '', accountId: '', date: openedOn, value: depositCents ?? 0 }], date);
   const count = a ? txns.filter((t) => t.accountId === a.id).length : 0;
 
   const save = async () => {
@@ -69,12 +105,26 @@ function AccountForm(props: Props & { txns: Transaction[]; lastValue: Valuation 
       createdAt: a?.createdAt ?? Date.now(),
       ...(a?.checkedOn ? { checkedOn: a.checkedOn } : {}),
       ...(a?.balanceSetAt ? { balanceSetAt: a.balanceSetAt } : {}),
+      ...(a?.closedOn ? { closedOn: a.closedOn } : {}),
     };
     // Rates for the Plan calculators: APR & minimum on cards and loans, APY on bank accounts.
-    const rate = (text: string) => {
-      const n = parseFloat(text.replace('%', ''));
-      return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 10000 : undefined;
-    };
+    if (cdTerms) {
+      record.apy = rate(apy);
+      record.openedOn = openedOn;
+      record.maturesOn = maturesOn;
+      if (paidOut) record.interestPaidOut = true;
+      if (record.apy === undefined) delete record.apy;
+      // The deposit is the CD's value on the day the term started; it grows from there (lib/cd.ts).
+      await db.transaction('rw', db.accounts, db.valuations, async () => {
+        await db.accounts.put(record);
+        if (termStart) await db.valuations.update(termStart.id, { date: openedOn, value: depositCents! });
+        else await db.valuations.add({ id: newId(), accountId: record.id, date: openedOn, value: depositCents! });
+      });
+      nav.toast(a ? 'Account saved' : 'CD added');
+      props.onCreated?.(record);
+      props.onClose();
+      return;
+    }
     if (liability) {
       record.apr = rate(apr);
       const min = parseAmount(minPayment);
@@ -116,12 +166,13 @@ function AccountForm(props: Props & { txns: Transaction[]; lastValue: Valuation 
   };
 
   const toggleArchive = async () => {
-    await db.accounts.update(a!.id, { archived: !a!.archived });
+    // Showing a cashed-out CD again brings back its full history (and its value since).
+    await db.accounts.update(a!.id, { archived: !a!.archived, ...(a!.archived ? { closedOn: undefined } : {}) });
     props.onClose();
   };
 
   return (
-    <Sheet title={a ? 'Edit Account' : 'New Account'} onClose={props.onClose} onSave={save} saveDisabled={!name.trim()}>
+    <Sheet title={a ? 'Edit Account' : 'New Account'} onClose={props.onClose} onSave={save} saveDisabled={!name.trim() || (cdTerms && !cdValid)}>
       <Section>
         <Field label="Name">
           <input value={name} placeholder="e.g. Discover It" onInput={(e) => setName((e.target as HTMLInputElement).value)} autoFocus={!a} />
@@ -145,22 +196,60 @@ function AccountForm(props: Props & { txns: Transaction[]; lastValue: Valuation 
           <input inputMode="numeric" maxLength={4} value={last4} placeholder="Optional" onInput={(e) => setLast4((e.target as HTMLInputElement).value)} />
         </Field>
       </Section>
-      <Section
-        title={valued ? 'Value today' : liability ? 'Amount owed today' : 'Balance today'}
-        footer={
-          valued
-            ? type === 'vehicle'
-              ? 'A resale estimate (Kelley Blue Book, Edmunds or Carvana). Update it now and then; each update is a point in your net worth history.'
-              : 'The total value shown on your brokerage’s site. Update it now and then; each update is a point in your net worth history.'
-            : liability
-              ? 'What you owe right now, as shown by your bank. Future transactions adjust it automatically.'
-              : 'Your current balance, as shown by your bank. Future transactions adjust it automatically.'
-        }
-      >
-        <Field label={valued ? 'Value' : liability ? 'Owed' : 'Balance'}>
-          <input inputMode="decimal" value={balance} placeholder="0.00" onInput={(e) => setBalance((e.target as HTMLInputElement).value)} />
-        </Field>
-      </Section>
+      {isCd ? (
+        <Section
+          title="CD"
+          footer={
+            !cdValid
+              ? `What you deposited, when, and for how long. Your bank’s site or statement shows these. For a CD that renewed, use the day it renewed and what it was worth then.${cdTerms ? '' : ' Leave them empty to keep its balance from its imported transactions.'}`
+              : openedOn > today
+                ? `Starts ${formatDate(openedOn)} and grows to about ${formatMoney(estimate(maturesOn))} by ${formatDate(maturesOn)}.`
+                : `Worth about ${formatMoney(estimate(today))} today${maturesOn > today ? `, and ${formatMoney(estimate(maturesOn))} when it matures ${formatDate(maturesOn)}` : ''}. It grows on its own; there’s no value to update.`
+          }
+        >
+          <Field label="Deposit">
+            <input inputMode="decimal" value={deposit} placeholder="0.00" onInput={(e) => setDeposit((e.target as HTMLInputElement).value)} />
+          </Field>
+          <Field label="Opened">
+            <input type="date" value={openedOn} onInput={(e) => setOpenedOn((e.target as HTMLInputElement).value)} />
+          </Field>
+          <Field label="Term" hint={termChoice !== 'other' && openedOn ? `Matures ${formatDate(maturesOn)}` : undefined}>
+            <select value={termChoice} onChange={(e) => setTermChoice((e.target as HTMLSelectElement).value)}>
+              {CD_TERMS.map((m) => (
+                <option value={String(m)}>{termLabel(m)}</option>
+              ))}
+              <option value="other">Other date…</option>
+            </select>
+          </Field>
+          {termChoice === 'other' && (
+            <Field label="Matures">
+              <input type="date" value={otherDate} min={openedOn} onInput={(e) => setOtherDate((e.target as HTMLInputElement).value)} />
+            </Field>
+          )}
+          <Field label="APY">
+            <input inputMode="decimal" value={apy} placeholder="e.g. 4.50" onInput={(e) => setApy((e.target as HTMLInputElement).value)} />
+            <span class="affix">%</span>
+          </Field>
+          <Toggle label="Interest goes to another account" checked={paidOut} onChange={setPaidOut} />
+        </Section>
+      ) : (
+        <Section
+          title={valued ? 'Value today' : liability ? 'Amount owed today' : 'Balance today'}
+          footer={
+            valued
+              ? type === 'vehicle'
+                ? 'A resale estimate (Kelley Blue Book, Edmunds or Carvana). Update it now and then; each update is a point in your net worth history.'
+                : 'The total value shown on your brokerage’s site. Update it now and then; each update is a point in your net worth history.'
+              : liability
+                ? 'What you owe right now, as shown by your bank. Future transactions adjust it automatically.'
+                : 'Your current balance, as shown by your bank. Future transactions adjust it automatically.'
+          }
+        >
+          <Field label={valued ? 'Value' : liability ? 'Owed' : 'Balance'}>
+            <input inputMode="decimal" value={balance} placeholder="0.00" onInput={(e) => setBalance((e.target as HTMLInputElement).value)} />
+          </Field>
+        </Section>
+      )}
       {liability && (
         <Section title="Interest" footer="Optional. Used by the debt payoff and affordability calculators; without them, typical rates are assumed.">
           <Field label="APR">
@@ -182,7 +271,7 @@ function AccountForm(props: Props & { txns: Transaction[]; lastValue: Valuation 
       )}
       {a && (
         <Section>
-          {!valued && (
+          {!valued && !(isCd && termStart) && (
             <button type="button" class="row link-row" onClick={() => nav.present((close) => <BalanceCheckSheet account={a} onClose={close} />)}>
               Check balance against my bank{a.checkedOn ? ` · last matched ${formatShortDate(a.checkedOn)}` : ''}
             </button>

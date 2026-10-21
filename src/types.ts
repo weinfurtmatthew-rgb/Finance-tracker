@@ -5,7 +5,7 @@ export type Cents = number;
 export type ISODate = string;
 
 /** 'wallet' is a payment app's balance: Venmo, Cash App, Apple Cash. */
-export type AccountType = 'checking' | 'savings' | 'credit' | 'brokerage' | 'vehicle' | 'cash' | 'wallet' | 'loan' | 'other';
+export type AccountType = 'checking' | 'savings' | 'credit' | 'brokerage' | 'cd' | 'vehicle' | 'cash' | 'wallet' | 'loan' | 'other';
 
 export type PaymentApp = 'venmo' | 'cashapp' | 'applecash';
 
@@ -43,8 +43,15 @@ export interface Account {
   apr?: number;
   /** Credit cards & loans: the minimum monthly payment. */
   minPayment?: Cents;
-  /** Savings & checking: the yearly yield as a decimal (0.041 = 4.1%). */
+  /** Savings, checking & CDs: the yearly yield as a decimal (0.041 = 4.1%). */
   apy?: number;
+  /** CDs: when the current term started, and when it matures (see lib/cd.ts). */
+  openedOn?: ISODate;
+  maturesOn?: ISODate;
+  /** CDs: the interest is paid into another account, so the CD itself stays at what was deposited. */
+  interestPaidOut?: boolean;
+  /** A hidden account that still counts in net worth history before this day (a CD you cashed out). */
+  closedOn?: ISODate;
   /** Last day the balance was confirmed to match the bank's. */
   checkedOn?: ISODate;
   /** When that confirmation was made (ms), to know which imports it already counted. */

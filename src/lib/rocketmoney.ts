@@ -34,6 +34,7 @@ export function rocketGroups(drafts: DraftTransaction[]): RocketGroup[] {
 /** An account type from Rocket Money's "Account Type" text. */
 export function accountTypeFor(a: SourceAccount): AccountType {
   const t = `${a.type ?? ''} ${a.name}`.toLowerCase();
+  if (/\bcds?\b|certificate/.test(t)) return 'cd';
   if (/credit/.test(t)) return 'credit';
   if (/saving|money market/.test(t)) return 'savings';
   if (/invest|brokerage|401|ira|retire/.test(t)) return 'brokerage';
