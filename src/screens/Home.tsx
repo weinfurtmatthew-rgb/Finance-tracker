@@ -7,7 +7,8 @@ import { useNav } from '../nav';
 import { useRecurringModel } from '../recurringModel';
 import { useSpending } from '../spendingModel';
 import { usePlanData } from '../planModel';
-import { addDays, addMonths, daysInMonth, diffDays, formatLongDay, formatShortDate, monthKey, monthLabel } from '../lib/dates';
+import { addDays, addMonths, daysInMonth, diffDays, formatDate, formatLongDay, formatShortDate, monthKey, monthLabel } from '../lib/dates';
+import { cdMaturityValue, cdStage } from '../lib/cd';
 import { formatMoney } from '../lib/money';
 import { budgetProgress, heldEveryBudget } from '../lib/budgets';
 import { accountBalance } from '../lib/balances';
@@ -22,6 +23,8 @@ import { PaceChart } from '../components/PaceChart';
 import { ProfileButton } from '../components/ProfileButton';
 import { RecurringRow } from '../components/RecurringRow';
 import { AccountEditor } from './AccountEditor';
+import { AccountDetail } from './AccountDetail';
+import { CdMaturitySheet } from './CdMaturity';
 import { ImportFlow } from '../lazy';
 import { BackupSheet } from './Backup';
 import { BACKUP_SNOOZE_DAYS, backupDue, DEFAULT_BACKUP_EVERY_DAYS } from '../lib/backup';
@@ -261,6 +264,28 @@ export function Home() {
       open: () => nav.present((close) => <BackupSheet onClose={close} />),
       later: () => void setMeta('backupSnoozeUntil', Date.now() + BACKUP_SNOOZE_DAYS * 86_400_000),
     });
+  // CDs: a heads-up two weeks before one matures, then the question of what happened to it.
+  for (const a of open) {
+    const stage = a.type === 'cd' ? cdStage(a, today) : null;
+    if (stage === 'maturing')
+      todos.push({
+        key: `cd-${a.id}`,
+        glyph: 'calendar',
+        hue: 'green',
+        title: `CD matures ${formatDate(a.maturesOn!)}`,
+        sub: `${a.name}: about ${whole(cdMaturityValue(a, book.values.get(a.id) ?? []) ?? 0)} then. Shop rates now if you might move it`,
+        open: () => nav.present((close) => <AccountDetail account={a} onClose={close} />),
+      });
+    else if (stage === 'matured')
+      todos.push({
+        key: `cd-${a.id}`,
+        glyph: 'calendar',
+        hue: 'green',
+        title: `CD matured ${formatDate(a.maturesOn!)}`,
+        sub: `${a.name}: did it renew, or did you move the money?`,
+        open: () => nav.present((close) => <CdMaturitySheet account={a} onClose={close} />),
+      });
+  }
   if (uncategorized > 0)
     todos.push({
       key: 'uncategorized',

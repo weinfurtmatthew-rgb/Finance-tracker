@@ -35,7 +35,7 @@ export function useMoneyHealth(): Health | null | undefined {
       budgets: budgets.length,
       goals,
       tracked: active.filter((s) => countsAsCost(s.rec)).length,
-      has: { cash: hasType('checking', 'savings', 'cash', 'wallet'), invest: hasType('brokerage'), debt: hasType('credit', 'loan') },
+      has: { cash: hasType('checking', 'savings', 'cash', 'wallet'), invest: hasType('brokerage', 'cd'), debt: hasType('credit', 'loan') },
     });
   });
 }

@@ -243,8 +243,14 @@ published site and runs `tests/ai-smoke.test.ts` against it.
 - History is rebuilt from your transactions for cash accounts, cards and loans; **investments and vehicles** keep a
   history of the values you enter (Update Values), with a reminder when a value is over 30 days old
 - **Vehicle** account type (resale value), alongside auto loans as regular loan accounts
+- **CDs** (certificates of deposit), under Investments: enter the deposit, the day it opened, the term and the APY,
+  and the value grows on its own (no values to update; `src/lib/cd.ts`). Today mentions it two weeks before it
+  matures; once it has, you say whether it **renewed** (pick the new term and rate; the new term starts at what it was
+  worth) or you **moved the money** (it closes, staying in net worth history until that day). For a CD that pays its
+  interest into another account, switch on "Interest goes to another account" and it stays at the deposit. CDs count
+  as investments in Plan and Money Health, not as cash. QFX/OFX files and Rocket Money exports bring CDs in as CDs
 - **Savings goals** linked to an account: progress bar, projected finish date at your recent 3-month pace, and, with a
-  target date, how much to save **per month and per paycheck** (using the paycheck from Recurring)
+  target date, how much to save **per month and per paycheck** (using the paycheck from Bills & Subscriptions)
 
 ### Budgets & spending (Phase 3)
 

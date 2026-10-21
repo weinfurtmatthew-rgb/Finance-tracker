@@ -7,7 +7,8 @@ import { useNav } from '../nav';
 import { useRecurringModel } from '../recurringModel';
 import type { Account, AccountType } from '../types';
 import { isLiability } from '../lib/balances';
-import { addMonths, dayInMonth, formatShortDate, monthKey, monthLabel } from '../lib/dates';
+import { addMonths, dayInMonth, formatDate, formatShortDate, monthKey, monthLabel } from '../lib/dates';
+import { apyLabel, cdStage } from '../lib/cd';
 import { formatMoney } from '../lib/money';
 import { nextOnSchedule, occurrences } from '../lib/recurring';
 import {
@@ -24,7 +25,7 @@ import { GoalEditor } from './GoalEditor';
 
 const GROUPS: { title: string; types: AccountType[]; icon: GlyphName }[] = [
   { title: 'Cash', types: ['checking', 'savings', 'cash', 'wallet'], icon: 'bank' },
-  { title: 'Investments', types: ['brokerage'], icon: 'trend' },
+  { title: 'Investments', types: ['brokerage', 'cd'], icon: 'trend' },
   { title: 'Vehicles', types: ['vehicle'], icon: 'car' },
   { title: 'Credit cards', types: ['credit'], icon: 'card' },
   { title: 'Loans', types: ['loan'], icon: 'receipt' },
@@ -129,17 +130,20 @@ export function Accounts() {
     const b = balances.get(a.id) ?? 0;
     const valued = isValued(a);
     const lastVal = book.values.get(a.id)?.at(-1);
+    const stage = a.type === 'cd' ? cdStage(a, today) : null;
     return (
       <Row
         title={a.name}
         subtitle={
-          valued
-            ? lastVal
-              ? `Value updated ${formatShortDate(lastVal.date)}`
-              : 'Value not set yet'
-            : [a.institution, a.last4 && `•••• ${a.last4}`, `${counts.get(a.id) ?? 0} transactions`, a.checkedOn && `✓ ${formatShortDate(a.checkedOn)}`]
-                .filter(Boolean)
-                .join(' · ')
+          stage
+            ? [apyLabel(a.apy), stage === 'matured' ? `matured ${formatDate(a.maturesOn!)}` : `matures ${formatDate(a.maturesOn!)}`].filter(Boolean).join(' · ')
+            : valued
+              ? lastVal
+                ? `Value updated ${formatShortDate(lastVal.date)}`
+                : 'Value not set yet'
+              : [a.institution, a.last4 && `•••• ${a.last4}`, `${counts.get(a.id) ?? 0} transactions`, a.checkedOn && `✓ ${formatShortDate(a.checkedOn)}`]
+                  .filter(Boolean)
+                  .join(' · ')
         }
         detail={<Money cents={isLiability(a) ? -b : b} />}
         onClick={() => nav.present((close) => <AccountDetail account={a} onClose={close} />)}

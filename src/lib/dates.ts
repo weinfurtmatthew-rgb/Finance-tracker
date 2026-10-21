@@ -124,6 +124,13 @@ export function formatShortDate(date: ISODate): string {
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+/** "Oct 10" this year, "Oct 10, 2027" any other year. */
+export function formatDate(date: ISODate): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const thisYear = Number(todayISO().slice(0, 4));
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: y === thisYear ? undefined : 'numeric' });
+}
+
 /** "Thursday, October 1": the date above the Today title. */
 export function formatLongDay(date: ISODate): string {
   const [y, m, d] = date.split('-').map(Number);
