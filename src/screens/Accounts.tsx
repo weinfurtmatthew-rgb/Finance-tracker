@@ -10,7 +10,8 @@ import { isLiability } from '../lib/balances';
 import { addMonths, dayInMonth, formatDate, formatShortDate, monthKey, monthLabel } from '../lib/dates';
 import { apyLabel, cdStage } from '../lib/cd';
 import { iraRoom, isIra, taxYearsFor } from '../lib/ira';
-import { useBirthYear } from '../iraModel';
+import { is401k, k401Totals } from '../lib/k401';
+import { useBirthYear, usePay } from '../retirementModel';
 import { formatMoney } from '../lib/money';
 import { nextOnSchedule, occurrences } from '../lib/recurring';
 import {
@@ -25,10 +26,13 @@ import { ImportFlow } from '../lazy';
 import { UpdateValues } from './UpdateValues';
 import { GoalEditor } from './GoalEditor';
 
+/** How a retirement account is described in its row. */
+const RETIREMENT_KIND: Partial<Record<AccountType, string>> = { 'roth-ira': 'Roth', ira: 'Traditional', '401k': '401(k)', 'roth-401k': 'Roth 401(k)' };
+
 const GROUPS: { title: string; types: AccountType[]; icon: GlyphName }[] = [
   { title: 'Cash', types: ['checking', 'savings', 'cash', 'wallet'], icon: 'bank' },
   { title: 'Investments', types: ['brokerage', 'cd'], icon: 'trend' },
-  { title: 'Retirement', types: ['roth-ira', 'ira'], icon: 'sun' },
+  { title: 'Retirement', types: ['roth-ira', 'ira', '401k', 'roth-401k'], icon: 'sun' },
   { title: 'Vehicles', types: ['vehicle'], icon: 'car' },
   { title: 'Credit cards', types: ['credit'], icon: 'card' },
   { title: 'Loans', types: ['loan'], icon: 'receipt' },
@@ -89,6 +93,7 @@ export function Accounts() {
   const today = rec.today;
   const [range, setRange] = useState<Range>('1y');
   const birthYear = useBirthYear();
+  const pay = usePay();
   const [view, setView] = useState<'net' | 'split'>('net');
 
   const accounts = book.accounts;
@@ -130,6 +135,19 @@ export function Accounts() {
 
   const edit = (account?: Account) => nav.present((close) => <AccountEditor account={account} onClose={close} />);
   const editGoal = (goal?: GoalProgress['goal']) => nav.present((close) => <GoalEditor goal={goal} onClose={close} />);
+  // Under Retirement: IRA contributions against the year's limit, and your 401(k) at the rate you put in.
+  const k401 = k401Totals(open, pay, Number(today.slice(0, 4)), birthYear);
+  const retirementFooter = [
+    ...(open.some(isIra)
+      ? taxYearsFor(today).map((y) => {
+          const r = iraRoom(y, txns, birthYear);
+          return `${y} IRA contributions: ${formatMoney(r.contributed, { whole: true })} of ${formatMoney(r.limit, { whole: true })}`;
+        })
+      : []),
+    k401 && `${today.slice(0, 4)} 401(k): ${formatMoney(k401.yours, { whole: true })} of ${formatMoney(k401.limit.limit, { whole: true })} at your rate`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const row = (a: Account) => {
     const b = balances.get(a.id) ?? 0;
     const valued = isValued(a);
@@ -143,8 +161,8 @@ export function Accounts() {
         subtitle={
           stage
             ? [apyLabel(a.apy), stage === 'matured' ? `matured ${formatDate(a.maturesOn!)}` : `matures ${formatDate(a.maturesOn!)}`].filter(Boolean).join(' · ')
-            : isIra(a)
-              ? [a.type === 'roth-ira' ? 'Roth' : 'Traditional', lastVal ? `updated ${formatShortDate(lastVal.date)}` : 'value not set', since > 0 && `+${formatMoney(since, { whole: true })} since`]
+            : isIra(a) || is401k(a)
+              ? [RETIREMENT_KIND[a.type], lastVal ? `updated ${formatShortDate(lastVal.date)}` : 'value not set', since > 0 && `+${formatMoney(since, { whole: true })} since`]
                   .filter(Boolean)
                   .join(' · ')
               : valued
@@ -284,16 +302,7 @@ export function Accounts() {
                     <Money cents={owed ? -total : total} />
                   </>
                 }
-                footer={
-                  g.title === 'Retirement'
-                    ? taxYearsFor(today)
-                        .map((y) => {
-                          const r = iraRoom(y, txns, birthYear);
-                          return `${y} IRA contributions: ${formatMoney(r.contributed, { whole: true })} of ${formatMoney(r.limit, { whole: true })}`;
-                        })
-                        .join(' · ')
-                    : undefined
-                }
+                footer={g.title === 'Retirement' ? retirementFooter : undefined}
               >
                 {items.map(row)}
               </Section>

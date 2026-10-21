@@ -8,6 +8,7 @@ import { addMonths, dayInMonth, monthKey } from './dates';
 import { balanceOn, type BalanceBook } from './networth';
 import type { MonthSpending } from './budgets';
 import { estimateApy, type Debt } from './plan';
+import { k401Totals } from './k401';
 
 /** Typical rates used when an account doesn't have its own (shown as estimates). */
 export const TYPICAL_CARD_APR = 0.22;
@@ -25,8 +26,13 @@ export interface PlanSnapshot {
   savings: Cents;
   /** What goes into savings accounts in a typical month (deposits minus withdrawals, not interest). */
   savingsMonthly: Cents;
-  /** Investment account values (brokerage, CDs and IRAs). */
+  /** Investment account values (brokerage, CDs, IRAs and 401(k)s). */
   invested: Cents;
+  /**
+   * What goes into your 401(k)s each month, yours and your employer's. It leaves your paycheck before
+   * the bank sees it, so it's on top of monthly income (from each 401(k)'s settings and your pay).
+   */
+  retirementMonthly: Cents;
   /** Average spending (everyday + bills) per month over the months averaged. */
   monthlySpending: Cents;
   /** The bills-and-subscriptions part of monthly spending (the bare minimum). */
@@ -62,6 +68,9 @@ export function planSnapshot(args: {
   txns: Transaction[];
   months: Map<string, MonthSpending>;
   today: ISODate;
+  /** Your yearly pay before taxes, and the year you were born (for 401(k) contributions). */
+  pay?: Cents;
+  birthYear?: number;
 }): PlanSnapshot {
   const { book, txns, months, today } = args;
   const open = args.accounts.filter((a) => !a.archived);
@@ -158,7 +167,8 @@ export function planSnapshot(args: {
     cash: sum(['checking', 'savings', 'cash', 'wallet']),
     savings: sum(['savings']),
     savingsMonthly,
-    invested: sum(['brokerage', 'cd', 'roth-ira', 'ira']),
+    invested: sum(['brokerage', 'cd', 'roth-ira', 'ira', '401k', 'roth-401k']),
+    retirementMonthly: k401Totals(open, args.pay, Number(today.slice(0, 4)), args.birthYear)?.monthly ?? 0,
     monthlySpending,
     monthlyFixed,
     monthlyHousing,

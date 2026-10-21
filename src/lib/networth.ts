@@ -2,10 +2,11 @@ import type { Account, Cents, Goal, ISODate, Transaction, Valuation } from '../t
 import { addDays, addMonths, dayInMonth, diffDays, monthKey, todayISO } from './dates';
 import { cdValueOn } from './cd';
 import { isIra } from './ira';
+import { is401k } from './k401';
 import { isLiability } from './balances';
 
 /** Accounts whose balance is a value you enter (market or resale value), not the sum of transactions. */
-export const isValued = (a: Pick<Account, 'type'>) => a.type === 'brokerage' || a.type === 'vehicle' || isIra(a);
+export const isValued = (a: Pick<Account, 'type'>) => a.type === 'brokerage' || a.type === 'vehicle' || isIra(a) || is401k(a);
 
 export const VALUE_STALE_DAYS = 30;
 

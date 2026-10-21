@@ -1,11 +1,13 @@
 import { useState } from 'preact/hooks';
-import { db, newId } from '../db';
+import { db, newId, setMeta } from '../db';
 import { useLoaded } from '../hooks';
 import { useNav } from '../nav';
 import type { Account, AccountType, Transaction, Valuation } from '../types';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { isValued } from '../lib/networth';
 import { isIra } from '../lib/ira';
+import { is401k, k401Limit, k401Year, missedMatch } from '../lib/k401';
+import { useBirthYear, usePay } from '../retirementModel';
 import { formatDate, formatShortDate, todayISO } from '../lib/dates';
 import { CD_TERMS, cdValueOn, maturityDate, termLabel, termMonths } from '../lib/cd';
 import { BalanceCheckSheet } from '../components/BalanceCheck';
@@ -21,6 +23,8 @@ export const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'cd', label: 'CD' },
   { value: 'roth-ira', label: 'Roth IRA' },
   { value: 'ira', label: 'Traditional IRA' },
+  { value: '401k', label: '401(k) / 403(b)' },
+  { value: 'roth-401k', label: 'Roth 401(k)' },
   { value: 'vehicle', label: 'Vehicle' },
   { value: 'cash', label: 'Cash' },
   { value: 'wallet', label: 'Payment app (Venmo, Cash App…)' },
@@ -29,7 +33,7 @@ export const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
 ];
 
 /** A type's short name for naming an account: "Payment app", not "Payment app (Venmo, Cash App…)". */
-export const typeName = (type: AccountType) => (ACCOUNT_TYPES.find((t) => t.value === type)?.label ?? '').replace(/\s*\(.*\)$/, '');
+export const typeName = (type: AccountType) => (ACCOUNT_TYPES.find((t) => t.value === type)?.label ?? '').replace(/\s+\([^)]*\)$/, '');
 
 export const INSTITUTIONS = ['Citizens', 'Discover', 'Capital One', 'Fidelity'];
 
@@ -70,6 +74,14 @@ function AccountForm(props: Props & { txns: Transaction[]; values: Valuation[] }
   const [apr, setApr] = useState(a?.apr != null ? String(Math.round(a.apr * 10000) / 100) : '');
   const [minPayment, setMinPayment] = useState(a?.minPayment != null ? (a.minPayment / 100).toFixed(2) : '');
   const [apy, setApy] = useState(a?.apy != null ? String(Math.round(a.apy * 10000) / 100) : '');
+  // 401(k)s: your pay (kept for the whole app), the share you put in, and how your employer matches it.
+  const savedPay = usePay();
+  const birthYear = useBirthYear();
+  const percentText = (x?: number) => (x != null ? String(Math.round(x * 10000) / 100) : '');
+  const [pay, setPay] = useState(savedPay ? String(Math.round(savedPay / 100)) : '');
+  const [contribution, setContribution] = useState(percentText(a?.contributionRate));
+  const [match, setMatch] = useState(percentText(a?.employerMatch));
+  const [matchUpTo, setMatchUpTo] = useState(percentText(a?.employerMatchUpTo));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const liability = isLiability({ type });
   const valued = isValued({ type });
@@ -98,6 +110,11 @@ function AccountForm(props: Props & { txns: Transaction[]; values: Valuation[] }
   const estimate = (date: string) =>
     cdValueOn({ apy: rate(apy), maturesOn, interestPaidOut: paidOut }, [{ id: '', accountId: '', date: openedOn, value: depositCents ?? 0 }], date);
   const count = a ? txns.filter((t) => t.accountId === a.id).length : 0;
+  const isK401 = is401k({ type });
+  const k401 = { contributionRate: rate(contribution), employerMatch: rate(match), employerMatchUpTo: rate(matchUpTo) };
+  const payCents = positive(pay);
+  const k401Preview =
+    isK401 && payCents && k401.contributionRate != null ? k401Year(k401, payCents, k401Limit(Number(today.slice(0, 4)), birthYear).limit) : null;
 
   const save = async () => {
     const entered = parseAmount(balance) ?? 0;
@@ -138,7 +155,12 @@ function AccountForm(props: Props & { txns: Transaction[]; values: Valuation[] }
       const min = parseAmount(minPayment);
       record.minPayment = min != null ? Math.abs(min) : undefined;
     } else if (type === 'savings' || type === 'checking') record.apy = rate(apy);
-    for (const k of ['apr', 'minPayment', 'apy'] as const) if (record[k] === undefined) delete record[k];
+    if (isK401) {
+      Object.assign(record, k401);
+      if (payCents && payCents !== savedPay) await setMeta('grossYearly', payCents);
+    }
+    for (const k of ['apr', 'minPayment', 'apy', 'contributionRate', 'employerMatch', 'employerMatchUpTo'] as const)
+      if (record[k] === undefined) delete record[k];
     if (valued) {
       // Investments & vehicles: record a dated value (a point in net worth history).
       await db.accounts.put(record);
@@ -249,7 +271,9 @@ function AccountForm(props: Props & { txns: Transaction[]; values: Valuation[] }
                 ? 'A resale estimate (Kelley Blue Book, Edmunds or Carvana). Update it now and then; each update is a point in your net worth history.'
                 : isIra({ type })
                   ? 'The total value shown on your brokerage’s site today. Contributions dated after today count on top of it until you next update it.'
-                  : 'The total value shown on your brokerage’s site. Update it now and then; each update is a point in your net worth history.'
+                  : isK401
+                    ? 'The total value shown on your 401(k) site. Update it now and then; each update is a point in your net worth history.'
+                    : 'The total value shown on your brokerage’s site. Update it now and then; each update is a point in your net worth history.'
               : liability
                 ? 'What you owe right now, as shown by your bank. Future transactions adjust it automatically.'
                 : 'Your current balance, as shown by your bank. Future transactions adjust it automatically.'
@@ -257,6 +281,36 @@ function AccountForm(props: Props & { txns: Transaction[]; values: Valuation[] }
         >
           <Field label={valued ? 'Value' : liability ? 'Owed' : 'Balance'}>
             <input inputMode="decimal" value={balance} placeholder="0.00" onInput={(e) => setBalance((e.target as HTMLInputElement).value)} />
+          </Field>
+        </Section>
+      )}
+      {isK401 && (
+        <Section
+          title="Contributions"
+          footer={
+            k401Preview
+              ? `You put in ${formatMoney(k401Preview.yours, { whole: true })} a year${k401Preview.match ? ` and your employer adds ${formatMoney(k401Preview.match, { whole: true })}` : ''}.${
+                  missedMatch(k401Preview) && k401Preview.fullMatchAt != null
+                    ? ` Put in ${percentText(k401Preview.fullMatchAt)}% to get the full match: ${formatMoney(missedMatch(k401Preview), { whole: true })} more a year.`
+                    : ''
+                } Your pay is also used by Plan’s rent calculator.`
+              : 'Optional. Your HR or 401(k) site shows these. They check your employer match, the yearly limit and your savings rate. Your pay is also used by Plan’s rent calculator.'
+          }
+        >
+          <Field label="Pay / yr" hint="Before taxes">
+            <input inputMode="decimal" value={pay} placeholder="e.g. 85000" onInput={(e) => setPay((e.target as HTMLInputElement).value)} />
+          </Field>
+          <Field label="You put in">
+            <input inputMode="decimal" value={contribution} placeholder="e.g. 6" onInput={(e) => setContribution((e.target as HTMLInputElement).value)} />
+            <span class="affix">% of pay</span>
+          </Field>
+          <Field label="Match" hint="What your employer adds, as a share of what you put in: e.g. 50% or 100%">
+            <input inputMode="decimal" value={match} placeholder="e.g. 50" onInput={(e) => setMatch((e.target as HTMLInputElement).value)} />
+            <span class="affix">%</span>
+          </Field>
+          <Field label="Up to" hint="Leave it empty if there’s no cap">
+            <input inputMode="decimal" value={matchUpTo} placeholder="e.g. 6" onInput={(e) => setMatchUpTo((e.target as HTMLInputElement).value)} />
+            <span class="affix">% of pay</span>
           </Field>
         </Section>
       )}

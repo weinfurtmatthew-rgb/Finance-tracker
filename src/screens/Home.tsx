@@ -10,7 +10,8 @@ import { usePlanData } from '../planModel';
 import { addDays, addMonths, daysInMonth, diffDays, formatDate, formatLongDay, formatShortDate, monthKey, monthLabel } from '../lib/dates';
 import { cdMaturityValue, cdStage } from '../lib/cd';
 import { iraDeadline, iraRoom, isIra } from '../lib/ira';
-import { useBirthYear, useIraSpots } from '../iraModel';
+import { is401k, k401Limit, k401Year, missedMatch } from '../lib/k401';
+import { useBirthYear, useIraSpots, usePay } from '../retirementModel';
 import { formatMoney } from '../lib/money';
 import { budgetProgress, heldEveryBudget } from '../lib/budgets';
 import { accountBalance } from '../lib/balances';
@@ -28,6 +29,7 @@ import { AccountEditor } from './AccountEditor';
 import { AccountDetail } from './AccountDetail';
 import { CdMaturitySheet } from './CdMaturity';
 import { ContributionSheet, SpottedContributionsSheet } from './Ira';
+import { ratePct } from './K401';
 import { ImportFlow } from '../lazy';
 import { BackupSheet } from './Backup';
 import { BACKUP_SNOOZE_DAYS, backupDue, DEFAULT_BACKUP_EVERY_DAYS } from '../lib/backup';
@@ -71,6 +73,9 @@ function Sentence(props: { phrases: Phrase[] }) {
 }
 
 /** Something on the To do list: one line, tap to deal with it. */
+/** "Later" on the 401(k) match reminder hides it this long. */
+const MATCH_SNOOZE_DAYS = 90;
+
 interface Todo {
   key: string;
   glyph: GlyphName;
@@ -92,7 +97,7 @@ function TodoList(props: { items: Todo[] }) {
   return (
     <Section title="To do">
       {shown.map((t) => (
-        <div class="row todo-row" key={t.key}>
+        <div class={`row todo-row${t.later ? ' has-later' : ''}`} key={t.key}>
           {t.open ? (
             <button type="button" class="todo-main" onClick={t.open}>
               <IconChip name={t.glyph} hue={t.hue} size="sm" />
@@ -153,6 +158,8 @@ export function Home() {
   const iraSpots = useIraSpots();
   const birthYear = useBirthYear();
   const iraNudgesSkipped = useMeta<number[]>('iraNudgesSkipped');
+  const pay = usePay();
+  const matchSnoozedUntil = useMeta<number>('matchNudgeSnoozeUntil');
   const stale = staleValued(book, today);
   const uncategorized = txns.filter((t) => t.categoryId === 'uncategorized').length;
   const aiPicks = txns.filter((t) => t.categorySource === 'ai').length;
@@ -319,6 +326,21 @@ export function Home() {
         later: () => void setMeta('iraNudgesSkipped', [...(iraNudgesSkipped ?? []), lastYear]),
       });
   }
+  // 401(k): free money left on the table when you put in less than your employer would match.
+  const short = open.find(
+    (a) => is401k(a) && a.contributionRate != null && !!a.employerMatch && a.employerMatchUpTo != null && a.contributionRate < a.employerMatchUpTo,
+  );
+  const missed = short && pay ? missedMatch(k401Year(short, pay, k401Limit(Number(today.slice(0, 4)), birthYear).limit)) : null;
+  if (short && missed !== 0 && !(matchSnoozedUntil && Date.now() < matchSnoozedUntil))
+    todos.push({
+      key: 'k401-match',
+      glyph: 'gift',
+      hue: 'green',
+      title: 'Get your full 401(k) match',
+      sub: `Put in ${ratePct(short.employerMatchUpTo!)} instead of ${ratePct(short.contributionRate!)}${missed ? `: ${whole(missed)} more a year` : ''}`,
+      open: () => nav.present((close) => <AccountDetail account={short} onClose={close} />),
+      later: () => void setMeta('matchNudgeSnoozeUntil', Date.now() + MATCH_SNOOZE_DAYS * 86_400_000),
+    });
   if (uncategorized > 0)
     todos.push({
       key: 'uncategorized',

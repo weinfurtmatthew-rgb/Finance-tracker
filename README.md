@@ -102,6 +102,8 @@ One rule everywhere (`src/lib/spend.ts`), so Today, Spending, Activity, the plan
   of six parts: spend less than you earn (25%), cash cushion (20%), bills on time (15%), long-term savings (15%),
   debt load (15%) and planning (10%)
 - Each part shows where you are and the next step; the weakest one is shown on Today. Open it from Browse
+- Spend less than you earn counts what goes into your 401(k), with the match, as money earned and saved (it leaves
+  your paycheck before the bank sees it)
 - A part the app has nothing to go on for (no income found, no investment or card accounts added) says **Not enough
   info** and is left out; the others count for more. With under half the picture there's no overall score yet
 
@@ -207,9 +209,11 @@ them to try a what-if. Results are estimates, not advice.
 - **Savings growth:** your savings at your APY (typed on the account, or estimated from the interest you received)
 - **Investment growth:** a start plus monthly contributions at 7% a year, also shown in today's dollars (3% inflation),
   with the Rule of 72
-- **Retirement savings:** your IRAs plus what you put in each year, grown at 7% until the age you retire (from your
-  birth year), also in today's dollars, with the monthly income that could pay at the 4% rule
+- **Retirement savings:** your IRAs and 401(k)s plus what goes in each year (your IRA contributions, and your 401(k)
+  with the match), grown at 7% until the age you retire (from your birth year), also in today's dollars, with the
+  monthly income that could pay at the 4% rule
 - **Financial independence:** your FI number (yearly spending ÷ 4%) and years to reach it at your savings rate
+  (counting what goes into your 401(k), with the match)
 - **Will my money last?:** a Monte Carlo test of a retirement budget in 1,000 random markets
 
 ### On-device AI (Phase 5, optional)
@@ -261,7 +265,17 @@ published site and runs `tests/ai-smoke.test.ts` against it.
     one you typed by hand for the same amount that week) and categorizes the bank line as Investments, so it's never
     spending; **Not One** never asks about it again. Or add contributions by hand on the IRA's page
   - From March 1 to April 15, Today reminds you of any room left for last year
-  - Rocket Money exports bring Roth and Traditional or rollover IRAs in as IRAs (401(k)s stay Investment)
+  - Rocket Money exports bring Roth and Traditional or rollover IRAs in as IRAs
+- **401(k)s, 403(b)s and Roth 401(k)s**, under Retirement (`src/lib/k401.ts`): enter the value shown on your 401(k) site
+  and update it now and then, like an investment. What goes in leaves your paycheck before the bank sees it, so instead
+  of tracking it, you enter once your pay (before taxes; shared with the rent calculator), the share you put in, and
+  your employer's match (e.g. 50% of yours, up to 6% of pay). From those:
+  - The account's page shows what you and your employer put in a year, and whether you get the **full match**; if not,
+    Today says how much more to put in and what it's worth ("Later" hides it for 90 days)
+  - The year at your rate against the IRS limit ($23,500 for 2025, $24,500 for 2026, plus the catch-up at 50 and older,
+    and the bigger one at 60 to 63)
+  - Your 401(k) and the match count as saved in Money Health and the Financial independence calculator
+  - Rocket Money exports bring 401(k)s, 403(b)s and the TSP in as 401(k)s
 - **Savings goals** linked to an account: progress bar, projected finish date at your recent 3-month pace, and, with a
   target date, how much to save **per month and per paycheck** (using the paycheck from Bills & Subscriptions)
 

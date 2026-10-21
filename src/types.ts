@@ -5,7 +5,21 @@ export type Cents = number;
 export type ISODate = string;
 
 /** 'wallet' is a payment app's balance: Venmo, Cash App, Apple Cash. */
-export type AccountType = 'checking' | 'savings' | 'credit' | 'brokerage' | 'cd' | 'roth-ira' | 'ira' | 'vehicle' | 'cash' | 'wallet' | 'loan' | 'other';
+export type AccountType =
+  | 'checking'
+  | 'savings'
+  | 'credit'
+  | 'brokerage'
+  | 'cd'
+  | 'roth-ira'
+  | 'ira'
+  | '401k'
+  | 'roth-401k'
+  | 'vehicle'
+  | 'cash'
+  | 'wallet'
+  | 'loan'
+  | 'other';
 
 export type PaymentApp = 'venmo' | 'cashapp' | 'applecash';
 
@@ -50,6 +64,13 @@ export interface Account {
   maturesOn?: ISODate;
   /** CDs: the interest is paid into another account, so the CD itself stays at what was deposited. */
   interestPaidOut?: boolean;
+  /**
+   * 401(k)s: the share of your pay you put in (0.06 = 6%), and your employer's match: this share of
+   * what you put in (0.5 = 50%), on up to this share of your pay (see lib/k401.ts).
+   */
+  contributionRate?: number;
+  employerMatch?: number;
+  employerMatchUpTo?: number;
   /** A hidden account that still counts in net worth history before this day (a CD you cashed out). */
   closedOn?: ISODate;
   /** Last day the balance was confirmed to match the bank's. */

@@ -30,6 +30,8 @@ export interface HealthInput {
   /** Full months the averages come from: with none, there's nothing to score yet. */
   months: number;
   monthlyIncome: Cents;
+  /** What goes into 401(k)s each month (yours and your employer's), on top of income: saved before the bank sees it. */
+  retirementMonthly?: Cents;
   monthlySpending: Cents;
   /** Checking, savings & cash. */
   cash: Cents;
@@ -67,8 +69,10 @@ export function moneyHealth(input: HealthInput): Health | null {
   const pillars: Omit<Pillar, 'band'>[] = [];
   const spend = input.monthlySpending;
 
-  // 1. Spend less than you earn
-  const rate = input.monthlyIncome > 0 ? (input.monthlyIncome - spend) / input.monthlyIncome : null;
+  // 1. Spend less than you earn (401(k) money counts as earned and saved).
+  const k401 = input.retirementMonthly ?? 0;
+  const earned = input.monthlyIncome + k401;
+  const rate = input.monthlyIncome > 0 ? (earned - spend) / earned : null;
   pillars.push({
     key: 'earn',
     name: 'Spend less than you earn',
@@ -78,14 +82,14 @@ export function moneyHealth(input: HealthInput): Health | null {
       rate == null
         ? 'No income found yet'
         : rate >= 0
-          ? `Saving ${Math.round(rate * 100)}% of what comes in`
+          ? `Saving ${Math.round(rate * 100)}% of what comes in${k401 ? ', with your 401(k)' : ''}`
           : `Spending ${Math.round(-rate * 100)}% more than comes in`,
     tip:
       rate == null
         ? 'Import the account your paycheck lands in to score this.'
         : rate >= 0.2
           ? 'Keep it above 20% and this stays strong.'
-          : `Saving ${money(Math.max(0, 0.2 * input.monthlyIncome - (input.monthlyIncome - spend)))} more a month gets you to 20%.`,
+          : `Saving ${money(Math.max(0, 0.2 * earned - (earned - spend)))} more a month gets you to 20%.`,
   });
 
   // 2. Bills on time

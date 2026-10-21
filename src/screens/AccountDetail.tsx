@@ -5,6 +5,7 @@ import { useNav } from '../nav';
 import type { Account } from '../types';
 import { balanceOn, historyDates, isValued, type Range } from '../lib/networth';
 import { isIra } from '../lib/ira';
+import { is401k } from '../lib/k401';
 import { isLiability } from '../lib/balances';
 import { formatDate, formatShortDate, todayISO } from '../lib/dates';
 import { apyLabel, cdMaturityValue, cdStage } from '../lib/cd';
@@ -16,6 +17,7 @@ import { TransactionRow } from '../components/TransactionRow';
 import { AccountEditor } from './AccountEditor';
 import { CdMaturitySheet } from './CdMaturity';
 import { IraSection } from './Ira';
+import { K401Section } from './K401';
 
 /** An account up close: its balance over time, when it was last checked, and recent activity. */
 export function AccountDetail(props: { account: Account; onClose: () => void }) {
@@ -57,10 +59,12 @@ export function AccountDetail(props: { account: Account; onClose: () => void }) 
                 `${stage === 'matured' ? 'matured' : 'matures'} ${formatDate(cd.maturesOn!)}`,
                 cd.interestPaidOut && 'interest paid out',
               ]
-            : isIra(a)
+            : isIra(a) || is401k(a)
               ? [
                   a.institution,
-                  a.type === 'roth-ira' ? 'Roth: tax-free when you take it out in retirement' : 'Traditional: taxed as income when you take it out',
+                  a.type === 'roth-ira' || a.type === 'roth-401k'
+                    ? 'Roth: tax-free when you take it out in retirement'
+                    : `${a.type === 'ira' ? 'Traditional' : 'Pre-tax'}: taxed as income when you take it out`,
                   anchors.length ? `value updated ${formatShortDate(anchors[anchors.length - 1].date)}` : 'value not set yet',
                 ]
               : [a.institution, a.last4 && `•••• ${a.last4}`, a.checkedOn ? `checked against the bank ${formatShortDate(a.checkedOn)}` : 'not checked against the bank yet']
@@ -112,13 +116,15 @@ export function AccountDetail(props: { account: Account; onClose: () => void }) 
             Renewed or Moved?
           </button>
         )}
-        {(!cd || recent.length > 0) && (
+        {/* A CD or an account you value by hand may have no transactions at all. */}
+        {(recent.length > 0 || !(cd || isValued(a))) && (
           <button type="button" class="button" onClick={() => nav.showActivity({ accountId: a.id })}>
             <Glyph name="list" /> All {a.name} transactions
           </button>
         )}
       </div>
       {isIra(a) && <IraSection account={a} />}
+      {is401k(a) && <K401Section account={a} />}
       {recent.length > 0 && !isIra(a) && (
         <section class="section">
           <h3 class="section-title">Recent</h3>

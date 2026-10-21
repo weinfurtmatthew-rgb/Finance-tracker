@@ -20,3 +20,6 @@ export function useIraSpots(): SpottedContribution[] {
 
 /** The year you were born, if you've said (for the 50-and-older catch-up and the retirement projection). */
 export const useBirthYear = () => useStore().meta?.get('birthYear') as number | undefined;
+
+/** Your yearly pay before taxes, if you've said (for 401(k) contributions; the rent calculator shares it). */
+export const usePay = () => useStore().meta?.get('grossYearly') as number | undefined;

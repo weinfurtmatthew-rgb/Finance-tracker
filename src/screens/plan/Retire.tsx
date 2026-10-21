@@ -44,7 +44,8 @@ function Fi(props: { data: PlanData }) {
   const d = props.data;
   const [spend, spendText, setSpend] = useMoney(d.monthlySpending * 12);
   const [invested, investedText, setInvested] = useMoney(d.invested);
-  const [monthly, monthlyText, setMonthly] = useMoney(Math.max(0, d.monthlySurplus));
+  // What's left over each month, plus what goes into your 401(k)s from your paycheck.
+  const [monthly, monthlyText, setMonthly] = useMoney(Math.max(0, d.monthlySurplus) + d.retirementMonthly);
   const [ret, retText, setRet] = usePercent(DEFAULT_RETURN);
   const [inflation, inflationText, setInflation] = usePercent(DEFAULT_INFLATION);
   const [wr, wrText, setWr] = usePercent(DEFAULT_WITHDRAWAL_RATE);
@@ -52,7 +53,7 @@ function Fi(props: { data: PlanData }) {
     annualSpending: spend,
     invested,
     monthlyInvesting: monthly,
-    monthlyIncome: d.monthlyIncome,
+    monthlyIncome: d.monthlyIncome + d.retirementMonthly,
     nominalReturn: ret,
     inflation,
     withdrawalRate: Math.max(0.005, wr),
@@ -104,7 +105,16 @@ function Fi(props: { data: PlanData }) {
       >
         <MoneyField label="Spending / yr" value={spendText} set={setSpend} hint={`12 × your average month (${monthsRange(d.averagedMonths)})`} />
         <MoneyField label="Invested now" value={investedText} set={setInvested} hint="Your investment accounts today" />
-        <MoneyField label="Invest / mo" value={monthlyText} set={setMonthly} hint="Defaults to what you have left over each month on average" />
+        <MoneyField
+          label="Invest / mo"
+          value={monthlyText}
+          set={setMonthly}
+          hint={
+            d.retirementMonthly
+              ? `What you have left over each month on average, plus ${money(d.retirementMonthly)} into your 401(k) with the match`
+              : 'Defaults to what you have left over each month on average'
+          }
+        />
         <PercentField label="Return / yr" value={retText} set={setRet} />
         <PercentField label="Inflation" value={inflationText} set={setInflation} />
         <PercentField

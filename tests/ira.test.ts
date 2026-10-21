@@ -164,7 +164,7 @@ describe('spotting contributions in bank files', () => {
   it('comes in from a Rocket Money export as the right kind of IRA', () => {
     expect(accountTypeFor({ key: 'a', label: '', name: 'Roth IRA', type: 'Investment' })).toBe('roth-ira');
     expect(accountTypeFor({ key: 'b', label: '', name: 'Rollover IRA' })).toBe('ira');
-    expect(accountTypeFor({ key: 'c', label: '', name: '401(k)', type: 'Retirement' })).toBe('brokerage');
+    expect(accountTypeFor({ key: 'c', label: '', name: '401(k)', type: 'Retirement' })).toBe('401k');
   });
 });
 

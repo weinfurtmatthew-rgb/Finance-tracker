@@ -36,6 +36,7 @@ export function accountTypeFor(a: SourceAccount): AccountType {
   const t = `${a.type ?? ''} ${a.name}`.toLowerCase();
   if (/\bcds?\b|certificate/.test(t)) return 'cd';
   if (/\broth\b/.test(t) && /\bira\b/.test(t)) return 'roth-ira';
+  if (/\b40[13]\s*\(?[kb]\b|\btsp\b|thrift savings/.test(t)) return /\broth\b/.test(t) ? 'roth-401k' : '401k';
   if (/\bira\b|rollover/.test(t)) return 'ira';
   if (/credit/.test(t)) return 'credit';
   if (/saving|money market/.test(t)) return 'savings';

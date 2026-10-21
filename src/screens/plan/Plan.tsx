@@ -11,7 +11,7 @@ import { DebtCalc } from './Debt';
 import { TrueCostCalc } from './TrueCost';
 import { RetireCalc } from './Retire';
 import { GrowthCalc } from './Growth';
-import { RetirementCalc, useIraTotals } from './Retirement';
+import { RetirementCalc, useRetirementTotals } from './Retirement';
 import { RecapPage } from '../Recap';
 import { RentCalc, defaultSavingsGoal, otherCostsFrom } from './Rent';
 import { rentLimits } from '../../lib/rent';
@@ -20,7 +20,7 @@ import { rentLimits } from '../../lib/rent';
 export function Plan(props: { onClose: () => void }) {
   const nav = useNav();
   const d = usePlanData();
-  const ira = useIraTotals();
+  const retirement = useRetirementTotals();
   if (!d)
     return (
       <Sheet title="Plan" onClose={props.onClose}>
@@ -122,7 +122,7 @@ export function Plan(props: { onClose: () => void }) {
         <Row
           icon={<IconChip name="flag" hue="green" size="sm" />}
           title="Retirement savings"
-          subtitle={ira.total > 0 ? `${tile(ira.total)} in your IRAs today` : 'What your IRAs could grow to by retirement'}
+          subtitle={retirement.total > 0 ? `${tile(retirement.total)} saved for retirement` : 'What your IRAs and 401(k) could grow to by retirement'}
           onClick={() => open((close) => <RetirementCalc onClose={close} />)}
         />
         <Row
