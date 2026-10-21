@@ -8,6 +8,7 @@ const CALCULATORS = [
   'True cost of a habit',
   'Savings growth',
   'Investment growth',
+  'Retirement savings',
   'Financial independence',
   'Will my money last?',
 ];

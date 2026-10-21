@@ -268,6 +268,17 @@ export function fiPlan(args: { annualSpending: Cents; invested: Cents; monthlyIn
   };
 }
 
+/**
+ * Retirement savings: what's saved today plus a yearly amount (put in monthly), at a steady return,
+ * until retirement; in today's dollars too, and the monthly income that could pay at a withdrawal rate.
+ */
+export function retirementProjection(args: { start: Cents; yearly: Cents; nominalReturn: number; inflation: number; years: number; withdrawalRate: number }) {
+  const points = growth(args.start, Math.round(args.yearly / 12), args.nominalReturn, args.years);
+  const end = points[points.length - 1];
+  const real = inTodaysDollars(end.balance, args.inflation, args.years);
+  return { points, end, real, monthlyIncome: Math.round((real * args.withdrawalRate) / 12) };
+}
+
 /** Small, fast, seeded random numbers so simulations are repeatable. */
 function mulberry32(seed: number) {
   return () => {

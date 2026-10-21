@@ -1,10 +1,11 @@
 import type { Account, Cents, Goal, ISODate, Transaction, Valuation } from '../types';
 import { addDays, addMonths, dayInMonth, diffDays, monthKey, todayISO } from './dates';
 import { cdValueOn } from './cd';
+import { isIra } from './ira';
 import { isLiability } from './balances';
 
 /** Accounts whose balance is a value you enter (market or resale value), not the sum of transactions. */
-export const isValued = (a: Pick<Account, 'type'>) => a.type === 'brokerage' || a.type === 'vehicle';
+export const isValued = (a: Pick<Account, 'type'>) => a.type === 'brokerage' || a.type === 'vehicle' || isIra(a);
 
 export const VALUE_STALE_DAYS = 30;
 
@@ -15,6 +16,8 @@ export interface BalanceBook {
   running: Map<string, { dates: ISODate[]; totals: Cents[] }>;
   /** Per account: valuations sorted by date. */
   values: Map<string, Valuation[]>;
+  /** Per IRA: contributions sorted by date, with running totals (added on top of the last value). */
+  contributions: Map<string, { dates: ISODate[]; totals: Cents[] }>;
 }
 
 export function makeBook(accounts: Account[], txns: Transaction[], valuations: Valuation[]): BalanceBook {
@@ -26,10 +29,14 @@ export function makeBook(accounts: Account[], txns: Transaction[], valuations: V
     else byAcct.set(t.accountId, [t]);
   }
   const running = new Map<string, { dates: ISODate[]; totals: Cents[] }>();
+  const contributions = new Map<string, { dates: ISODate[]; totals: Cents[] }>();
   for (const [id, list] of byAcct) {
     list.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     let sum = 0;
     running.set(id, { dates: list.map((t) => t.date), totals: list.map((t) => (sum += t.amount)) });
+    const ins = list.filter((t) => t.contributionYear != null);
+    let added = 0;
+    if (ins.length) contributions.set(id, { dates: ins.map((t) => t.date), totals: ins.map((t) => (added += t.amount)) });
   }
   const values = new Map<string, Valuation[]>();
   for (const v of valuations) {
@@ -38,7 +45,7 @@ export function makeBook(accounts: Account[], txns: Transaction[], valuations: V
     else values.set(v.accountId, [v]);
   }
   for (const list of values.values()) list.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-  return { accounts, running, values };
+  return { accounts, running, values, contributions };
 }
 
 /** Index of the last element <= date (binary search), or -1. */
@@ -66,6 +73,25 @@ export function balanceOn(book: BalanceBook, a: Account, date?: ISODate): Cents 
   // A cashed-out CD: the money moved on the day it closed.
   if (a.closedOn && (date ?? todayISO()) >= a.closedOn) return 0;
   if (a.type === 'cd' && vals?.length) return cdValueOn(a, vals, date ?? todayISO());
+  // IRAs: the last value you entered, plus what you've contributed since.
+  if (isIra(a)) {
+    const c = book.contributions.get(a.id);
+    const upTo = (d?: ISODate) => {
+      if (!c) return 0;
+      if (!d) return c.totals[c.totals.length - 1];
+      const i = lastOnOrBefore(c.dates, d);
+      return i >= 0 ? c.totals[i] : 0;
+    };
+    if (!vals?.length) return a.openingBalance + upTo(date);
+    const i = date
+      ? lastOnOrBefore(
+          vals.map((v) => v.date),
+          date,
+        )
+      : vals.length - 1;
+    const base = i >= 0 ? vals[i] : vals[0];
+    return Math.max(0, base.value + upTo(date) - upTo(base.date));
+  }
   if (isValued(a) && vals?.length) {
     if (!date) return vals[vals.length - 1].value;
     const i = lastOnOrBefore(
@@ -79,6 +105,16 @@ export function balanceOn(book: BalanceBook, a: Account, date?: ISODate): Cents 
   if (!date) return a.openingBalance + r.totals[r.totals.length - 1];
   const i = lastOnOrBefore(r.dates, date);
   return a.openingBalance + (i >= 0 ? r.totals[i] : 0);
+}
+
+/** What's been contributed to an IRA after `after` (everything, without a date). */
+export function contributedAfter(book: BalanceBook, accountId: string, after?: ISODate): Cents {
+  const c = book.contributions.get(accountId);
+  if (!c) return 0;
+  const total = c.totals[c.totals.length - 1];
+  if (!after) return total;
+  const i = lastOnOrBefore(c.dates, after);
+  return total - (i >= 0 ? c.totals[i] : 0);
 }
 
 export interface NetWorthPoint {

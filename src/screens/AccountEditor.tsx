@@ -5,6 +5,7 @@ import { useNav } from '../nav';
 import type { Account, AccountType, Transaction, Valuation } from '../types';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { isValued } from '../lib/networth';
+import { isIra } from '../lib/ira';
 import { formatDate, formatShortDate, todayISO } from '../lib/dates';
 import { CD_TERMS, cdValueOn, maturityDate, termLabel, termMonths } from '../lib/cd';
 import { BalanceCheckSheet } from '../components/BalanceCheck';
@@ -18,6 +19,8 @@ export const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'credit', label: 'Credit card' },
   { value: 'brokerage', label: 'Investment' },
   { value: 'cd', label: 'CD' },
+  { value: 'roth-ira', label: 'Roth IRA' },
+  { value: 'ira', label: 'Traditional IRA' },
   { value: 'vehicle', label: 'Vehicle' },
   { value: 'cash', label: 'Cash' },
   { value: 'wallet', label: 'Payment app (Venmo, Cash App…)' },
@@ -52,7 +55,12 @@ function AccountForm(props: Props & { txns: Transaction[]; values: Valuation[] }
   const { txns, values } = props;
   const lastValue = values.at(-1) ?? null;
   const a = props.account;
-  const current = a ? (isValued(a) && lastValue ? lastValue.value : accountBalance(a, txns)) : 0;
+  // An IRA is its last value plus what's been contributed since (see lib/networth.ts).
+  const contributedSince =
+    a && isIra(a)
+      ? txns.filter((t) => t.accountId === a.id && t.contributionYear != null && (!lastValue || t.date > lastValue.date)).reduce((s, t) => s + t.amount, 0)
+      : 0;
+  const current = a ? (isValued(a) && lastValue ? lastValue.value + contributedSince : accountBalance(a, txns)) : 0;
   const [name, setName] = useState(a?.name ?? '');
   const [type, setType] = useState<AccountType>(a?.type ?? 'checking');
   const [institution, setInstitution] = useState(a?.institution ?? '');
@@ -139,7 +147,7 @@ function AccountForm(props: Props & { txns: Transaction[]; values: Valuation[] }
       if (!balance.trim()) {
         // No value entered (yet).
       } else if (lastValue?.date === today) await db.valuations.update(lastValue.id, { value: signed });
-      else if (!lastValue || lastValue.value !== signed) await db.valuations.add({ id: newId(), accountId: record.id, date: today, value: signed });
+      else if (!lastValue || signed !== current) await db.valuations.add({ id: newId(), accountId: record.id, date: today, value: signed });
     } else {
       record.openingBalance = openingBalanceFor(record.id, txns, signed);
       // Typing the bank's current balance here is a balance check too.
@@ -239,7 +247,9 @@ function AccountForm(props: Props & { txns: Transaction[]; values: Valuation[] }
             valued
               ? type === 'vehicle'
                 ? 'A resale estimate (Kelley Blue Book, Edmunds or Carvana). Update it now and then; each update is a point in your net worth history.'
-                : 'The total value shown on your brokerage’s site. Update it now and then; each update is a point in your net worth history.'
+                : isIra({ type })
+                  ? 'The total value shown on your brokerage’s site today. Contributions dated after today count on top of it until you next update it.'
+                  : 'The total value shown on your brokerage’s site. Update it now and then; each update is a point in your net worth history.'
               : liability
                 ? 'What you owe right now, as shown by your bank. Future transactions adjust it automatically.'
                 : 'Your current balance, as shown by your bank. Future transactions adjust it automatically.'

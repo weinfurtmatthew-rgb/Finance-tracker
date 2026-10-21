@@ -5,7 +5,7 @@
  * how every row it changed or removed looked before. Undo deletes the one and puts back the other.
  *
  * The last few imports can be undone, newest first. Edits made afterwards to the rows an import added
- * or changed go with it.
+ * or changed go with it, and so do IRA contributions made from the lines it added (see lib/ira.ts).
  */
 import type { Account, CsvMapping, Transaction } from '../types';
 import { db } from '../db';
@@ -82,7 +82,9 @@ export async function undoLastImport(): Promise<ImportRecord | undefined> {
     const list = ((await db.meta.get(IMPORT_UNDO_KEY))?.value as ImportRecord[] | undefined) ?? [];
     const [last, ...rest] = list;
     if (!last) return undefined;
-    await db.transactions.bulkDelete(last.transactions.added);
+    const added = new Set(last.transactions.added);
+    const madeFrom = await db.transactions.filter((t) => !!t.contributionFrom && added.has(t.contributionFrom)).toArray();
+    await db.transactions.bulkDelete([...last.transactions.added, ...madeFrom.map((t) => t.id)]);
     await db.transactions.bulkPut(last.transactions.before);
     await db.accounts.bulkDelete(last.accounts.added);
     await db.accounts.bulkPut(last.accounts.before);

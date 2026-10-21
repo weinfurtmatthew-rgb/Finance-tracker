@@ -51,6 +51,22 @@ describe('undo an import', () => {
     expect(await undoLastImport()).toBeUndefined();
   });
 
+  it('takes IRA contributions made from the lines it added with it, but not ones you typed', async () => {
+    await db.meta.delete(IMPORT_UNDO_KEY);
+    const before = await takeSnapshot();
+    await db.transactions.add(tx('sent', -50_000, { payee: 'Fidelity' }));
+    await recordImport(before, '1 transaction into Checking');
+    // Afterwards: the line counted as a contribution, and one typed by hand.
+    await db.transactions.bulkAdd([
+      tx('made', 50_000, { accountId: 'roth', categoryId: 'investments', source: 'manual', contributionYear: 2026, contributionFrom: 'sent' }),
+      tx('typed', 20_000, { accountId: 'roth', categoryId: 'investments', source: 'manual', contributionYear: 2026 }),
+    ]);
+    await undoLastImport();
+    expect(await db.transactions.get('sent')).toBeUndefined();
+    expect(await db.transactions.get('made')).toBeUndefined();
+    expect(await db.transactions.get('typed')).toBeDefined();
+  });
+
   it("doesn't record an import that changed nothing", async () => {
     await db.meta.delete(IMPORT_UNDO_KEY);
     await recordImport(await takeSnapshot(), 'nothing');

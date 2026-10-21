@@ -13,6 +13,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-21b',
+    date: 'October 21, 2026',
+    title: 'Roth and Traditional IRAs',
+    items: [
+      'Add a Roth or Traditional IRA in Net Worth with its value today. Contributions you make after that add to it.',
+      'See what you’ve put in this year against the IRS limit (for all your IRAs together) and the April 15 deadline.',
+      'Import a bank file and money sent to a brokerage shows up in Today: tap IRA Contribution or Not One. You can also add one by hand.',
+      'Plan has a Retirement savings calculator: what your IRAs could grow to by the age you retire.',
+    ],
+  },
+  {
     id: '2026-10-21',
     date: 'October 21, 2026',
     title: 'CDs',

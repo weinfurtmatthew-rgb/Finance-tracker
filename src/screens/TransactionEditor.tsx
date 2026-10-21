@@ -109,6 +109,9 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
       source: t?.source ?? 'manual',
       importId: t?.importId,
       ...(t?.altImportIds?.length ? { altImportIds: t.altImportIds } : {}),
+      // An IRA contribution stays one, for the same tax year (see lib/ira.ts).
+      ...(t?.contributionYear != null ? { contributionYear: t.contributionYear } : {}),
+      ...(t?.contributionFrom ? { contributionFrom: t.contributionFrom } : {}),
       createdAt: t?.createdAt ?? Date.now(),
       ...(splits ? { splits } : {}),
       ...(tags.length ? { tags } : {}),

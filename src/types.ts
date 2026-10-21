@@ -5,7 +5,7 @@ export type Cents = number;
 export type ISODate = string;
 
 /** 'wallet' is a payment app's balance: Venmo, Cash App, Apple Cash. */
-export type AccountType = 'checking' | 'savings' | 'credit' | 'brokerage' | 'cd' | 'vehicle' | 'cash' | 'wallet' | 'loan' | 'other';
+export type AccountType = 'checking' | 'savings' | 'credit' | 'brokerage' | 'cd' | 'roth-ira' | 'ira' | 'vehicle' | 'cash' | 'wallet' | 'loan' | 'other';
 
 export type PaymentApp = 'venmo' | 'cashapp' | 'applecash';
 
@@ -109,6 +109,10 @@ export interface Transaction {
   importId?: string;
   /** Ids of the same transaction in other file formats (a CSV row that matched this QFX row). */
   altImportIds?: string[];
+  /** Money into an IRA: the tax year it counts toward (see lib/ira.ts). */
+  contributionYear?: number;
+  /** That contribution's bank line (money leaving checking), when it was spotted in a bank file. */
+  contributionFrom?: string;
   createdAt: number;
 }
 

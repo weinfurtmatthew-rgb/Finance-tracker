@@ -9,6 +9,8 @@ import { useSpending } from '../spendingModel';
 import { usePlanData } from '../planModel';
 import { addDays, addMonths, daysInMonth, diffDays, formatDate, formatLongDay, formatShortDate, monthKey, monthLabel } from '../lib/dates';
 import { cdMaturityValue, cdStage } from '../lib/cd';
+import { iraDeadline, iraRoom, isIra } from '../lib/ira';
+import { useBirthYear, useIraSpots } from '../iraModel';
 import { formatMoney } from '../lib/money';
 import { budgetProgress, heldEveryBudget } from '../lib/budgets';
 import { accountBalance } from '../lib/balances';
@@ -25,6 +27,7 @@ import { RecurringRow } from '../components/RecurringRow';
 import { AccountEditor } from './AccountEditor';
 import { AccountDetail } from './AccountDetail';
 import { CdMaturitySheet } from './CdMaturity';
+import { ContributionSheet, SpottedContributionsSheet } from './Ira';
 import { ImportFlow } from '../lazy';
 import { BackupSheet } from './Backup';
 import { BACKUP_SNOOZE_DAYS, backupDue, DEFAULT_BACKUP_EVERY_DAYS } from '../lib/backup';
@@ -147,6 +150,9 @@ export function Home() {
 
   const open = accounts.filter((a) => !a.archived);
   const book = useBook();
+  const iraSpots = useIraSpots();
+  const birthYear = useBirthYear();
+  const iraNudgesSkipped = useMeta<number[]>('iraNudgesSkipped');
   const stale = staleValued(book, today);
   const uncategorized = txns.filter((t) => t.categoryId === 'uncategorized').length;
   const aiPicks = txns.filter((t) => t.categorySource === 'ai').length;
@@ -284,6 +290,33 @@ export function Home() {
         title: `CD matured ${formatDate(a.maturesOn!)}`,
         sub: `${a.name}: did it renew, or did you move the money?`,
         open: () => nav.present((close) => <CdMaturitySheet account={a} onClose={close} />),
+      });
+  }
+  // IRAs: transfers to a brokerage that may have been contributions, and last year's deadline (Apr 15).
+  if (iraSpots.length)
+    todos.push({
+      key: 'ira-spots',
+      glyph: 'sun',
+      hue: 'yellow',
+      title: iraSpots.length === 1 ? 'Was this an IRA contribution?' : `${iraSpots.length} possible IRA contributions`,
+      sub:
+        iraSpots.length === 1
+          ? `${whole(-iraSpots[0].txn.amount)} on ${formatDate(iraSpots[0].txn.date)} · ${iraSpots[0].txn.payee || iraSpots[0].txn.description}`
+          : 'Transfers to a brokerage from your bank files',
+      open: () => nav.present((close) => <SpottedContributionsSheet onClose={close} />),
+    });
+  const lastYear = Number(today.slice(0, 4)) - 1;
+  if (open.some(isIra) && today >= `${lastYear + 1}-03-01` && today <= iraDeadline(lastYear) && !(iraNudgesSkipped ?? []).includes(lastYear)) {
+    const room = iraRoom(lastYear, txns, birthYear);
+    if (room.left > 0)
+      todos.push({
+        key: 'ira-deadline',
+        glyph: 'calendar',
+        hue: 'yellow',
+        title: `IRA: ${whole(room.left)} of ${lastYear} room left`,
+        sub: `Contribute by ${formatDate(room.deadline)} to count it for ${lastYear}`,
+        open: () => nav.present((close) => <ContributionSheet year={lastYear} onClose={close} />),
+        later: () => void setMeta('iraNudgesSkipped', [...(iraNudgesSkipped ?? []), lastYear]),
       });
   }
   if (uncategorized > 0)
