@@ -207,6 +207,8 @@ them to try a what-if. Results are estimates, not advice.
 - **Savings growth:** your savings at your APY (typed on the account, or estimated from the interest you received)
 - **Investment growth:** a start plus monthly contributions at 7% a year, also shown in today's dollars (3% inflation),
   with the Rule of 72
+- **Retirement savings:** your IRAs plus what you put in each year, grown at 7% until the age you retire (from your
+  birth year), also in today's dollars, with the monthly income that could pay at the 4% rule
 - **Financial independence:** your FI number (yearly spending ÷ 4%) and years to reach it at your savings rate
 - **Will my money last?:** a Monte Carlo test of a retirement budget in 1,000 random markets
 
@@ -249,6 +251,17 @@ published site and runs `tests/ai-smoke.test.ts` against it.
   worth) or you **moved the money** (it closes, staying in net worth history until that day). For a CD that pays its
   interest into another account, switch on "Interest goes to another account" and it stays at the deposit. CDs count
   as investments in Plan and Money Health, not as cash. QFX/OFX files and Rocket Money exports bring CDs in as CDs
+- **Roth and Traditional IRAs**, under Retirement (`src/lib/ira.ts`): enter the value shown on your brokerage's site;
+  contributions dated after that day add to it until you next update it. Each contribution counts toward a tax year,
+  against the IRS limit for all your IRAs together ($7,000 for 2025, $7,500 for 2026, more at 50 and older once you
+  add your birth year), and can count for last year until April 15. Net Worth shows the year's total under Retirement,
+  and each IRA's page has a meter per open tax year
+  - **Spotted in bank files:** money leaving checking or savings for a brokerage (Fidelity, Vanguard, Schwab…), the bank
+    an IRA is at, or a line that says Roth or IRA shows up in Today. **IRA Contribution** adds it to the IRA (matching
+    one you typed by hand for the same amount that week) and categorizes the bank line as Investments, so it's never
+    spending; **Not One** never asks about it again. Or add contributions by hand on the IRA's page
+  - From March 1 to April 15, Today reminds you of any room left for last year
+  - Rocket Money exports bring Roth and Traditional or rollover IRAs in as IRAs (401(k)s stay Investment)
 - **Savings goals** linked to an account: progress bar, projected finish date at your recent 3-month pace, and, with a
   target date, how much to save **per month and per paycheck** (using the paycheck from Bills & Subscriptions)
 

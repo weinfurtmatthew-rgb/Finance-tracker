@@ -3,7 +3,8 @@ import { CountUp } from '../components/motion';
 import { byId, useAccounts, useBook, useCategories, useTransactions } from '../hooks';
 import { useNav } from '../nav';
 import type { Account } from '../types';
-import { balanceOn, historyDates, type Range } from '../lib/networth';
+import { balanceOn, historyDates, isValued, type Range } from '../lib/networth';
+import { isIra } from '../lib/ira';
 import { isLiability } from '../lib/balances';
 import { formatDate, formatShortDate, todayISO } from '../lib/dates';
 import { apyLabel, cdMaturityValue, cdStage } from '../lib/cd';
@@ -14,6 +15,7 @@ import { Glyph } from '../components/icons';
 import { TransactionRow } from '../components/TransactionRow';
 import { AccountEditor } from './AccountEditor';
 import { CdMaturitySheet } from './CdMaturity';
+import { IraSection } from './Ira';
 
 /** An account up close: its balance over time, when it was last checked, and recent activity. */
 export function AccountDetail(props: { account: Account; onClose: () => void }) {
@@ -44,7 +46,7 @@ export function AccountDetail(props: { account: Account; onClose: () => void }) 
   return (
     <Sheet title={a.name} onClose={props.onClose} onSave={edit} saveLabel="Edit" closeLabel="Done">
       <section class="card lit detail-hero-card account-hero" style={{ '--lit': 'color-mix(in oklab, var(--hue-blue) 14%, transparent)' }}>
-        <span class="card-label">{owed ? 'Owed' : cd ? 'Value' : 'Balance'}</span>
+        <span class="card-label">{owed ? 'Owed' : cd || isValued(a) ? 'Value' : 'Balance'}</span>
         <CountUp class="detail-big num" value={owed ? Math.abs(now) : now} format={(c) => formatMoney(c)} />
         <span class="card-sub">
           {(cd
@@ -55,7 +57,13 @@ export function AccountDetail(props: { account: Account; onClose: () => void }) 
                 `${stage === 'matured' ? 'matured' : 'matures'} ${formatDate(cd.maturesOn!)}`,
                 cd.interestPaidOut && 'interest paid out',
               ]
-            : [a.institution, a.last4 && `•••• ${a.last4}`, a.checkedOn ? `checked against the bank ${formatShortDate(a.checkedOn)}` : 'not checked against the bank yet']
+            : isIra(a)
+              ? [
+                  a.institution,
+                  a.type === 'roth-ira' ? 'Roth: tax-free when you take it out in retirement' : 'Traditional: taxed as income when you take it out',
+                  anchors.length ? `value updated ${formatShortDate(anchors[anchors.length - 1].date)}` : 'value not set yet',
+                ]
+              : [a.institution, a.last4 && `•••• ${a.last4}`, a.checkedOn ? `checked against the bank ${formatShortDate(a.checkedOn)}` : 'not checked against the bank yet']
           )
             .filter(Boolean)
             .join(' · ')}
@@ -110,7 +118,8 @@ export function AccountDetail(props: { account: Account; onClose: () => void }) 
           </button>
         )}
       </div>
-      {recent.length > 0 && (
+      {isIra(a) && <IraSection account={a} />}
+      {recent.length > 0 && !isIra(a) && (
         <section class="section">
           <h3 class="section-title">Recent</h3>
           <div class="group">

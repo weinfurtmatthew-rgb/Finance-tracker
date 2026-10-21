@@ -9,10 +9,12 @@ import type { Account, AccountType } from '../types';
 import { isLiability } from '../lib/balances';
 import { addMonths, dayInMonth, formatDate, formatShortDate, monthKey, monthLabel } from '../lib/dates';
 import { apyLabel, cdStage } from '../lib/cd';
+import { iraRoom, isIra, taxYearsFor } from '../lib/ira';
+import { useBirthYear } from '../iraModel';
 import { formatMoney } from '../lib/money';
 import { nextOnSchedule, occurrences } from '../lib/recurring';
 import {
-  balanceOn, changeSince, goalProgress, historyDates, isValued, netWorthHistory, staleValued, type GoalProgress, type Range,
+  balanceOn, changeSince, contributedAfter, goalProgress, historyDates, isValued, netWorthHistory, staleValued, type GoalProgress, type Range,
 } from '../lib/networth';
 import { Empty, Money, Row, Section, Segmented } from '../components/ui';
 import { LineChart } from '../components/charts';
@@ -26,6 +28,7 @@ import { GoalEditor } from './GoalEditor';
 const GROUPS: { title: string; types: AccountType[]; icon: GlyphName }[] = [
   { title: 'Cash', types: ['checking', 'savings', 'cash', 'wallet'], icon: 'bank' },
   { title: 'Investments', types: ['brokerage', 'cd'], icon: 'trend' },
+  { title: 'Retirement', types: ['roth-ira', 'ira'], icon: 'sun' },
   { title: 'Vehicles', types: ['vehicle'], icon: 'car' },
   { title: 'Credit cards', types: ['credit'], icon: 'card' },
   { title: 'Loans', types: ['loan'], icon: 'receipt' },
@@ -85,6 +88,7 @@ export function Accounts() {
   const rec = useRecurringModel();
   const today = rec.today;
   const [range, setRange] = useState<Range>('1y');
+  const birthYear = useBirthYear();
   const [view, setView] = useState<'net' | 'split'>('net');
 
   const accounts = book.accounts;
@@ -131,19 +135,25 @@ export function Accounts() {
     const valued = isValued(a);
     const lastVal = book.values.get(a.id)?.at(-1);
     const stage = a.type === 'cd' ? cdStage(a, today) : null;
+    // An IRA: what's gone in since you last entered its value.
+    const since = isIra(a) && lastVal ? contributedAfter(book, a.id, lastVal.date) : 0;
     return (
       <Row
         title={a.name}
         subtitle={
           stage
             ? [apyLabel(a.apy), stage === 'matured' ? `matured ${formatDate(a.maturesOn!)}` : `matures ${formatDate(a.maturesOn!)}`].filter(Boolean).join(' · ')
-            : valued
-              ? lastVal
-                ? `Value updated ${formatShortDate(lastVal.date)}`
-                : 'Value not set yet'
-              : [a.institution, a.last4 && `•••• ${a.last4}`, `${counts.get(a.id) ?? 0} transactions`, a.checkedOn && `✓ ${formatShortDate(a.checkedOn)}`]
+            : isIra(a)
+              ? [a.type === 'roth-ira' ? 'Roth' : 'Traditional', lastVal ? `updated ${formatShortDate(lastVal.date)}` : 'value not set', since > 0 && `+${formatMoney(since, { whole: true })} since`]
                   .filter(Boolean)
                   .join(' · ')
+              : valued
+                ? lastVal
+                  ? `Value updated ${formatShortDate(lastVal.date)}`
+                  : 'Value not set yet'
+                : [a.institution, a.last4 && `•••• ${a.last4}`, `${counts.get(a.id) ?? 0} transactions`, a.checkedOn && `✓ ${formatShortDate(a.checkedOn)}`]
+                    .filter(Boolean)
+                    .join(' · ')
         }
         detail={<Money cents={isLiability(a) ? -b : b} />}
         onClick={() => nav.present((close) => <AccountDetail account={a} onClose={close} />)}
@@ -273,6 +283,16 @@ export function Accounts() {
                     </span>
                     <Money cents={owed ? -total : total} />
                   </>
+                }
+                footer={
+                  g.title === 'Retirement'
+                    ? taxYearsFor(today)
+                        .map((y) => {
+                          const r = iraRoom(y, txns, birthYear);
+                          return `${y} IRA contributions: ${formatMoney(r.contributed, { whole: true })} of ${formatMoney(r.limit, { whole: true })}`;
+                        })
+                        .join(' · ')
+                    : undefined
                 }
               >
                 {items.map(row)}

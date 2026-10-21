@@ -3376,6 +3376,15 @@ button.hero-card {
   scroll-margin-top: 16px;
 }
 
+/* IRA contributions spotted in bank files: yes or no */
+.spot-actions {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.spot-actions .pill {
+  font-size: 14px;
+}
+
 /* A CD's deposit, interest so far, and value at maturity */
 .cd-facts {
   display: grid;
