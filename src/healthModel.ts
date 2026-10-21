@@ -26,6 +26,7 @@ export function useMoneyHealth(): Health | null | undefined {
     return moneyHealth({
       months: plan.averagedMonths.length,
       monthlyIncome: plan.monthlyIncome,
+      retirementMonthly: plan.retirementMonthly,
       monthlySpending: plan.monthlySpending,
       cash: plan.cash,
       invested: plan.invested,
@@ -35,7 +36,11 @@ export function useMoneyHealth(): Health | null | undefined {
       budgets: budgets.length,
       goals,
       tracked: active.filter((s) => countsAsCost(s.rec)).length,
-      has: { cash: hasType('checking', 'savings', 'cash', 'wallet'), invest: hasType('brokerage', 'cd', 'roth-ira', 'ira'), debt: hasType('credit', 'loan') },
+      has: {
+        cash: hasType('checking', 'savings', 'cash', 'wallet'),
+        invest: hasType('brokerage', 'cd', 'roth-ira', 'ira', '401k', 'roth-401k'),
+        debt: hasType('credit', 'loan'),
+      },
     });
   });
 }

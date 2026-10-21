@@ -3439,6 +3439,11 @@ button.hero-card {
   margin-right: 14px;
   font-size: 14px;
 }
+/* The Later button leaves less room: words wrap instead of being cut off. */
+.todo-row.has-later .row-title,
+.todo-row.has-later .row-subtitle {
+  white-space: normal;
+}
 .row-subtitle.wrap {
   white-space: normal;
 }

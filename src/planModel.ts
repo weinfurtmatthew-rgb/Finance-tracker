@@ -30,7 +30,9 @@ export function usePlanData(): PlanData | undefined {
   const book = useBook();
   const { accounts, transactions: txns, valuations, categories, recurring } = store.raw;
   const loaded = !!(accounts && txns && valuations && categories && recurring && rec.loaded);
-  return store.derive('plan', [loaded, rec, months, book, cats], () => {
+  const pay = store.meta?.get('grossYearly') as number | undefined;
+  const birthYear = store.meta?.get('birthYear') as number | undefined;
+  return store.derive('plan', [loaded, rec, months, book, cats, pay, birthYear], () => {
     if (!loaded) return undefined;
     const raw = { accounts: accounts!, txns: txns! };
     const snap = planSnapshot({
@@ -39,6 +41,8 @@ export function usePlanData(): PlanData | undefined {
       txns: raw.txns,
       months,
       today: rec.today,
+      pay,
+      birthYear,
     });
 
     const active = rec.statuses.filter((s) => s.rec.status === 'active' && s.rec.kind === 'subscription');

@@ -13,6 +13,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-21c',
+    date: 'October 21, 2026',
+    title: '401(k)s',
+    items: [
+      'Add a 401(k), 403(b) or Roth 401(k) in Net Worth, under Retirement, with the value from your 401(k) site.',
+      'Enter what you put in and your employer’s match, and the app checks you get the full match. Today reminds you when you don’t.',
+      'See what you’ll put in this year at your rate, against the IRS limit.',
+      'Your 401(k) and the match count in your savings rate (Money Health and Financial independence) and in Retirement savings.',
+    ],
+  },
+  {
     id: '2026-10-21b',
     date: 'October 21, 2026',
     title: 'Roth and Traditional IRAs',

@@ -7,7 +7,7 @@ import { iraRoom, isIra, taxYearsFor, type SpottedContribution } from '../lib/ir
 import { formatDate, formatDay, todayISO } from '../lib/dates';
 import { formatMoney, parseUserAmount } from '../lib/money';
 import { Empty, Field, Row, Section, Segmented, Sheet } from '../components/ui';
-import { IRA_REVIEWED, useBirthYear, useIraSpots } from '../iraModel';
+import { IRA_REVIEWED, useBirthYear, useIraSpots } from '../retirementModel';
 import { TransactionEditor } from './TransactionEditor';
 
 const whole = (c: number) => formatMoney(c, { whole: true });
