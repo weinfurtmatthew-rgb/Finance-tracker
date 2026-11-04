@@ -14,7 +14,7 @@ const MEANING = {
 /** Scored parts lowest first (where to start), then the ones without enough info. */
 const lowestFirst = (a: Pillar, b: Pillar) => (a.score ?? 101) - (b.score ?? 101);
 
-/** The bigger picture: six parts of your finances, each scored 0–100 (Browse → Money Health). */
+/** The bigger picture: seven parts of your finances, each scored 0–100 (Browse → Money Health). */
 export function MoneyHealth() {
   const health = useMoneyHealth();
   return (
@@ -66,8 +66,8 @@ export function MoneyHealth() {
             ),
           )}
           <p class="section-footer">
-            Weights: spend less than you earn 25%, cash cushion 20%, bills on time, long-term savings and debt load 15% each, planning 10%. A part without
-            enough info is left out, and the others count for more.
+            Weights: spend less than you earn 25%, cash cushion 20%, bills on time, long-term savings and debt load 15% each, planning 10%, and credit 10% more
+            once you’ve added your score or card limits. A part without enough info is left out, and the others count for more.
           </p>
         </>
       )}

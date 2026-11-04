@@ -73,6 +73,9 @@ function AccountForm(props: Props & { txns: Transaction[]; values: Valuation[] }
   const [balance, setBalance] = useState(a ? ((isLiability(a) ? -current : current) / 100).toFixed(2) : '');
   const [apr, setApr] = useState(a?.apr != null ? String(Math.round(a.apr * 10000) / 100) : '');
   const [minPayment, setMinPayment] = useState(a?.minPayment != null ? (a.minPayment / 100).toFixed(2) : '');
+  // Cards: the limit (for how much of it you use) and the day the statement closes (for when to pay).
+  const [creditLimit, setCreditLimit] = useState(a?.creditLimit != null ? String(Math.round(a.creditLimit / 100)) : '');
+  const [statementDay, setStatementDay] = useState(a?.statementDay != null ? String(a.statementDay) : '');
   const [apy, setApy] = useState(a?.apy != null ? String(Math.round(a.apy * 10000) / 100) : '');
   // 401(k)s: your pay (kept for the whole app), the share you put in, and how your employer matches it.
   const savedPay = usePay();
@@ -154,12 +157,17 @@ function AccountForm(props: Props & { txns: Transaction[]; values: Valuation[] }
       record.apr = rate(apr);
       const min = parseAmount(minPayment);
       record.minPayment = min != null ? Math.abs(min) : undefined;
+      if (type === 'credit') {
+        record.creditLimit = positive(creditLimit);
+        const day = Number(statementDay);
+        record.statementDay = Number.isInteger(day) && day >= 1 && day <= 31 ? day : undefined;
+      }
     } else if (type === 'savings' || type === 'checking') record.apy = rate(apy);
     if (isK401) {
       Object.assign(record, k401);
       if (payCents && payCents !== savedPay) await setMeta('grossYearly', payCents);
     }
-    for (const k of ['apr', 'minPayment', 'apy', 'contributionRate', 'employerMatch', 'employerMatchUpTo'] as const)
+    for (const k of ['apr', 'minPayment', 'creditLimit', 'statementDay', 'apy', 'contributionRate', 'employerMatch', 'employerMatchUpTo'] as const)
       if (record[k] === undefined) delete record[k];
     if (valued) {
       // Investments & vehicles: record a dated value (a point in net worth history).
@@ -322,6 +330,25 @@ function AccountForm(props: Props & { txns: Transaction[]; values: Valuation[] }
           </Field>
           <Field label="Minimum / mo">
             <input inputMode="decimal" value={minPayment} placeholder="0.00" onInput={(e) => setMinPayment((e.target as HTMLInputElement).value)} />
+          </Field>
+        </Section>
+      )}
+      {type === 'credit' && (
+        <Section
+          title="Limit & statement"
+          footer="Optional. With the limit, the app shows how much of it you’re using (under 30% helps your credit score, under 10% most). With the statement day, Today reminds you to pay before it closes, so a low balance is reported."
+        >
+          <Field label="Credit limit">
+            <input inputMode="decimal" value={creditLimit} placeholder="e.g. 5000" onInput={(e) => setCreditLimit((e.target as HTMLInputElement).value)} />
+          </Field>
+          <Field label="Statement day" hint="The day of the month it closes, on your statement or in your card’s app">
+            <input
+              inputMode="numeric"
+              maxLength={2}
+              value={statementDay}
+              placeholder="e.g. 12"
+              onInput={(e) => setStatementDay((e.target as HTMLInputElement).value)}
+            />
           </Field>
         </Section>
       )}

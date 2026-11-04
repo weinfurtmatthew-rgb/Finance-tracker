@@ -24,8 +24,11 @@ import { PeopleSheet } from './People';
 import { TagsSheet } from './Tags';
 import { Plan } from '../lazy';
 import { RecapPage, RecapTeaser } from './Recap';
+import { CreditSheet } from './Credit';
+import { useCreditScores } from '../creditModel';
+import { creditBand, lastChange, utilization } from '../lib/credit';
 
-type ItemId = 'spending' | 'bills' | 'budgets' | 'networth' | 'health' | 'people' | 'tags' | 'plan' | 'recap';
+type ItemId = 'spending' | 'bills' | 'budgets' | 'networth' | 'health' | 'credit' | 'people' | 'tags' | 'plan' | 'recap';
 type GroupId = 'money' | 'plan' | 'people';
 
 /** Every feature has one home. Setup (categories, rules) lives in Settings; importing lives in Activity. */
@@ -71,6 +74,7 @@ export function Browse() {
   const pins = useMeta<ItemId[]>('browsePins') ?? DEFAULT_PINS;
   const layout = useMeta<BrowseLayout>('browseLayout') ?? 'list';
   const health = useMoneyHealth();
+  const scores = useCreditScores();
   const [editing, setEditing] = useState(false);
   const today = rec.today;
   const month = monthKey(today);
@@ -89,6 +93,9 @@ export function Browse() {
     const owedTotal = owed.reduce((s, p) => s + p.total, 0);
     const friends = people(txns).length;
     const tags = allTags(txns).length;
+    const score = scores.at(-1)?.score;
+    const scoreChange = lastChange(scores)?.change;
+    const cardUse = utilization(accounts, book).use;
     const present = (render: (close: () => void) => ComponentChildren) => () => nav.present(render);
     return [
       {
@@ -151,6 +158,21 @@ export function Browse() {
         open: () => nav.setTab('health'),
       },
       {
+        id: 'credit',
+        group: 'money',
+        title: 'Credit Score',
+        glyph: 'bars',
+        hue: 'blue',
+        sub: score
+          ? `${score} · ${creditBand(score)}`
+          : cardUse != null
+            ? `${Math.round(cardUse * 100)}% of card limits used`
+            : 'Track your score and card use',
+        value: score ? String(score) : undefined,
+        note: score ? `${creditBand(score)}${scoreChange ? ` · ${scoreChange > 0 ? '+' : '−'}${Math.abs(scoreChange)} since last` : ''}` : undefined,
+        open: present((close) => <CreditSheet onClose={close} />),
+      },
+      {
         id: 'plan',
         group: 'plan',
         title: 'Plan',
@@ -189,7 +211,7 @@ export function Browse() {
         open: present((close) => <TagsSheet onClose={close} />),
       },
     ];
-  }, [txns, accounts, categories, rec, months, budgets, book, month, today, health]);
+  }, [txns, accounts, categories, rec, months, budgets, book, month, today, health, scores]);
 
   // Categories pinned from their page ("cat:<id>") show what they've cost this month.
   const categoryItem = (pin: string): Item | undefined => {

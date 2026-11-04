@@ -174,7 +174,11 @@ export function DebtCalc(props: { data: PlanData; onClose: () => void }) {
               </button>
             </>
           }
-          footer={r.typical ? 'Rate or minimum is a typical guess. Set the real ones on the account for an accurate plan.' : undefined}
+          footer={
+            r.typical
+              ? `Rate or minimum is a typical guess${props.data.creditScore != null ? ` (the rate for a ${props.data.creditScore} credit score)` : ''}. Set the real ones on the account for an accurate plan.`
+              : undefined
+          }
         >
           {r.id.startsWith('new:') && (
             <Field label="Name">

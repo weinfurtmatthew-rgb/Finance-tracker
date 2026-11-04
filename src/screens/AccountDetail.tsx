@@ -6,6 +6,7 @@ import type { Account } from '../types';
 import { balanceOn, historyDates, isValued, type Range } from '../lib/networth';
 import { isIra } from '../lib/ira';
 import { is401k } from '../lib/k401';
+import { nextStatementClose } from '../lib/credit';
 import { isLiability } from '../lib/balances';
 import { formatDate, formatShortDate, todayISO } from '../lib/dates';
 import { apyLabel, cdMaturityValue, cdStage } from '../lib/cd';
@@ -67,7 +68,16 @@ export function AccountDetail(props: { account: Account; onClose: () => void }) 
                     : `${a.type === 'ira' ? 'Traditional' : 'Pre-tax'}: taxed as income when you take it out`,
                   anchors.length ? `value updated ${formatShortDate(anchors[anchors.length - 1].date)}` : 'value not set yet',
                 ]
-              : [a.institution, a.last4 && `•••• ${a.last4}`, a.checkedOn ? `checked against the bank ${formatShortDate(a.checkedOn)}` : 'not checked against the bank yet']
+              : [
+                  a.institution,
+                  a.last4 && `•••• ${a.last4}`,
+                  // Cards: how much of the limit is used, and when the next statement closes.
+                  a.type === 'credit' &&
+                    a.creditLimit &&
+                    `${Math.round((Math.max(0, -now) / a.creditLimit) * 100)}% of the ${formatMoney(a.creditLimit, { whole: true })} limit`,
+                  a.type === 'credit' && a.statementDay && `statement closes ${formatShortDate(nextStatementClose(a.statementDay, today))}`,
+                  a.checkedOn ? `checked against the bank ${formatShortDate(a.checkedOn)}` : 'not checked against the bank yet',
+                ]
           )
             .filter(Boolean)
             .join(' · ')}

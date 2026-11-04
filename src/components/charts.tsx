@@ -203,6 +203,13 @@ export function RankedBars(props: {
   );
 }
 
+/** Ticks from `lo` to `hi` every `step`. */
+function stepsBetween(lo: number, hi: number, step: number): number[] {
+  const ticks: number[] = [];
+  for (let v = lo; v <= hi; v += step) ticks.push(v);
+  return ticks;
+}
+
 /** Axis ticks covering [min, max], including 0 (at most ~5 ticks). */
 export function niceRange(min: number, max: number): number[] {
   if (min >= 0) return niceScale(max);
@@ -227,13 +234,19 @@ export function LineChart(props: {
   series: Series[];
   title: string;
   height?: number;
+  /** Values that aren't cents (a credit score): how to show them. */
+  format?: (v: number) => string;
+  /** A fixed axis that needn't start at zero, as [low, high, step]; there's no area wash then. */
+  domain?: [number, number, number];
 }) {
   const { dates, series } = props;
   const [active, setActive] = useState<number | null>(null);
   const H = props.height ?? 160;
   const plotW = W - AXIS_W - 8;
   const all = series.flatMap((s) => s.values);
-  const ticks = niceRange(Math.min(0, ...all), Math.max(1, ...all));
+  const ticks = props.domain ? stepsBetween(...props.domain) : niceRange(Math.min(0, ...all), Math.max(1, ...all));
+  const full = props.format ?? compactMoneyFull;
+  const tick = props.format ?? compactMoney;
   const lo = ticks[0];
   const hi = ticks[ticks.length - 1];
   const y = (v: number) => 8 + (H - 16) * (1 - (v - lo) / (hi - lo || 1));
@@ -265,7 +278,7 @@ export function LineChart(props: {
           {series.map((s) => (
             <span class="readout-item">
               {!single && <i class="key-line" style={{ background: s.color }} />}
-              <strong>{compactMoneyFull(s.values[shown] ?? 0)}</strong>
+              <strong>{full(s.values[shown] ?? 0)}</strong>
               {!single && <span class="muted"> {s.name}</span>}
             </span>
           ))}
@@ -287,11 +300,11 @@ export function LineChart(props: {
           <g>
             <line x1={AXIS_W} x2={W} y1={y(t)} y2={y(t)} class={t === 0 ? 'axis-base' : 'grid'} />
             <text x={AXIS_W - 6} y={y(t) + 4} class="tick" text-anchor="end">
-              {compactMoney(t)}
+              {tick(t)}
             </text>
           </g>
         ))}
-        {single && dates.length > 1 && (
+        {single && dates.length > 1 && !props.domain && (
           <path d={`${line(series[0].values)}L${x(dates.length - 1)},${y(Math.max(lo, 0))}L${x(0)},${y(Math.max(lo, 0))}Z`} fill={series[0].color} opacity="0.1" class="draw-area" />
         )}
         {series.map((s) => (
@@ -334,7 +347,7 @@ export function LineChart(props: {
               <tr>
                 <th scope="row">{props.labels[i]}</th>
                 {series.map((s) => (
-                  <td>{compactMoneyFull(s.values[i] ?? 0)}</td>
+                  <td>{full(s.values[i] ?? 0)}</td>
                 ))}
               </tr>
             ))}

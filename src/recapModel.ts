@@ -1,13 +1,15 @@
 import { useStore } from './store';
 import { useBook } from './hooks';
 import { buildRecap, type Recap, type RecapPeriod } from './lib/recap';
+import { CREDIT_SCORES, type CreditScore } from './lib/credit';
 
 /** A recap of `period`, from the shared data; `undefined` while loading. */
 export function useRecap(period: RecapPeriod): Recap | undefined {
   const s = useStore();
   const book = useBook();
   const { transactions: txns, accounts, valuations, categories, recurring, budgets, goals } = s.raw;
-  return s.derive(`recap:${period.from}:${period.to}`, [s.loaded, txns, accounts, valuations, categories, recurring, budgets, goals, book], () =>
+  const creditScores = s.meta?.get(CREDIT_SCORES) as CreditScore[] | undefined;
+  return s.derive(`recap:${period.from}:${period.to}`, [s.loaded, txns, accounts, valuations, categories, recurring, budgets, goals, book, creditScores], () =>
     s.loaded
       ? buildRecap({
           txns: txns!,
@@ -19,6 +21,7 @@ export function useRecap(period: RecapPeriod): Recap | undefined {
           goals: goals!,
           period,
           book,
+          creditScores,
         })
       : undefined,
   );

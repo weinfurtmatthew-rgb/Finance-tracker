@@ -57,6 +57,9 @@ export interface Account {
   apr?: number;
   /** Credit cards & loans: the minimum monthly payment. */
   minPayment?: Cents;
+  /** Credit cards: the credit limit, and the day of the month the statement closes (see lib/credit.ts). */
+  creditLimit?: Cents;
+  statementDay?: number;
   /** Savings, checking & CDs: the yearly yield as a decimal (0.041 = 4.1%). */
   apy?: number;
   /** CDs: when the current term started, and when it matures (see lib/cd.ts). */

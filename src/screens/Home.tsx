@@ -30,6 +30,9 @@ import { AccountDetail } from './AccountDetail';
 import { CdMaturitySheet } from './CdMaturity';
 import { ContributionSheet, SpottedContributionsSheet } from './Ira';
 import { ratePct } from './K401';
+import { ScoreSheet } from './Credit';
+import { scoreDue, statementPayments } from '../lib/credit';
+import { useCreditScores } from '../creditModel';
 import { ImportFlow } from '../lazy';
 import { BackupSheet } from './Backup';
 import { BACKUP_SNOOZE_DAYS, backupDue, DEFAULT_BACKUP_EVERY_DAYS } from '../lib/backup';
@@ -72,10 +75,12 @@ function Sentence(props: { phrases: Phrase[] }) {
   return <>{props.phrases.map((p) => (p.tone ? <span class={p.tone === 'good' ? 'pos-text' : 'neg-text'}>{p.text}</span> : p.text))} </>;
 }
 
-/** Something on the To do list: one line, tap to deal with it. */
 /** "Later" on the 401(k) match reminder hides it this long. */
 const MATCH_SNOOZE_DAYS = 90;
+/** "Later" on the credit score reminder hides it this long. */
+const SCORE_SNOOZE_DAYS = 14;
 
+/** Something on the To do list: one line, tap to deal with it. */
 interface Todo {
   key: string;
   glyph: GlyphName;
@@ -160,6 +165,9 @@ export function Home() {
   const iraNudgesSkipped = useMeta<number[]>('iraNudgesSkipped');
   const pay = usePay();
   const matchSnoozedUntil = useMeta<number>('matchNudgeSnoozeUntil');
+  const scores = useCreditScores();
+  const scoreSnoozedUntil = useMeta<number>('scoreReminderSnoozeUntil');
+  const statementsSkipped = useMeta<string[]>('statementNudgesSkipped');
   const stale = staleValued(book, today);
   const uncategorized = txns.filter((t) => t.categoryId === 'uncategorized').length;
   const aiPicks = txns.filter((t) => t.categorySource === 'ai').length;
@@ -299,6 +307,21 @@ export function Home() {
         open: () => nav.present((close) => <CdMaturitySheet account={a} onClose={close} />),
       });
   }
+  // Cards: pay before a statement closes, so a balance under 10% of the limit is what gets reported.
+  for (const p of statementPayments(open, book, today)) {
+    const key = `${p.account.id}:${p.closes}`;
+    if ((statementsSkipped ?? []).includes(key)) continue;
+    todos.push({
+      key: `statement:${p.account.id}`,
+      glyph: 'card',
+      hue: 'orange',
+      title: `Pay ${whole(p.pay)} on ${p.account.name}`,
+      sub: `${p.closes === today ? 'The statement closes today' : `Before the statement closes ${formatDate(p.closes)}`}, to report under 10% of the limit`,
+      open: () => nav.present((close) => <AccountDetail account={p.account} onClose={close} />),
+      // Skipped for this statement only (and forget ones that have passed).
+      later: () => void setMeta('statementNudgesSkipped', [...(statementsSkipped ?? []).filter((k) => k.slice(-10) >= today), key]),
+    });
+  }
   // IRAs: transfers to a brokerage that may have been contributions, and last year's deadline (Apr 15).
   if (iraSpots.length)
     todos.push({
@@ -340,6 +363,18 @@ export function Home() {
       sub: `Put in ${ratePct(short.employerMatchUpTo!)} instead of ${ratePct(short.contributionRate!)}${missed ? `: ${whole(missed)} more a year` : ''}`,
       open: () => nav.present((close) => <AccountDetail account={short} onClose={close} />),
       later: () => void setMeta('matchNudgeSnoozeUntil', Date.now() + MATCH_SNOOZE_DAYS * 86_400_000),
+    });
+  // Credit score: a new one a month after the last, once you've started a log.
+  const lastScore = scores.at(-1);
+  if (lastScore && scoreDue(scores, today) && !(scoreSnoozedUntil && Date.now() < scoreSnoozedUntil))
+    todos.push({
+      key: 'credit-score',
+      glyph: 'bars',
+      hue: 'blue',
+      title: 'Update your credit score',
+      sub: `Last one: ${lastScore.score} on ${formatDate(lastScore.date)}`,
+      open: () => nav.present((close) => <ScoreSheet onClose={close} />),
+      later: () => void setMeta('scoreReminderSnoozeUntil', Date.now() + SCORE_SNOOZE_DAYS * 86_400_000),
     });
   if (uncategorized > 0)
     todos.push({

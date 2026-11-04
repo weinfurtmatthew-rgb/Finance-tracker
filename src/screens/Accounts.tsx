@@ -11,6 +11,7 @@ import { addMonths, dayInMonth, formatDate, formatShortDate, monthKey, monthLabe
 import { apyLabel, cdStage } from '../lib/cd';
 import { iraRoom, isIra, taxYearsFor } from '../lib/ira';
 import { is401k, k401Totals } from '../lib/k401';
+import { utilization } from '../lib/credit';
 import { useBirthYear, usePay } from '../retirementModel';
 import { formatMoney } from '../lib/money';
 import { nextOnSchedule, occurrences } from '../lib/recurring';
@@ -148,6 +149,10 @@ export function Accounts() {
   ]
     .filter(Boolean)
     .join(' · ');
+  // Under Credit cards: how much of your limits you're using (cards with a limit entered).
+  const cards = utilization(open, book);
+  const cardsFooter =
+    cards.use != null ? `Using ${Math.round(cards.use * 100)}% of your ${formatMoney(cards.limit, { whole: true })} in card limits` : undefined;
   const row = (a: Account) => {
     const b = balances.get(a.id) ?? 0;
     const valued = isValued(a);
@@ -302,7 +307,7 @@ export function Accounts() {
                     <Money cents={owed ? -total : total} />
                   </>
                 }
-                footer={g.title === 'Retirement' ? retirementFooter : undefined}
+                footer={g.title === 'Retirement' ? retirementFooter : g.title === 'Credit cards' ? cardsFooter : undefined}
               >
                 {items.map(row)}
               </Section>

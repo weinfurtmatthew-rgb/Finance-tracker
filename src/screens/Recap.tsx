@@ -258,6 +258,8 @@ export function drawRecapImage(recap: Recap, cards: RecapCard[], canvas: HTMLCan
   if (recap.habit) rows.push(['#1 spot', `${recap.habit.name} · ${recap.habit.visits} visits`]);
   if (recap.noSpend) rows.push(['No-spend days', String(recap.noSpend.days)]);
   if (recap.trips[0]) rows.push(['Top trip', `#${recap.trips[0].tag}`]);
+  if (recap.credit)
+    rows.push(['Credit score', `${recap.credit.end}${recap.credit.change ? ` (${recap.credit.change > 0 ? '+' : '−'}${Math.abs(recap.credit.change)})` : ''}`]);
   let y = 420;
   for (const [label, value] of rows.slice(0, 5)) {
     ctx.globalAlpha = 0.75;
