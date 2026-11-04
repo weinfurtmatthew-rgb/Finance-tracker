@@ -5,6 +5,7 @@ import { setMeta } from '../../db';
 import type { Cents } from '../../types';
 import { ACCEPTABLE_SHARE, CHEAP_SHARE, LANDLORD_MULTIPLE, checkRent, rentLimits, type RentCheck, type RentInputs, type RentLimits, type RentTier } from '../../lib/rent';
 import type { PlanData } from '../../planModel';
+import { landlordCredit } from '../../lib/credit';
 import { Answer, CountField, DISCLAIMER, MoneyField, Stat, money, monthsRange, pct, tile, useCount, useMoney, type Status } from './common';
 
 const TIER: Record<RentTier, { label: string; status: Status; icon: string }> = {
@@ -149,7 +150,10 @@ export function RentCalc(props: { data: PlanData; onClose: () => void }) {
         )}
       </Section>
 
-      <Section title="Landlord check" footer={`Many landlords want a yearly gross income of ${LANDLORD_MULTIPLE}× the monthly rent (often checked per roommate, for their share). Your salary is saved on this phone.`}>
+      <Section
+        title="Landlord check"
+        footer={`Many landlords want a yearly gross income of ${LANDLORD_MULTIPLE}× the monthly rent (often checked per roommate, for their share). Your salary is saved on this phone.${d.creditScore == null ? ' Add your credit score in Browse → Credit Score and it’s checked here too.' : ''}`}
+      >
         <MoneyField label="Gross salary / yr" value={grossText} set={setGross} hint="Before taxes" />
       </Section>
       {limits.landlordMax != null && (
@@ -169,6 +173,11 @@ export function RentCalc(props: { data: PlanData; onClose: () => void }) {
       )}
       {check?.landlordOk && check.tier === 'expensive' && (
         <p class="plan-note">Landlords would approve this, but it's more than your budget comfortably allows.</p>
+      )}
+      {d.creditScore != null && (
+        <p class="plan-note credit-check">
+          <strong>Credit score {d.creditScore}:</strong> {landlordCredit(d.creditScore).text}
+        </p>
       )}
 
       <Section title="Your numbers" footer={DISCLAIMER}>

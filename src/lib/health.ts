@@ -3,8 +3,9 @@
  * slowly (it's built from monthly averages and balances), unlike Spend Readiness, which is about today.
  */
 import type { Cents } from '../types';
+import { BEST_USE, OK_USE } from './credit';
 
-export type PillarKey = 'earn' | 'bills' | 'cushion' | 'invest' | 'debt' | 'planning';
+export type PillarKey = 'earn' | 'bills' | 'cushion' | 'invest' | 'debt' | 'credit' | 'planning';
 export type Band = 'Great' | 'Good' | 'Fair' | 'Needs work';
 
 export interface Pillar {
@@ -46,6 +47,9 @@ export interface HealthInput {
   tracked: number;
   /** Which kinds of account you've added: a part with nothing to go on isn't scored. */
   has: { cash: boolean; invest: boolean; debt: boolean };
+  /** Your credit score from the last year, and what's on your cards against their limits (cards with a limit). */
+  creditScore?: number;
+  creditUse?: { owed: Cents; limit: Cents };
 }
 
 export const bandFor = (score: number): Band => (score >= 85 ? 'Great' : score >= 65 ? 'Good' : score >= 45 ? 'Fair' : 'Needs work');
@@ -156,7 +160,37 @@ export function moneyHealth(input: HealthInput): Health | null {
         : 'Debt-free. Nice.',
   });
 
-  // 6. Planning
+  // 6. Credit: your score, and how much of your card limits you use. It counts on top of the others
+  // when there's anything to go on, so it doesn't change anyone's score who hasn't added it.
+  const use = input.creditUse && input.creditUse.limit > 0 ? input.creditUse.owed / input.creditUse.limit : null;
+  const scorePart = input.creditScore != null ? curve(input.creditScore, [[300, 0], [580, 30], [670, 60], [740, 85], [800, 100]]) : null;
+  const usePart = use != null ? curve(use, [[0, 100], [BEST_USE, 100], [OK_USE, 70], [0.5, 40], [0.75, 15], [1, 0]]) : null;
+  pillars.push({
+    key: 'credit',
+    name: 'Credit',
+    weight: 0.1,
+    score: scorePart == null ? usePart : usePart == null ? scorePart : 0.6 * scorePart + 0.4 * usePart,
+    metric:
+      scorePart == null && usePart == null
+        ? 'No credit score or card limits added'
+        : [input.creditScore != null && `Score ${input.creditScore}`, use != null && `${Math.round(use * 100)}% of card limits used`]
+            .filter(Boolean)
+            .join(' · '),
+    tip:
+      scorePart == null && usePart == null
+        ? 'Add your score in Browse → Credit Score, and the limit on each card, to score this.'
+        : use != null && use > OK_USE
+          ? `Paying ${money(input.creditUse!.owed - OK_USE * input.creditUse!.limit)} off your cards gets you under 30% of your limits.`
+          : use != null && use > BEST_USE
+            ? 'Under 10% of your limits helps your score most.'
+            : input.creditScore == null
+              ? 'Add your score in Browse → Credit Score to complete this.'
+              : input.creditScore < 740
+                ? 'On-time payments and low card balances raise it over time.'
+                : 'Strong. Keep balances low and payments on time.',
+  });
+
+  // 7. Planning
   const planScore = Math.min(40, input.budgets * 10) + (input.goals ? 30 : 0) + Math.min(30, input.tracked * 10);
   pillars.push({
     key: 'planning',

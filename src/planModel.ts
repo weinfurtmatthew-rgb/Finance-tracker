@@ -4,6 +4,7 @@ import { useBook } from './hooks';
 import { useSpending } from './spendingModel';
 import { monthlyCost } from './lib/recurring';
 import { planSnapshot, type PlanSnapshot } from './lib/planData';
+import { CREDIT_SCORES, currentScore, type CreditScore } from './lib/credit';
 import { useRecurringModel } from './recurringModel';
 import type { Cents } from './types';
 
@@ -32,7 +33,8 @@ export function usePlanData(): PlanData | undefined {
   const loaded = !!(accounts && txns && valuations && categories && recurring && rec.loaded);
   const pay = store.meta?.get('grossYearly') as number | undefined;
   const birthYear = store.meta?.get('birthYear') as number | undefined;
-  return store.derive('plan', [loaded, rec, months, book, cats, pay, birthYear], () => {
+  const creditScore = currentScore((store.meta?.get(CREDIT_SCORES) as CreditScore[] | undefined) ?? [], rec.today)?.score;
+  return store.derive('plan', [loaded, rec, months, book, cats, pay, birthYear, creditScore], () => {
     if (!loaded) return undefined;
     const raw = { accounts: accounts!, txns: txns! };
     const snap = planSnapshot({
@@ -43,6 +45,7 @@ export function usePlanData(): PlanData | undefined {
       today: rec.today,
       pay,
       birthYear,
+      creditScore,
     });
 
     const active = rec.statuses.filter((s) => s.rec.status === 'active' && s.rec.kind === 'subscription');

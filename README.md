@@ -99,13 +99,32 @@ One rule everywhere (`src/lib/spend.ts`), so Today, Spending, Activity, the plan
 ### Money Health
 
 - A 0–100 score for the bigger picture (85+ Great · 65–84 Good · 45–64 Fair · under 45 Needs work), drawn as a ring
-  of six parts: spend less than you earn (25%), cash cushion (20%), bills on time (15%), long-term savings (15%),
-  debt load (15%) and planning (10%)
+  of seven parts: spend less than you earn (25%), cash cushion (20%), bills on time (15%), long-term savings (15%),
+  debt load (15%), planning (10%) and credit (10% on top, once you've added a credit score or card limits, so it
+  doesn't change anyone's score who hasn't)
 - Each part shows where you are and the next step; the weakest one is shown on Today. Open it from Browse
 - Spend less than you earn counts what goes into your 401(k), with the match, as money earned and saved (it leaves
   your paycheck before the bank sees it)
 - A part the app has nothing to go on for (no income found, no investment or card accounts added) says **Not enough
   info** and is left out; the others count for more. With under half the picture there's no overall score yet
+
+### Credit score
+
+Open **Browse → Credit Score**. The app never checks your credit: you add your score from wherever you see it (your
+bank or card app, Credit Karma, Experian), and it stays on this phone (`src/lib/credit.ts`).
+
+- Your score over time on a chart, with its range (FICO's: 800+ Exceptional, 740–799 Very good, 670–739 Good,
+  580–669 Fair, under 580 Poor) and the change since the last one. A month after your last score, Today asks for a
+  new one ("Later" waits two weeks)
+- A **score goal** (e.g. 750 by June): progress from where you were when you set it, and when you'd reach it at your
+  pace over the last 6 months
+- **Card use:** add each card's credit limit to see how much of your limits you're using, per card and overall
+  (under 30% helps your score, under 10% helps most). It's also on each card's page and under Credit cards in Net Worth
+- **Pay before the statement:** add a card's statement day, and in the five days before it closes Today says how much
+  to pay so the card reports under 10% of its limit ("Later" skips that statement)
+- Elsewhere: a **Credit** part in Money Health (your score and card use), typical loan and card rates for your range
+  in Can I afford it? and Debt payoff (for accounts without a rate of their own), a credit note in the rent
+  calculator's landlord check, and a Credit score card in Year in Review
 
 ### Activity
 

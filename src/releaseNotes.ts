@@ -13,6 +13,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-04',
+    date: 'November 4, 2026',
+    title: 'Credit score',
+    items: [
+      'Track your credit score in Browse → Credit Score: add it from your bank, your card’s app or Credit Karma, see it on a chart, and set a goal.',
+      'Add your card limits to see how much of them you’re using. Add a statement day, and Today tells you what to pay before it closes so a low balance is reported.',
+      'Credit is now part of Money Health, and Plan uses typical rates for your score.',
+      'Year in Review shows how your score changed.',
+    ],
+  },
+  {
     id: '2026-10-21c',
     date: 'October 21, 2026',
     title: '401(k)s',

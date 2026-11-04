@@ -9,6 +9,7 @@ import { balanceOn, type BalanceBook } from './networth';
 import type { MonthSpending } from './budgets';
 import { estimateApy, type Debt } from './plan';
 import { k401Totals } from './k401';
+import { typicalApr } from './credit';
 
 /** Typical rates used when an account doesn't have its own (shown as estimates). */
 export const TYPICAL_CARD_APR = 0.22;
@@ -44,6 +45,8 @@ export interface PlanSnapshot {
   /** Full months the averages are based on, e.g. ['2026-06', '2026-07', '2026-08']. */
   averagedMonths: string[];
   debts: PlanDebt[];
+  /** Your credit score, if you've added one in the last year: typical rates come from its range. */
+  creditScore?: number;
   /** Yearly yield on savings: typed on the account, estimated from interest received, or unknown. */
   apy: number | null;
   apySource: 'account' | 'interest' | null;
@@ -71,6 +74,7 @@ export function planSnapshot(args: {
   /** Your yearly pay before taxes, and the year you were born (for 401(k) contributions). */
   pay?: Cents;
   birthYear?: number;
+  creditScore?: number;
 }): PlanSnapshot {
   const { book, txns, months, today } = args;
   const open = args.accounts.filter((a) => !a.archived);
@@ -120,7 +124,8 @@ export function planSnapshot(args: {
     .filter((a) => a.type === 'credit' || a.type === 'loan')
     .map((a) => {
       const balance = -balanceOn(book, a);
-      const apr = a.apr ?? (a.type === 'loan' ? TYPICAL_LOAN_APR : TYPICAL_CARD_APR);
+      const kind = a.type === 'loan' ? 'loan' : 'card';
+      const apr = a.apr ?? (args.creditScore != null ? typicalApr(kind, args.creditScore) : kind === 'loan' ? TYPICAL_LOAN_APR : TYPICAL_CARD_APR);
       return {
         id: a.id,
         name: a.name,
@@ -176,6 +181,7 @@ export function planSnapshot(args: {
     monthlySurplus: monthlyIncome - monthlySpending,
     averagedMonths,
     debts,
+    ...(args.creditScore != null ? { creditScore: args.creditScore } : {}),
     apy,
     apySource,
   };

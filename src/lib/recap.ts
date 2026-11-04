@@ -7,6 +7,7 @@ import type { Account, Budget, Category, Cents, Goal, ISODate, Recurring, Transa
 import { pushTo } from './collections';
 import { addDays, addMonths, dayInMonth, diffDays, monthKey } from './dates';
 import { balanceOn, netWorthOn, type BalanceBook } from './networth';
+import { scoreChangeIn, type CreditScore } from './credit';
 import { isLiability } from './balances';
 import { lines, tagKey } from './lines';
 import { countsAsCost, matchesRecurring } from './recurring';
@@ -74,6 +75,8 @@ export interface Recap {
   goalsReached: string[];
   emergencyMonths?: number;
   debt?: { start: Cents; end: Cents; paidDown: Cents };
+  /** Your credit score over the period, from the scores you added (`change` needs one from before it or two in it). */
+  credit?: { start?: number; end: number; change?: number };
   feesPaid: Cents;
   vsLastYear?: { spentBefore: Cents; up: Ranked[]; down: Ranked[] };
   trips: { tag: string; total: Cents; from: ISODate; to: ISODate }[];
@@ -97,6 +100,7 @@ export function buildRecap(args: {
   recurring: Recurring[];
   budgets: Budget[];
   goals: Goal[];
+  creditScores?: CreditScore[];
 }): Recap {
   const { period, txns, book } = args;
   const cats = new Map(args.categories.map((c) => [c.id, c]));
@@ -341,6 +345,7 @@ export function buildRecap(args: {
     goalsReached,
     emergencyMonths,
     debt,
+    credit: scoreChangeIn(args.creditScores ?? [], period.from, period.to),
     feesPaid,
     vsLastYear,
     trips,

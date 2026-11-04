@@ -25,7 +25,7 @@ describe('moneyHealth', () => {
   it('scores each part and weights them into one number', () => {
     const h = moneyHealth(base)!;
     const by = Object.fromEntries(h.pillars.map((p) => [p.key, p.score]));
-    expect(by).toEqual({ earn: 100, bills: 100, cushion: 75, invest: 15, debt: 100, planning: 0 });
+    expect(by).toEqual({ earn: 100, bills: 100, cushion: 75, invest: 15, debt: 100, credit: null, planning: 0 });
     expect(h.score).toBe(Math.round(0.25 * 100 + 0.15 * 100 + 0.2 * 75 + 0.15 * 15 + 0.15 * 100 + 0.1 * 0));
     expect(h.band).toBe('Good');
     expect(h.pillars.find((p) => p.key === 'earn')!.metric).toBe('Saving 20% of what comes in');

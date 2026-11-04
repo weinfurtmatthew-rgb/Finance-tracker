@@ -6,6 +6,7 @@ import type { Category } from '../types';
 import type { Recap } from './recap';
 import { formatMoney } from './money';
 import { formatDay, monthLabel } from './dates';
+import { creditBand } from './credit';
 
 export interface RecapCard {
   key: string;
@@ -172,6 +173,24 @@ export function recapCards(r: Recap, cats: Map<string, Category>): RecapCard[] {
       sub: r.debt ? `You owe ${money(r.debt.end)} now, from ${money(r.debt.start)}.` : undefined,
       lines: r.feesPaid > 0 && r.debt ? [`Interest & fees paid to banks: ${money(r.feesPaid)}.`] : [],
       theme: 'indigo',
+    });
+  }
+
+  if (r.credit) {
+    const c = r.credit;
+    cards.push({
+      key: 'credit',
+      emoji: c.change != null && c.change < 0 ? '📉' : '⭐',
+      kicker: 'Credit score',
+      big: String(c.end),
+      sub:
+        c.change != null
+          ? c.change === 0
+            ? `Held steady at ${c.end}`
+            : `${c.change > 0 ? 'Up' : 'Down'} ${plural(Math.abs(c.change), 'point')}, from ${c.start}`
+          : creditBand(c.end),
+      lines: c.change != null ? [`${creditBand(c.end)}, on FICO’s scale.`] : [],
+      theme: 'blue',
     });
   }
 

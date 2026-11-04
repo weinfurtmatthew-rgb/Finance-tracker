@@ -1,6 +1,8 @@
 import { useState } from 'preact/hooks';
 import { Section, Segmented, Sheet } from '../../components/ui';
 import { DEFAULT_RETURN, affordability } from '../../lib/plan';
+import { TYPICAL_LOAN_APR } from '../../lib/planData';
+import { creditBand, typicalApr } from '../../lib/credit';
 import type { PlanData } from '../../planModel';
 import {
   Answer,
@@ -31,7 +33,8 @@ export function AffordCalc(props: { data: PlanData; onClose: () => void }) {
   const [price, priceText, setPrice] = useMoney(0);
   const [how, setHow] = useState<'cash' | 'finance'>('cash');
   const [down, downText, setDown] = useMoney(0);
-  const [apr, aprText, setApr] = usePercent(0.07);
+  // A typical rate for your credit score's range, when you've added one.
+  const [apr, aprText, setApr] = usePercent(d.creditScore != null ? typicalApr('loan', d.creditScore) : TYPICAL_LOAN_APR);
   const [term, termText, setTerm] = useCount(60, 480);
   const [cash, cashText, setCash] = useMoney(d.cash);
   const [spend, spendText, setSpend] = useMoney(d.monthlySpending);
@@ -68,7 +71,16 @@ export function AffordCalc(props: { data: PlanData; onClose: () => void }) {
       {how === 'finance' && (
         <Section>
           <MoneyField label="Down payment" value={downText} set={setDown} />
-          <PercentField label="APR" value={aprText} set={setApr} />
+          <PercentField
+            label="APR"
+            value={aprText}
+            set={setApr}
+            hint={
+              d.creditScore != null
+                ? `Typical for a ${d.creditScore} credit score (${creditBand(d.creditScore)}); a lender’s offer may differ`
+                : 'A typical rate. Add your credit score in Browse → Credit Score for one that fits you'
+            }
+          />
           <CountField label="Term" unit="months" value={termText} set={setTerm} />
         </Section>
       )}
