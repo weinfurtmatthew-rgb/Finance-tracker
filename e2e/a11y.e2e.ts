@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { expect, test } from './helpers';
-import { mockTwelveData, MOCK_KEY } from './prices';
+import { mockTwelveData, MOCK_KEY, SPY } from './prices';
 
 /** What axe finds on the page right now, as "rule: element" lines (empty when clean). */
 async function problems(page: Page) {
@@ -78,6 +78,7 @@ test('the sheets opened from Browse are accessible too', async ({ app, page }) =
 test('the stock sheets are accessible too', async ({ app, page }) => {
   await mockTwelveData(page, [
     { ticker: 'VTI', name: 'Vanguard Total Stock Market Index Fund ETF', type: 'ETF', exchange: 'NYSE', price: (i) => 240 + 0.1 * i },
+    SPY,
   ]);
   await page.reload();
   const check = async (where: string) => {
@@ -114,4 +115,9 @@ test('the stock sheets are accessible too', async ({ app, page }) => {
   await check('Account with holdings');
   await app.sheet().locator('.holding-row', { hasText: 'VTI' }).click();
   await check('Holding');
+  await app.closeSheets();
+  await app.tab('Browse');
+  await app.browseCard('Portfolio').click();
+  await expect(app.sheet().locator('.portfolio-hero .chart')).toBeVisible();
+  await check('Portfolio');
 });

@@ -19,6 +19,9 @@ export interface MockTicker {
 
 export const MOCK_KEY = 'test-key';
 
+/** The S&P 500 fund the app compares with: steadily up, no dividends (to keep the sums simple). */
+export const SPY: MockTicker = { ticker: 'SPY', name: 'SPDR S&P 500 ETF Trust', type: 'ETF', exchange: 'NYSE', price: (i) => 400 + 0.2 * i };
+
 /** Weekdays from Jun 2, 2025 through Sep 28, 2026 (the day before the tests' frozen "today"). */
 export const DAYS: string[] = (() => {
   const out: string[] = [];

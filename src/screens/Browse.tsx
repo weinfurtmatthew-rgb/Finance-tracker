@@ -27,8 +27,11 @@ import { RecapPage, RecapTeaser } from './Recap';
 import { CreditSheet } from './Credit';
 import { useCreditScores } from '../creditModel';
 import { creditBand, lastChange, utilization } from '../lib/credit';
+import { PortfolioSheet } from './Portfolio';
+import { useHoldings } from '../portfolioModel';
+import { heldPositions, holdingsValueOn } from '../lib/holdings';
 
-type ItemId = 'spending' | 'bills' | 'budgets' | 'networth' | 'health' | 'credit' | 'people' | 'tags' | 'plan' | 'recap';
+type ItemId = 'spending' | 'bills' | 'budgets' | 'networth' | 'portfolio' | 'health' | 'credit' | 'people' | 'tags' | 'plan' | 'recap';
 type GroupId = 'money' | 'plan' | 'people';
 
 /** Every feature has one home. Setup (categories, rules) lives in Settings; importing lives in Activity. */
@@ -75,6 +78,7 @@ export function Browse() {
   const layout = useMeta<BrowseLayout>('browseLayout') ?? 'list';
   const health = useMoneyHealth();
   const scores = useCreditScores();
+  const holdings = useHoldings();
   const [editing, setEditing] = useState(false);
   const today = rec.today;
   const month = monthKey(today);
@@ -96,6 +100,8 @@ export function Browse() {
     const score = scores.at(-1)?.score;
     const scoreChange = lastChange(scores)?.change;
     const cardUse = utilization(accounts, book).use;
+    const invested = [...holdings.values()].reduce((s, hs) => s + holdingsValueOn(hs), 0);
+    const tickers = new Set([...holdings.values()].flatMap((hs) => heldPositions(hs).map((p) => p.ticker))).size;
     const present = (render: (close: () => void) => ComponentChildren) => () => nav.present(render);
     return [
       {
@@ -145,6 +151,17 @@ export function Browse() {
         value: whole(net),
         note: plural(open, 'account'),
         open: () => nav.setTab('accounts'),
+      },
+      {
+        id: 'portfolio',
+        group: 'money',
+        title: 'Portfolio',
+        glyph: 'pie',
+        hue: 'green',
+        sub: holdings.size ? `${whole(invested)} · ${plural(tickers, 'holding')}` : 'Your stocks & funds, vs the S&P 500',
+        value: holdings.size ? whole(invested) : undefined,
+        note: holdings.size ? plural(tickers, 'holding') : undefined,
+        open: present((close) => <PortfolioSheet onClose={close} />),
       },
       {
         id: 'health',
@@ -211,7 +228,7 @@ export function Browse() {
         open: present((close) => <TagsSheet onClose={close} />),
       },
     ];
-  }, [txns, accounts, categories, rec, months, budgets, book, month, today, health, scores]);
+  }, [txns, accounts, categories, rec, months, budgets, book, month, today, health, scores, holdings]);
 
   // Categories pinned from their page ("cat:<id>") show what they've cost this month.
   const categoryItem = (pin: string): Item | undefined => {

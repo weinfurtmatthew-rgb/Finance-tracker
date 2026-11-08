@@ -150,6 +150,14 @@ value follows their prices (`src/lib/holdings.ts`).
   and then; a holding without shares or prices is valued at what you put in
 - From its first trade, an account with holdings is worth its holdings and cash in Net Worth and its history; values
   you typed in before that still count for the days before
+- **Browse → Portfolio** (`src/lib/portfolio.ts`): everything in your investment accounts together, with how it did
+  today, this week, this month, in 6 months, this year, in a year or since you started. The gain leaves out money you
+  added or took out, and the percent is time-weighted (each day's change on what was there the day before), so a
+  deposit never looks like a return
+  - **Vs the S&P 500:** the same money, put in and taken out on the same days, in SPY with its dividends reinvested
+    (its prices are downloaded alongside yours: 3 more requests, then 1 per update), on one chart with yours
+  - Each holding across accounts with its own return over the period, the best and worst, what you've put in, your
+    gain, and from a year on your yearly return (money-weighted, like a savings rate)
 
 ### Activity
 

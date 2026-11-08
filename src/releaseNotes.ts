@@ -13,6 +13,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-08b',
+    date: 'November 8, 2026',
+    title: 'Portfolio',
+    items: [
+      'Browse → Portfolio puts everything in your investment accounts together: what it’s worth, and how it did today, this week, this month, in 6 months, this year or since you started.',
+      'See it next to the S&P 500: the same money, put in on the same days, with dividends reinvested. Money you add or take out isn’t counted as a gain.',
+      'Each holding’s own return, the best and worst, and after a year, your yearly return.',
+    ],
+  },
+  {
     id: '2026-11-08',
     date: 'November 8, 2026',
     title: 'Stocks, ETFs and funds',
