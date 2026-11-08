@@ -263,6 +263,11 @@ export interface Trade {
   kind: 'buy' | 'sell';
   /** What it cost, or what the sale brought in (always positive). */
   amount: Cents;
+  /**
+   * What the shares cost, when that isn't `amount`: an imported position is bought at its value that day,
+   * and keeps what was paid for it (its cost basis) for its gain.
+   */
+  basis?: Cents;
   /** Shares as they were that day (before later splits). Without them, amount ÷ that day's close. */
   shares?: number;
   /** A sale of every share held then. */

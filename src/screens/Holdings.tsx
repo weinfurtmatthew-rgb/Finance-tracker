@@ -17,6 +17,7 @@ import { ActionSheet, Field, Row, Section, Segmented, Sheet, Toggle } from '../c
 import { CountUp } from '../components/motion';
 import { StockPricesSheet } from './StockPrices';
 import { pricesFor } from '../priceSync';
+import { ImportPositionsRow } from './ImportPositions';
 import { KINDS, SECTORS, isStock, kindOf, sectorOf } from '../lib/mix';
 
 const whole = (c: number) => formatMoney(c, { whole: true });
@@ -68,13 +69,14 @@ export function HoldingsSection(props: { account: Account }) {
         title="Holdings"
         footer={
           hasKey
-            ? 'Add the stocks, ETFs and funds in this account: how much you put in and when is enough. Prices come from Twelve Data, and its value follows them.'
-            : 'Add the stocks, ETFs and funds in this account, and its value follows their prices. With a free price key (Settings → Stock Prices), how much you put in and when is enough.'
+            ? 'Add the stocks, ETFs and funds in this account: how much you put in and when is enough. Prices come from Twelve Data, and its value follows them. Or import a positions file from Fidelity, Schwab or Vanguard.'
+            : 'Add the stocks, ETFs and funds in this account, and its value follows their prices. With a free price key (Settings → Stock Prices), how much you put in and when is enough. Or import a positions file from Fidelity, Schwab or Vanguard.'
         }
       >
         <button type="button" class="row link-row" onClick={add}>
           Add a Stock, ETF or Fund
         </button>
+        <ImportPositionsRow account={a} />
         {!hasKey && (
           <button type="button" class="row link-row" onClick={setUpPrices}>
             Turn On Stock Prices
@@ -122,6 +124,7 @@ export function HoldingsSection(props: { account: Account }) {
       {sold.map((p) => (
         <Row title={p.ticker} subtitle={`sold · ${signed(p.realized)} gain`} detail={whole(0)} onClick={() => open(p)} />
       ))}
+      <ImportPositionsRow account={a} />
       {!hasKey && (
         <button type="button" class="row link-row" onClick={setUpPrices}>
           Turn On Stock Prices

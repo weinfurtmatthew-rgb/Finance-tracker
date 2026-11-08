@@ -111,7 +111,9 @@ const EPS = 1e-9;
 /** Worked out from the amount, a sale of this much of a holding or more is a sale of all of it (prices move during a day). */
 const NEARLY_ALL = 0.98;
 
-const byDate = (a: Trade, b: Trade) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.createdAt - b.createdAt);
+/** Oldest first; on one day, in the order they were added (a buy before a sale added at the same moment). */
+const byDate = (a: Trade, b: Trade) =>
+  a.date < b.date ? -1 : a.date > b.date ? 1 : a.createdAt - b.createdAt || (a.kind === b.kind ? 0 : a.kind === 'buy' ? -1 : 1);
 
 /** A day's close (or the last before it; the first one, before the history starts), in today's shares. */
 function closeFor(h: PriceHistory, date?: ISODate): number {
@@ -218,7 +220,7 @@ export function buildPosition(args: {
       const n = given ?? t.amount / 100 / priceOn(t.date);
       if (n > 0) {
         shares += n;
-        lots.push({ date: t.date, shares: n, cost: t.amount });
+        lots.push({ date: t.date, shares: n, cost: t.basis ?? t.amount });
       }
       if (t.cash) flows.push({ date: t.date, amount: -t.amount });
     } else {

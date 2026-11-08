@@ -148,6 +148,11 @@ value follows their prices (`src/lib/holdings.ts`).
   Enter the account's cash as your brokerage shows it, and trades and dividends move it on from there
 - **Without a key** (or for a fund Twelve Data's free plan doesn't have), enter the shares and type in the price now
   and then; a holding without shares or prices is valued at what you put in
+- **Import positions** (`src/lib/positions.ts`): a positions file from Fidelity (Portfolio_Positions), Schwab
+  (Positions) or Vanguard (OfxDownload), or one like them, into an investment account. New holdings start at their
+  value that day and keep the file's cost basis for their gain; the cash (core or money market position) is set
+  from it. Importing again later buys or sells the differences, and can sell what's no longer in the file. A file
+  with several accounts picks this one by its last 4 digits; options and bonds by CUSIP are left out
 - From its first trade, an account with holdings is worth its holdings and cash in Net Worth and its history; values
   you typed in before that still count for the days before
 - **Browse → Portfolio** (`src/lib/portfolio.ts`): everything in your investment accounts together, with how it did

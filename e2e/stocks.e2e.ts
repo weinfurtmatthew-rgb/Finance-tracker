@@ -1,4 +1,5 @@
-import { expect, test, type App } from './helpers';
+import { readFileSync } from 'node:fs';
+import { expect, fixture, test, type App } from './helpers';
 import { closeOn, mockTwelveData, MOCK_KEY, SPY, type MockTicker } from './prices';
 
 // The app's clock is frozen at Sep 29, 2026 (before the market opens): the latest close is Sep 28's.
@@ -17,7 +18,7 @@ const VTI: MockTicker = {
 const money = (cents: number) => (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 const wholeMoney = (cents: number) => (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
-async function addInvestmentAccount(app: App, name: string, type: string) {
+async function addInvestmentAccount(app: App, name: string, type: string, last4?: string) {
   await app.tab('Net Worth');
   await app.page
     .getByRole('button', { name: /^Add (account|Account)$/ })
@@ -25,6 +26,7 @@ async function addInvestmentAccount(app: App, name: string, type: string) {
     .click();
   await app.field('Name').locator('input').fill(name);
   await app.field('Type').locator('select').selectOption(type);
+  if (last4) await app.field('Last 4 digits').locator('input').fill(last4);
   await app.sheet().getByRole('button', { name: 'Save' }).click();
   await app.closeSheets();
   await app.page.locator('.row', { hasText: name }).first().click();
@@ -313,4 +315,50 @@ test('portfolio: the mix, a company that’s a lot of it, a target mix, and divi
   await expect(dividends.locator('.row', { hasText: 'Last 12 months' })).toContainText(`${wholeMoney(dividend)} reinvested`);
   await dividends.locator('.row', { hasText: 'Last 12 months' }).click();
   await expect(app.sheet().locator('.row', { hasText: 'VTI' })).toContainText(`${((0.9 / closeOn(VTI, '2026-09-28')) * 100).toFixed(1)}% yield`);
+});
+
+test('stocks: importing a positions file, then an updated one', async ({ app, page }) => {
+  // Fidelity's file has two accounts; this one is ••••5678.
+  await addInvestmentAccount(app, 'Fidelity Brokerage', 'brokerage', '5678');
+  const input = app.sheet().getByLabel('Import positions from your brokerage');
+  await input.setInputFiles(fixture('fidelity-positions.csv'));
+  await expect(app.sheet().getByRole('heading', { name: 'Import Positions' })).toBeVisible();
+  await expect(app.field('From').locator('select')).toHaveValue('Z12345678');
+  await expect(app.field('As of').locator('input')).toHaveValue('2026-11-07');
+  // Sep 29 is "today" here, before the file's day: it's set to today.
+  await app.field('As of').locator('input').fill('2026-09-29');
+  const into = app.sheet().locator('.section', { hasText: 'Into Fidelity Brokerage' });
+  await expect(into.locator('.row', { hasText: 'VTI' })).toContainText('new: 20 shares, $5,502');
+  await expect(into.locator('.row', { hasText: 'AAPL' })).toContainText('new: 15.5 shares, $3,565');
+  await expect(into.locator('.row', { hasText: 'FXAIX' })).toContainText('new: 25.123 shares, $4,909');
+  await expect(into.locator('.row', { hasText: 'Cash' })).toContainText('$1,235');
+  await expect(into).not.toContainText('FZROX');
+  await app.sheet().getByRole('button', { name: 'Import' }).click();
+  await expect(page.locator('.toast')).toHaveText('Imported 3 positions');
+
+  // Worth what the file said, with each one's gain against its cost basis.
+  await expect(app.sheet().locator('.detail-big')).toHaveText('$15,210.59');
+  const holdings = app.sheet().locator('.section', { hasText: 'Holdings' });
+  await expect(holdings.locator('.holding-row', { hasText: 'VTI' })).toContainText('20 shares · $275.10');
+  await expect(holdings.locator('.holding-row', { hasText: 'VTI' })).toContainText('+19.6%');
+  await expect(holdings.locator('.row', { hasText: 'Cash' })).toContainText('$1,235');
+
+  // A month on: 5 more shares of VTI, and Apple sold.
+  const later = readFileSync(fixture('fidelity-positions.csv'), 'utf8')
+    .replace(
+      'Z12345678,Individual,VTI,VANGUARD INDEX FDS VANGUARD TOTAL STK MKT ETF,20,$275.10,+$1.20,$5502.00',
+      'Z12345678,Individual,VTI,VANGUARD INDEX FDS VANGUARD TOTAL STK MKT ETF,25,$275.10,+$1.20,$6877.50',
+    )
+    .split('\n')
+    .filter((line) => !line.includes(',AAPL,'))
+    .join('\n');
+  await input.setInputFiles({ name: 'Portfolio_Positions.csv', mimeType: 'text/csv', buffer: Buffer.from(later) });
+  await app.field('As of').locator('input').fill('2026-09-29');
+  await expect(into.locator('.row', { hasText: 'VTI' })).toContainText('20 → 25 shares: buys 5');
+  await expect(into.locator('.row', { hasText: 'AAPL' })).toContainText('not in the file: sold');
+  await expect(into.locator('.row', { hasText: 'FXAIX' })).toContainText('25.123 shares, the same');
+  await app.sheet().getByRole('button', { name: 'Import' }).click();
+  await expect(page.locator('.toast')).toHaveText('Imported 2 positions');
+  await expect(holdings.locator('.holding-row', { hasText: 'VTI' })).toContainText('25 shares');
+  await expect(holdings.locator('.row', { hasText: 'AAPL' })).toContainText('sold');
 });
