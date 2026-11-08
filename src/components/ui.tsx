@@ -71,13 +71,15 @@ export function Row(props: {
   onClick?: () => void;
   chevron?: boolean;
   danger?: boolean;
+  /** The subtitle wraps onto more lines rather than being cut off. */
+  wrap?: boolean;
 }) {
   const content = (
     <>
       {props.icon && <span class="row-icon">{props.icon}</span>}
       <span class="row-main">
         <span class={`row-title ${props.danger ? 'danger' : ''}`}>{props.title}</span>
-        {props.subtitle && <span class="row-subtitle">{props.subtitle}</span>}
+        {props.subtitle && <span class={`row-subtitle${props.wrap ? ' wrap' : ''}`}>{props.subtitle}</span>}
       </span>
       {props.detail != null && <span class="row-detail">{props.detail}</span>}
       {(props.chevron ?? !!props.onClick) && <span class="chevron" aria-hidden="true">›</span>}

@@ -5,7 +5,7 @@
 import type { Category } from '../types';
 import type { Recap } from './recap';
 import { formatMoney } from './money';
-import { formatDay, monthLabel } from './dates';
+import { formatDate, formatDay, monthLabel } from './dates';
 import { creditBand } from './credit';
 
 export interface RecapCard {
@@ -21,6 +21,7 @@ export interface RecapCard {
 
 const money = (c: number) => formatMoney(c, { whole: true });
 const pct = (x: number) => `${Math.round(x * 100)}%`;
+const pctSigned = (x: number) => `${x > 0 ? '+' : x < 0 ? '−' : ''}${Math.abs(x * 100).toFixed(1)}%`;
 const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 const month = (m: string) => monthLabel(m).split(' ')[0];
 
@@ -161,6 +162,22 @@ export function recapCards(r: Recap, cats: Map<string, Category>): RecapCard[] {
         r.emergencyMonths != null ? `Your cash covers ${r.emergencyMonths.toFixed(1)} months of spending.` : '',
       ].filter(Boolean),
       theme: 'green',
+    });
+  }
+
+  if (r.investments) {
+    const v = r.investments;
+    cards.push({
+      key: 'investments',
+      emoji: '💼',
+      kicker: 'Investments',
+      big: `${v.gain >= 0 ? '+' : '−'}${money(Math.abs(v.gain))}`,
+      sub: v.pct != null ? `${pctSigned(v.pct)} ${when}${v.sp != null ? ` · the S&P 500: ${pctSigned(v.sp)}` : ''}` : undefined,
+      lines: [
+        `Worth ${money(v.value)} on ${formatDate(r.period.to)}. The gain leaves out money you put in or took out.`,
+        v.dividends > 0 ? `Dividends: ${money(v.dividends)}.` : '',
+      ].filter(Boolean),
+      theme: 'teal',
     });
   }
 

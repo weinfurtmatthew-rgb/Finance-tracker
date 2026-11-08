@@ -268,6 +268,11 @@ export interface Trade {
    * and keeps what was paid for it (its cost basis) for its gain.
    */
   basis?: Cents;
+  /**
+   * Shares already held that day, bought on or before it (when isn't known): where an imported position
+   * starts. Whether they're long-term isn't known until a year after it.
+   */
+  opening?: boolean;
   /** Shares as they were that day (before later splits). Without them, amount ÷ that day's close. */
   shares?: number;
   /** A sale of every share held then. */

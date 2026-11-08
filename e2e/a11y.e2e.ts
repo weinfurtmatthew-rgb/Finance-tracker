@@ -124,6 +124,10 @@ test('the stock sheets are accessible too', async ({ app, page }) => {
   await app.browseCard('Portfolio').click();
   await expect(app.sheet().locator('.portfolio-hero .chart')).toBeVisible();
   await check('Portfolio');
+  await app.sheet().locator('.row', { hasText: 'If you sold it all today' }).click();
+  await expect(app.sheet().getByRole('heading', { name: 'Taxes' })).toBeVisible();
+  await check('Taxes');
+  await app.sheet().locator('.sheet-header button').first().click();
   await app.sheet().getByRole('button', { name: 'Set Target' }).click();
   await check('Target Mix');
 });

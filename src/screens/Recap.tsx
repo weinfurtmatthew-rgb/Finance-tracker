@@ -255,6 +255,11 @@ export function drawRecapImage(recap: Recap, cards: RecapCard[], canvas: HTMLCan
   const rows: [string, string][] = [];
   if (recap.earned > 0) rows.push(['Saved', `${formatMoney(recap.saved, { whole: true })}${recap.savingsRate != null ? ` (${Math.round(recap.savingsRate * 100)}%)` : ''}`]);
   if (pick('categories')) rows.push(['Top category', pick('categories')!.big]);
+  if (recap.investments) {
+    const v = recap.investments;
+    const pct = v.pct != null ? ` (${v.pct >= 0 ? '+' : '−'}${Math.abs(v.pct * 100).toFixed(1)}%)` : '';
+    rows.push(['Investments', `${v.gain >= 0 ? '+' : '−'}${formatMoney(Math.abs(v.gain), { whole: true })}${pct}`]);
+  }
   if (recap.habit) rows.push(['#1 spot', `${recap.habit.name} · ${recap.habit.visits} visits`]);
   if (recap.noSpend) rows.push(['No-spend days', String(recap.noSpend.days)]);
   if (recap.trips[0]) rows.push(['Top trip', `#${recap.trips[0].tag}`]);

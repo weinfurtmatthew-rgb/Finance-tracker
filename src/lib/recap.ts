@@ -11,6 +11,8 @@ import { scoreChangeIn, type CreditScore } from './credit';
 import { isLiability } from './balances';
 import { lines, tagKey } from './lines';
 import { countsAsCost, matchesRecurring } from './recurring';
+import { benchmarkResult, buildPortfolio, periodResult } from './portfolio';
+import type { PriceHistory } from './prices';
 
 export interface RecapPeriod {
   from: ISODate;
@@ -77,6 +79,8 @@ export interface Recap {
   debt?: { start: Cents; end: Cents; paidDown: Cents };
   /** Your credit score over the period, from the scores you added (`change` needs one from before it or two in it). */
   credit?: { start?: number; end: number; change?: number };
+  /** Stocks and funds in your investment accounts: the gain (not money put in), the return, dividends, and the S&P 500's return. */
+  investments?: { value: Cents; gain: Cents; pct: number | null; dividends: Cents; sp?: number };
   feesPaid: Cents;
   vsLastYear?: { spentBefore: Cents; up: Ranked[]; down: Ranked[] };
   trips: { tag: string; total: Cents; from: ISODate; to: ISODate }[];
@@ -101,6 +105,8 @@ export function buildRecap(args: {
   budgets: Budget[];
   goals: Goal[];
   creditScores?: CreditScore[];
+  /** The S&P 500's prices (SPY), for the investments card. */
+  spy?: PriceHistory;
 }): Recap {
   const { period, txns, book } = args;
   const cats = new Map(args.categories.map((c) => [c.id, c]));
@@ -346,6 +352,7 @@ export function buildRecap(args: {
     emergencyMonths,
     debt,
     credit: scoreChangeIn(args.creditScores ?? [], period.from, period.to),
+    investments: recapInvestments(book, period, args.spy),
     feesPaid,
     vsLastYear,
     trips,
@@ -357,6 +364,18 @@ export function buildRecap(args: {
 }
 
 /** A playful label from how your spending is spread across categories. */
+/** Holdings in investment accounts over the period: what they gained beyond money put in, and their dividends. */
+function recapInvestments(book: BalanceBook, period: RecapPeriod, spy?: PriceHistory): Recap['investments'] {
+  const p = book.holdings.size ? buildPortfolio([...book.holdings.values()], period.to) : null;
+  if (!p || p.first > period.to) return undefined;
+  const r = periodResult(p, addDays(period.from, -1));
+  if (r.endValue <= 0 && r.gain === 0) return undefined;
+  let dividends = 0;
+  for (const pos of p.accounts.flatMap((hs) => hs.positions)) for (const d of pos.paid) if (d.date >= period.from && d.date <= period.to) dividends += d.amount;
+  const sp = benchmarkResult(r, p, spy)?.pct;
+  return { value: r.endValue, gain: r.gain, pct: r.pct, dividends, ...(sp != null ? { sp } : {}) };
+}
+
 export function spendingStyle(r: Pick<Recap, 'savingsRate'>, byCat: Map<string, Cents>, spent: Cents): Style | undefined {
   if (spent <= 0) return undefined;
   const share = (...ids: string[]) => ids.reduce((s, id) => s + (byCat.get(id) ?? 0), 0) / spent;

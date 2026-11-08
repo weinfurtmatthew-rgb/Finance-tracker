@@ -13,6 +13,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-08e',
+    date: 'November 8, 2026',
+    title: 'Taxes, and what’s worth a look',
+    items: [
+      'Portfolio starts with what’s worth a look: shares about to turn long-term, holdings below what you paid (with a heads-up on wash sales), a lot riding on one company, and big drops. Facts, not advice.',
+      'Taxes, for brokerage accounts: what you sold this year, short- and long-term, your dividends, and what selling everything today would realize.',
+      'The market: how far the S&P 500 is from its high, and from its 200-day average.',
+      'Each holding shows its high and low of the last year, and its shares by term. Today reminds you when shares are about to turn long-term, and Year in Review has an Investments card.',
+    ],
+  },
+  {
     id: '2026-11-08d',
     date: 'November 8, 2026',
     title: 'Import your positions',

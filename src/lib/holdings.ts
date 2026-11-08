@@ -24,6 +24,8 @@ export interface Lot {
   cost: Cents;
   /** Bought with a reinvested dividend. */
   dividend?: boolean;
+  /** Already held when it was added (an import's start): bought on or before `date`. */
+  opening?: boolean;
 }
 
 export interface DividendPaid {
@@ -36,6 +38,21 @@ export interface DividendPaid {
   amount: Cents;
   /** Shares it bought, when reinvested. */
   bought?: number;
+}
+
+/** Shares sold from one purchase: when it was bought (on or before, for an import's start), and what they cost. */
+export interface SoldPart {
+  acquired: ISODate;
+  opening?: boolean;
+  shares: number;
+  cost: Cents;
+}
+
+/** A sale, and the purchases it sold (oldest first), with each one's share of what it brought in. */
+export interface Sale {
+  date: ISODate;
+  proceeds: Cents;
+  parts: (SoldPart & { proceeds: Cents })[];
 }
 
 /** Money into the account's cash (a sale kept there, a dividend paid out), or out of it (a buy from it). */
@@ -93,6 +110,7 @@ export interface Position {
   paid: DividendPaid[];
   /** Gains (or losses) on shares sold. */
   realized: Cents;
+  sales: Sale[];
   lots: Lot[];
   /** Into or out of the account's cash. */
   flows: CashFlow[];
@@ -128,24 +146,25 @@ export function tradeShares(t: Pick<Trade, 'date' | 'amount' | 'shares'>, histor
   return h ? t.amount / 100 / closeFor(h, t.date) : undefined;
 }
 
-/** Sells `n` shares, oldest first; returns what they cost. */
-function takeLots(lots: Lot[], n: number): Cents {
-  let cost = 0;
+/** Sells `n` shares, oldest first; returns the purchases they came from. */
+function takeLots(lots: Lot[], n: number): SoldPart[] {
+  const taken: SoldPart[] = [];
+  const from = (lot: Lot) => ({ acquired: lot.date, ...(lot.opening ? { opening: true } : {}) });
   while (n > EPS && lots.length) {
     const lot = lots[0];
     if (lot.shares <= n + EPS) {
-      cost += lot.cost;
+      taken.push({ ...from(lot), shares: lot.shares, cost: lot.cost });
       n -= lot.shares;
       lots.shift();
     } else {
       const part = Math.round(lot.cost * (n / lot.shares));
-      cost += part;
+      taken.push({ ...from(lot), shares: n, cost: part });
       lot.cost -= part;
       lot.shares -= n;
       n = 0;
     }
   }
-  return cost;
+  return taken;
 }
 
 /** Prices you paid (trades with shares) and typed in (yours win on the same day), oldest first. */
@@ -183,12 +202,13 @@ export function buildPosition(args: {
       if (t.cash) flows.push({ date: t.date, amount: t.kind === 'buy' ? -t.amount : t.amount });
       setStep(steps, t.date, put);
     }
-    return { ...base, source: 'cost', value: put, cost: put, gain: 0, dividends: 0, realized: 0, lots: [] };
+    return { ...base, source: 'cost', value: put, cost: put, gain: 0, dividends: 0, realized: 0, sales: [], lots: [] };
   }
 
   const priceOn = (date: ISODate) => (h ? closeFor(h, date) : stepAt(points!, date, points!.values[0]));
   const divs = h?.dividends ?? [];
   const lots: Lot[] = [];
+  const sales: Sale[] = [];
   let shares = 0;
   let dividends = 0;
   let realized = 0;
@@ -220,7 +240,7 @@ export function buildPosition(args: {
       const n = given ?? t.amount / 100 / priceOn(t.date);
       if (n > 0) {
         shares += n;
-        lots.push({ date: t.date, shares: n, cost: t.basis ?? t.amount });
+        lots.push({ date: t.date, shares: n, cost: t.basis ?? t.amount, ...(t.opening ? { opening: true } : {}) });
       }
       if (t.cash) flows.push({ date: t.date, amount: -t.amount });
     } else {
@@ -228,7 +248,17 @@ export function buildPosition(args: {
       if (!t.all && given == null && n >= shares * NEARLY_ALL) n = shares;
       if (n > shares * (1 + 1e-6) + EPS) oversold = true;
       n = Math.min(n, shares);
-      realized += t.amount - takeLots(lots, n);
+      const taken = takeLots(lots, n);
+      const sold = taken.reduce((s, x) => s + x.shares, 0);
+      realized += t.amount - taken.reduce((s, x) => s + x.cost, 0);
+      // Each purchase's share of what the sale brought in.
+      let left = t.amount;
+      const parts = taken.map((x, i) => {
+        const proceeds = i === taken.length - 1 ? left : Math.round((t.amount * x.shares) / sold);
+        left -= proceeds;
+        return { ...x, proceeds };
+      });
+      if (parts.length) sales.push({ date: t.date, proceeds: t.amount, parts });
       shares -= n;
       if (shares < EPS) shares = 0;
       if (t.cash) flows.push({ date: t.date, amount: t.amount });
@@ -251,6 +281,7 @@ export function buildPosition(args: {
     gain: value - cost,
     dividends,
     realized,
+    sales,
     lots,
     ...(oversold ? { oversold } : {}),
     ...(h ? { history: h } : { points }),

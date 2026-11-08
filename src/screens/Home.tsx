@@ -33,6 +33,9 @@ import { ratePct } from './K401';
 import { ScoreSheet } from './Credit';
 import { scoreDue, statementPayments } from '../lib/credit';
 import { useCreditScores } from '../creditModel';
+import { useInsights } from '../portfolioModel';
+import { HoldingSheet } from './Holdings';
+import { LOOK } from './PortfolioInsights';
 import { ImportFlow } from '../lazy';
 import { BackupSheet } from './Backup';
 import { BACKUP_SNOOZE_DAYS, backupDue, DEFAULT_BACKUP_EVERY_DAYS } from '../lib/backup';
@@ -79,6 +82,8 @@ function Sentence(props: { phrases: Phrase[] }) {
 const MATCH_SNOOZE_DAYS = 90;
 /** "Later" on the credit score reminder hides it this long. */
 const SCORE_SNOOZE_DAYS = 14;
+/** "Later" on an investments reminder hides them this long. */
+const PORTFOLIO_SNOOZE_DAYS = 30;
 
 /** Something on the To do list: one line, tap to deal with it. */
 interface Todo {
@@ -168,6 +173,8 @@ export function Home() {
   const scores = useCreditScores();
   const scoreSnoozedUntil = useMeta<number>('scoreReminderSnoozeUntil');
   const statementsSkipped = useMeta<string[]>('statementNudgesSkipped');
+  const insights = useInsights();
+  const portfolioSnoozedUntil = useMeta<number>('portfolioNudgeSnoozeUntil');
   const stale = staleValued(book, today);
   const uncategorized = txns.filter((t) => t.categoryId === 'uncategorized').length;
   const aiPicks = txns.filter((t) => t.categorySource === 'ai').length;
@@ -363,6 +370,19 @@ export function Home() {
       sub: `Put in ${ratePct(short.employerMatchUpTo!)} instead of ${ratePct(short.contributionRate!)}${missed ? `: ${whole(missed)} more a year` : ''}`,
       open: () => nav.present((close) => <AccountDetail account={short} onClose={close} />),
       later: () => void setMeta('matchNudgeSnoozeUntil', Date.now() + MATCH_SNOOZE_DAYS * 86_400_000),
+    });
+  // Investments: a dated fact coming up soon (a gain turning long-term, a loss before the year ends).
+  const soon = insights.find((i) => i.soon);
+  const soonAccount = soon && open.find((a) => a.id === soon.accountId);
+  if (soon && soonAccount && soon.ticker && !(portfolioSnoozedUntil && Date.now() < portfolioSnoozedUntil))
+    todos.push({
+      key: `portfolio:${soon.key}`,
+      glyph: LOOK[soon.kind].glyph,
+      hue: LOOK[soon.kind].hue,
+      title: soon.title,
+      sub: soon.brief ?? soon.detail,
+      open: () => nav.present((close) => <HoldingSheet account={soonAccount} ticker={soon.ticker!} onClose={close} />),
+      later: () => void setMeta('portfolioNudgeSnoozeUntil', Date.now() + PORTFOLIO_SNOOZE_DAYS * 86_400_000),
     });
   // Credit score: a new one a month after the last, once you've started a log.
   const lastScore = scores.at(-1);

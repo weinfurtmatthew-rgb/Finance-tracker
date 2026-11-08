@@ -84,7 +84,7 @@ set, payment-app lines it merged, remembered file columns (`src/lib/importUndo.t
 - **Coming up:** bills before payday (or this week), **Money on hand** (checking & cash, savings, what's on your cards)
   and your three most **Recent** transactions
 - **To do:** one list for everything that wants a minute (back up, categorize, review bills, set budgets, paybacks,
-  AI picks…), most important first, three at a time. The month-by-month dashboard and charts are in **Browse → Spending**
+  shares about to turn long-term, AI picks…), most important first, three at a time. The month-by-month dashboard and charts are in **Browse → Spending**
 
 ### What "spent" means
 
@@ -143,7 +143,8 @@ value follows their prices (`src/lib/holdings.ts`).
   three ways (as traded, adjusted for splits, and for splits and dividends), and a split or dividend is a step between
   them on its day (`src/lib/prices.ts`). Dividends buy more shares at that day's close (reinvested), or go to the
   account's cash
-- Each holding shows its value, what it cost and your gain, its dividends and its trades. **Sales** use the oldest
+- Each holding shows its value, what it cost and your gain, its high and low of the last year and its 200-day
+  average, its dividends and its trades (and in a brokerage account, its shares by term). **Sales** use the oldest
   shares first, and can keep the money in the account as cash (or it leaves); a purchase can be paid from that cash.
   Enter the account's cash as your brokerage shows it, and trades and dividends move it on from there
 - **Without a key** (or for a fund Twelve Data's free plan doesn't have), enter the shares and type in the price now
@@ -152,13 +153,24 @@ value follows their prices (`src/lib/holdings.ts`).
   (Positions) or Vanguard (OfxDownload), or one like them, into an investment account. New holdings start at their
   value that day and keep the file's cost basis for their gain; the cash (core or money market position) is set
   from it. Importing again later buys or sells the differences, and can sell what's no longer in the file. A file
-  with several accounts picks this one by its last 4 digits; options and bonds by CUSIP are left out
+  with several accounts picks this one by its last 4 digits; options and bonds by CUSIP are left out. An imported
+  purchase shows its cost basis when you edit it
 - From its first trade, an account with holdings is worth its holdings and cash in Net Worth and its history; values
   you typed in before that still count for the days before
 - **Browse → Portfolio** (`src/lib/portfolio.ts`): everything in your investment accounts together, with how it did
   today, this week, this month, in 6 months, this year, in a year or since you started. The gain leaves out money you
   added or took out, and the percent is time-weighted (each day's change on what was there the day before), so a
   deposit never looks like a return
+  - **Worth a look** (`src/lib/insights.ts`): facts, not advice, the most pressing first. Shares whose gain turns
+    long-term within 30 days; a holding in a brokerage account well below what it cost (and whether a purchase of it
+    in another account in the last 30 days, an IRA's too, would make selling it a wash sale); one company over 20% of
+    your investments, your three biggest over 50% or one industry's companies over 40% (funds don't count: they hold
+    many); a lot of cash, without a target mix that plans for it; and a company 25% or more below its high of the
+    last year. One that's dated and close (a gain turning long-term within 2 weeks, a loss in December) goes on
+    Today's To do list, with Later
+  - **The market** (`src/lib/market.ts`): how far the S&P 500 is from its high of the last year (near it, a pullback,
+    a correction or a bear market) and from its average of the last 200 trading days: where it's been, not where
+    it's going
   - **Vs the S&P 500:** the same money, put in and taken out on the same days, in SPY with its dividends reinvested
     (its prices are downloaded alongside yours: 3 more requests, then 1 per update), on one chart with yours
   - Each holding across accounts with its own return over the period, the best and worst, what you've put in, your
@@ -167,10 +179,13 @@ value follows their prices (`src/lib/holdings.ts`).
     what a fund holds or a company's sector, so about 100 popular funds and 150 companies are known, companies are
     US stocks (international for depositary receipts), and you can set any holding on its page. A **target mix**
     shows how far each kind is and what would put it back
-  - **Concentration:** one company over 20% of your investments, your three biggest over 50%, or one industry's
-    companies over 40% (funds don't count: they hold many)
   - **Dividends** (`src/lib/dividends.ts`): the last 12 months (and how much was reinvested), the next 12 at the same
     rate on what you hold now, your yield, when the next ones are likely due, and month by month
+  - **Taxes** (`src/lib/taxes.ts`), for brokerage accounts (IRAs and 401(k)s aren't taxed on sales): what was sold this
+    year and last, short- and long-term (held more than a year), dividends this year, what selling everything today
+    would realize, what turns long-term in the next 60 days, and holdings below what they cost. Shares an import
+    started with were bought on or before its day, so their term isn't known until a year after it
+- An **Investments** card in Year in Review: the gain beyond money put in, the return, dividends, and the S&P 500's
 
 ### Activity
 

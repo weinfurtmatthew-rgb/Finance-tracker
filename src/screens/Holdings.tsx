@@ -19,9 +19,12 @@ import { StockPricesSheet } from './StockPrices';
 import { pricesFor } from '../priceSync';
 import { ImportPositionsRow } from './ImportPositions';
 import { KINDS, SECTORS, isStock, kindOf, sectorOf } from '../lib/mix';
+import { isTaxable, lotsOf, netGain, realizedIn, termText, type Term } from '../lib/taxes';
+import { trendOf } from '../lib/market';
 
 const whole = (c: number) => formatMoney(c, { whole: true });
 const signed = (c: number) => `${c > 0 ? '+' : c < 0 ? '−' : ''}${formatMoney(Math.abs(c))}`;
+const signedWhole = (c: number) => `${c > 0 ? '+' : c < 0 ? '−' : ''}${whole(Math.abs(c))}`;
 const pct = (x: number) => `${x > 0 ? '+' : x < 0 ? '−' : ''}${Math.abs(x * 100).toFixed(1)}%`;
 
 /** Why a ticker has no prices from the price service (with a key): on their way, or it doesn't have them. */
@@ -242,6 +245,7 @@ export function HoldingSheet(props: { account: Account; ticker: string; onClose:
         <p class="callout warn">A sale here is for more shares than were held then; only what was held is counted. Check its shares or the buys before it.</p>
       )}
       {p.source === 'manual' && <ManualPrice ticker={p.ticker} security={security} />}
+      {p.source === 'market' && held && <PriceFacts h={h} />}
 
       <Section title="Trades" footer={p.realized !== 0 ? `Gain on shares sold: ${signed(p.realized)}.` : undefined}>
         {[...p.trades].reverse().map((t) => (
@@ -277,6 +281,8 @@ export function HoldingSheet(props: { account: Account; ticker: string; onClose:
         </Section>
       )}
 
+      {isTaxable(a) && <HoldingTaxes account={a} p={p} />}
+
       <Section title="Mix" footer="For the mix on the Portfolio page: what it holds, and a company’s sector.">
         <KindFields ticker={p.ticker} security={security} />
       </Section>
@@ -294,6 +300,84 @@ export function HoldingSheet(props: { account: Account; ticker: string; onClose:
         />
       )}
     </Sheet>
+  );
+}
+
+/** Where its price has been over the last year. */
+function PriceFacts(props: { h?: PriceHistory }) {
+  const t = trendOf(props.h);
+  if (!t) return null;
+  const span = t.fullYear ? 'the last year' : `since ${formatShortDate(t.since)}`;
+  const below = Math.round(t.fromHigh * 100);
+  const vs = t.avg200 != null ? t.price / t.avg200 - 1 : undefined;
+  return (
+    <Section title="Price" footer="Its closes, in today’s shares: where it’s been, not where it’s going.">
+      <Row
+        title={`High, ${span}`}
+        subtitle={`${formatDate(t.highDate)} · ${t.fromHigh === 0 ? 'the latest close' : below === 0 ? 'just above the latest close' : `${below}% above the latest close`}`}
+        detail={formatPrice(t.high)}
+        chevron={false}
+      />
+      <Row title={`Low, ${span}`} subtitle={formatDate(t.lowDate)} detail={formatPrice(t.low)} chevron={false} />
+      {vs != null && (
+        <Row
+          title="200-day average"
+          subtitle={`The latest close is ${Math.abs(vs) < 0.005 ? 'about the same' : `${Math.round(Math.abs(vs) * 100)}% ${vs > 0 ? 'above' : 'below'} it`}`}
+          detail={formatPrice(t.avg200!)}
+          chevron={false}
+        />
+      )}
+    </Section>
+  );
+}
+
+const TERMS: { term: Term; title: string }[] = [
+  { term: 'long', title: 'Long-term' },
+  { term: 'short', title: 'Short-term' },
+  { term: 'unknown', title: 'Term not known yet' },
+];
+
+/** In a taxable account: what's long-term and what isn't yet, and what was sold this year. */
+function HoldingTaxes(props: { account: Account; p: Position }) {
+  const today = todayISO();
+  const lots = lotsOf(props.account, props.p, today);
+  const sold = realizedIn(props.p, `${today.slice(0, 4)}-01-01`, today);
+  if (!lots.length && !sold.sales) return null;
+  return (
+    <Section
+      title="Taxes"
+      footer="Held more than a year is long-term, taxed at lower rates; a year or less is short-term, taxed like income. Sales count the oldest shares first."
+    >
+      {TERMS.map(({ term, title }) => {
+        const ls = lots.filter((l) => l.term === term);
+        if (!ls.length) return null;
+        const shares = `${formatShares(ls.reduce((s, l) => s + l.shares, 0))} shares`;
+        const gain = ls.reduce((s, l) => s + l.gain, 0);
+        const on = ls.map((l) => l.longTermOn).sort();
+        return (
+          <Row
+            title={title}
+            subtitle={
+              term === 'short'
+                ? `${shares} · ${on[0] === on[on.length - 1] ? 'long-term' : 'the first long-term'} ${formatDate(on[0])}`
+                : term === 'unknown'
+                  ? `${shares} from an import · long-term by ${formatDate(on[on.length - 1])} at the latest`
+                  : shares
+            }
+            detail={<span class={gain > 0 ? 'pos-text' : gain < 0 ? 'neg-text' : ''}>{signedWhole(gain)}</span>}
+            chevron={false}
+          />
+        );
+      })}
+      {sold.sales > 0 && (
+        <Row
+          title="Sold this year"
+          subtitle={termText(sold) || 'No gain or loss'}
+          detail={<span class={netGain(sold) > 0 ? 'pos-text' : netGain(sold) < 0 ? 'neg-text' : ''}>{signedWhole(netGain(sold))}</span>}
+          chevron={false}
+        />
+      )}
+    </Section>
   );
 }
 
@@ -358,6 +442,8 @@ export function TradeSheet(props: { account: Account; ticker?: string; kind?: Tr
   const [name, setName] = useState('');
   const [kind, setKind] = useState<Trade['kind']>(t?.kind ?? props.kind ?? 'buy');
   const [amount, setAmount] = useState(t ? (t.amount / 100).toFixed(2) : '');
+  // An imported buy: its cost basis, when that isn't the amount.
+  const [basisText, setBasisText] = useState(t?.basis != null ? (t.basis / 100).toFixed(2) : '');
   const [date, setDate] = useState(t?.date ?? today);
   const [knowShares, setKnowShares] = useState(t?.shares != null);
   const [sharesText, setSharesText] = useState(t?.shares != null ? String(t.shares) : '');
@@ -375,7 +461,10 @@ export function TradeSheet(props: { account: Account; ticker?: string; kind?: Tr
   const position = hs?.positions.find((p) => p.ticker === symbol);
   // What's held on that day, for a new sale of all of it.
   const heldThen = !t && position && position.source !== 'cost' ? sharesOn(position, date) : undefined;
-  const valid = !!symbol && cents > 0 && !!date && date <= today && sharesOk && (kind === 'buy' || !!position || !!t);
+  const hasBasis = t?.basis != null && kind === 'buy';
+  const basis = hasBasis ? parseUserAmount(basisText) : null;
+  const valid =
+    !!symbol && cents > 0 && !!date && date <= today && sharesOk && (!hasBasis || (basis != null && basis >= 0)) && (kind === 'buy' || !!position || !!t);
 
   // Matches for what's typed, from the price service (no key needed, nothing else sent).
   const [matches, setMatches] = useState<TickerMatch[]>([]);
@@ -447,6 +536,9 @@ export function TradeSheet(props: { account: Account; ticker?: string; kind?: Tr
       date,
       kind,
       amount: cents,
+      ...(hasBasis ? { basis: basis! } : {}),
+      // Still the day an import found it already held.
+      ...(kind === 'buy' && t?.opening && date === t.date ? { opening: true } : {}),
       ...(knowShares && shares! > 0 && !(kind === 'sell' && all) ? { shares } : {}),
       ...(kind === 'sell' && all ? { all: true } : {}),
       ...(cash ? { cash: true } : {}),
@@ -553,6 +645,11 @@ export function TradeSheet(props: { account: Account; ticker?: string; kind?: Tr
             autoFocus={fixedTicker && !t}
           />
         </Field>
+        {hasBasis && (
+          <Field label="Cost basis" hint="What the shares cost: the amount is what they were worth when imported">
+            <input inputMode="decimal" value={basisText} placeholder="0.00" onInput={(e) => setBasisText((e.target as HTMLInputElement).value)} />
+          </Field>
+        )}
         <Field label="Date">
           <input type="date" value={date} max={today} onInput={(e) => setDate((e.target as HTMLInputElement).value)} />
         </Field>
