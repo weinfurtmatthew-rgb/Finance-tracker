@@ -4468,3 +4468,14 @@ html.app-hidden *::after {
 .portfolio-hero .segmented button {
   padding-inline: 2px;
 }
+/* Worth a look and the market: the words wrap rather than being cut off */
+.insight-row {
+  align-items: flex-start;
+}
+.insight-row .row-title,
+.insight-row .row-subtitle {
+  white-space: normal;
+}
+.insight-row .chevron {
+  align-self: center;
+}

@@ -155,10 +155,9 @@ export interface Concentration {
   kind: 'stock' | 'top3' | 'sector';
   share: number;
   tickers: string[];
-  text: string;
+  /** The industry, for 'sector'. */
+  sector?: string;
 }
-
-const pctText = (x: number) => `${Math.round(x * 100)}%`;
 
 /** Where a lot rides on a few companies (funds don't count: they hold many). */
 export function concentration(p: Portfolio, securities: Map<string, Security>): Concentration[] {
@@ -172,7 +171,6 @@ export function concentration(p: Portfolio, securities: Map<string, Security>): 
       kind: 'stock',
       share: top[1] / total,
       tickers: [top[0]],
-      text: `${top[0]} is ${pctText(top[1] / total)} of your investments: a bad year for one company would hit hard.`,
     });
   }
   const three = stocks.slice(0, 3);
@@ -182,7 +180,6 @@ export function concentration(p: Portfolio, securities: Map<string, Security>): 
       kind: 'top3',
       share: threeShare,
       tickers: three.map(([t]) => t),
-      text: `Your 3 biggest companies (${three.map(([t]) => t).join(', ')}) are ${pctText(threeShare)} of your investments.`,
     });
   }
   const sector = stocksBySector(p, securities).find((s) => s.key !== 'Not set' && s.share > ONE_SECTOR);
@@ -190,8 +187,8 @@ export function concentration(p: Portfolio, securities: Map<string, Security>): 
     out.push({
       kind: 'sector',
       share: sector.share,
+      sector: sector.key,
       tickers: stocks.filter(([t]) => sectorOf(t, securities.get(t)) === sector.key).map(([t]) => t),
-      text: `${sector.key} companies are ${pctText(sector.share)} of your investments: one industry’s slump would hit most of it.`,
     });
   }
   return out;

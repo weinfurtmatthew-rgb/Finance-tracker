@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, fixture, test, type App } from './helpers';
-import { closeOn, mockTwelveData, MOCK_KEY, SPY, type MockTicker } from './prices';
+import { closeOn, DAYS, mockTwelveData, MOCK_KEY, SPY, type MockTicker } from './prices';
 
 // The app's clock is frozen at Sep 29, 2026 (before the market opens): the latest close is Sep 28's.
 
@@ -290,7 +290,9 @@ test('portfolio: the mix, a company that’s a lot of it, a target mix, and divi
       .sheet()
       .locator('.section')
       .filter({ has: page.locator('.section-title', { hasText: new RegExp(`^${title}`) }) });
-  await expect(section('Concentration')).toContainText(`AAPL is ${share(aapl)} of your investments: a bad year for one company would hit hard.`);
+  await expect(section('Worth a look').locator('.row', { hasText: `AAPL is ${share(aapl)} of your investments` })).toContainText(
+    'A bad year for one company would hit hard. Funds don’t count here: they hold many companies.',
+  );
   await expect(section('Companies by sector').locator('.ranked-row', { hasText: 'Technology' })).toContainText(share(aapl));
 
   // Aiming for 60% US, 20% international, 20% bonds.
@@ -361,4 +363,142 @@ test('stocks: importing a positions file, then an updated one', async ({ app, pa
   await expect(page.locator('.toast')).toHaveText('Imported 2 positions');
   await expect(holdings.locator('.holding-row', { hasText: 'VTI' })).toContainText('25 shares');
   await expect(holdings.locator('.row', { hasText: 'AAPL' })).toContainText('sold');
+
+  // Taxes: the first file's 20 shares were bought on or before that day (when isn't known); the 5 more, that day.
+  await holdings.locator('.holding-row', { hasText: 'VTI' }).click();
+  const taxes = app
+    .sheet()
+    .locator('.section')
+    .filter({ has: page.locator('.section-title', { hasText: /^Taxes$/ }) });
+  const term = (title: string) => taxes.locator('.row').filter({ has: page.locator('.row-title', { hasText: new RegExp(`^${title}$`) }) });
+  await expect(term('Term not known yet')).toContainText('20 shares from an import · long-term by Sep 30, 2027 at the latest');
+  await expect(term('Short-term')).toContainText('5 shares · long-term Sep 30, 2027');
+});
+
+test('portfolio: taxes, what’s worth a look, the market, and where they show up', async ({ app, page }) => {
+  // A company that’s been falling all year.
+  const ACME: MockTicker = { ticker: 'ACME', name: 'Acme Corp', type: 'Common Stock', exchange: 'NYSE', price: (i) => 100 - 0.15 * i };
+  await mockTwelveData(page, [VTI, ACME, SPY]);
+  await page.reload();
+  await app.importAll();
+  await app.tab('Settings');
+  await app.sheet().locator('.row', { hasText: 'Twelve Data' }).click();
+  await app.field('API key').locator('input').fill(MOCK_KEY);
+  await app.sheet().getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('.toast')).toHaveText('Stock prices on');
+  await app.closeSheets();
+
+  const add = async (m: MockTicker, pick: string, amount: number, date: string) => {
+    await app
+      .sheet()
+      .getByRole('button', { name: /^(Add a Stock, ETF or Fund|Add)$/ })
+      .first()
+      .click();
+    await app.field('Ticker').locator('input').fill(m.ticker);
+    await app.sheet().locator('.row', { hasText: pick }).click();
+    await app.field('Amount').locator('input').fill(String(amount));
+    await app.field('Date').locator('input').fill(date);
+    await expect(app.sheet()).toContainText('the close on');
+    await app.sheet().getByRole('button', { name: 'Save' }).click();
+    await expect(page.locator('.toast')).toHaveText(`${m.ticker} added`);
+  };
+  // In a brokerage account: VTI a year and more ago, and again last October; Acme in March. $1,000 of VTI sold in August.
+  await addInvestmentAccount(app, 'Brokerage', 'brokerage');
+  await add(VTI, 'Vanguard Total Stock Market', 3000, '2025-06-10');
+  await add(VTI, 'Vanguard Total Stock Market', 5000, '2025-10-08');
+  await add(ACME, 'Acme Corp', 2000, '2026-03-02');
+  await app.sheet().locator('.holding-row', { hasText: 'VTI' }).click();
+  await app.sheet().getByRole('button', { name: 'Sell', exact: true }).click();
+  await app.field('Amount').locator('input').fill('1000');
+  await app.field('Date').locator('input').fill('2026-08-03');
+  await app.sheet().getByRole('switch', { name: 'Kept in this account as cash' }).click();
+  await app.sheet().getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('.toast')).toHaveText('Sale of VTI added');
+  await app.closeSheets();
+  // And Acme in a Roth IRA two weeks ago.
+  await addInvestmentAccount(app, 'Roth IRA', 'roth-ira');
+  await add(ACME, 'Acme Corp', 100, '2026-09-15');
+  await app.closeSheets();
+
+  // The sums, the way the app does them (in today's shares).
+  const now = (m: MockTicker) => closeOn(m, '2026-09-28');
+  const first = 3000 / closeOn(VTI, '2025-06-10');
+  const second = 5000 / closeOn(VTI, '2025-10-08');
+  const dividendLot = Math.round(0.9 * (first + second) * 100) / 100 / closeOn(VTI, '2026-03-25');
+  const sold = 1000 / closeOn(VTI, '2026-08-03');
+  const soldCost = Math.round(300_000 * (sold / first));
+  const longGain = Math.round((first - sold) * now(VTI) * 100) - (300_000 - soldCost);
+  const secondGain = Math.round(second * now(VTI) * 100) - 500_000;
+  const dividendGain = Math.round(dividendLot * now(VTI) * 100) - Math.round(0.9 * (first + second) * 100);
+  const acme = Math.round((2000 / closeOn(ACME, '2026-03-02')) * now(ACME) * 100);
+  const signed = (c: number) => `${c >= 0 ? '+' : '−'}${wholeMoney(Math.abs(c))}`;
+
+  // Worth a look: VTI's October shares turn long-term in 10 days; Acme is below what it cost, and was bought in the IRA.
+  await app.tab('Browse');
+  await app.browseCard('Portfolio').click();
+  const section = (title: string) =>
+    app
+      .sheet()
+      .locator('.section')
+      .filter({ has: page.locator('.section-title', { hasText: new RegExp(`^${title}$`) }) });
+  const look = section('Worth a look');
+  await expect(look.locator('.row').nth(0)).toContainText('VTI turns long-term Oct 9');
+  await expect(look.locator('.row').nth(0)).toContainText(
+    `The shares bought Oct 8, 2025 in Brokerage: sold from Oct 9 on, their ${wholeMoney(secondGain)} gain is taxed at the lower long-term rate.`,
+  );
+  await expect(look.locator('.row').nth(1)).toContainText(`ACME is ${wholeMoney(200_000 - acme)} below what you paid`);
+  await expect(look.locator('.row').nth(1)).toContainText(
+    'In Brokerage, all short-term. A realized loss offsets gains, then up to $3,000 a year of other income. Bought in Roth IRA Sep 15: sold at a loss before Oct 16, it’s a wash sale and the loss can’t be claimed.',
+  );
+  const fromHigh = Math.round((1 - now(ACME) / closeOn(ACME, '2025-09-29')) * 100);
+  await expect(look.locator('.row').nth(2)).toContainText(`ACME is ${fromHigh}% below its high`);
+  await expect(look.locator('.row')).toHaveCount(3);
+
+  // The market: the S&P 500 at its high, above its 200-day average.
+  const n = DAYS.length;
+  const average = 400 + 0.2 * (n - 100.5);
+  await expect(section('The market')).toContainText(
+    `At its highThe S&P 500 is at its high of the last year, and ${Math.round(((400 + 0.2 * (n - 1)) / average - 1) * 100)}% above its average of the last 200 trading days.`,
+  );
+
+  // Taxes: the August sale was of the first shares, long-term; what's held now, by term.
+  const taxes = section('Taxes');
+  await expect(taxes.locator('.row', { hasText: 'Sold this year' })).toContainText(`${signed(100_000 - soldCost)} long-term`);
+  await expect(taxes.locator('.row', { hasText: 'Dividends this year' })).toContainText(wholeMoney(Math.round(0.9 * (first + second) * 100)));
+  const shortGain = secondGain + dividendGain + (acme - 200_000);
+  await expect(taxes.locator('.row', { hasText: 'If you sold it all today' })).toContainText(`${signed(shortGain)} short-term · ${signed(longGain)} long-term`);
+  await taxes.locator('.row', { hasText: 'If you sold it all today' }).click();
+  await expect(section('Turning long-term soon').locator('.row', { hasText: 'VTI · Oct 9, in 10 days' })).toContainText(
+    'shares bought Oct 8, 2025 · Brokerage',
+  );
+  await expect(section('Below what you paid').locator('.row', { hasText: 'ACME · Brokerage' })).toContainText(
+    'Bought in Roth IRA Sep 15: a wash sale before Oct 16',
+  );
+  await app.closeSheets();
+
+  // Up close: VTI's price over the year, and its shares by term.
+  await app.tab('Browse');
+  await app.browseCard('Portfolio').click();
+  await app.sheet().locator('.holding-row', { hasText: 'VTI' }).click();
+  await expect(section('Price').locator('.row', { hasText: 'High, the last year' })).toContainText('Sep 28 · the latest close');
+  const term = (title: string) =>
+    section('Taxes')
+      .locator('.row')
+      .filter({ has: page.locator('.row-title', { hasText: new RegExp(`^${title}$`) }) });
+  await expect(term('Long-term')).toContainText(signed(longGain));
+  await expect(term('Short-term')).toContainText('the first long-term Oct 9');
+  await expect(term('Sold this year')).toContainText(`${signed(100_000 - soldCost)} long-term`);
+  await app.closeSheets();
+
+  // Today: the shares turning long-term, until Later.
+  const todo = await app.todo('VTI turns long-term Oct 9');
+  await expect(todo).toContainText(`In Brokerage: sold from then on, its ${wholeMoney(secondGain)} gain is taxed at the lower rate`);
+  await todo.getByRole('button', { name: 'Later: VTI turns long-term Oct 9' }).click();
+  await expect(page.locator('.todo-row', { hasText: 'VTI turns long-term' })).toHaveCount(0);
+
+  // Year in Review: how the investments did this year, next to the S&P 500.
+  await app.tab('Browse');
+  await page.locator('.recap-teaser').click();
+  const sp = ((closeOn(SPY, '2026-09-28') / closeOn(SPY, '2025-12-31') - 1) * 100).toFixed(1);
+  await expect(app.sheet().locator('.recap-card', { hasText: 'Investments' })).toContainText(`this year · the S&P 500: +${sp}%`);
 });

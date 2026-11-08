@@ -151,7 +151,7 @@ export function planImport(rows: PositionRow[], accountId: string, hs: Holdings 
         change: 'new',
         was,
         now: r.shares,
-        trade: { ...base, ticker: r.ticker, kind: 'buy', shares: r.shares, amount: r.value, ...(r.basis ? { basis: r.basis } : {}) },
+        trade: { ...base, ticker: r.ticker, kind: 'buy', shares: r.shares, amount: r.value, ...(r.basis ? { basis: r.basis } : {}), opening: true },
       });
     } else {
       const shares = Math.abs(diff);

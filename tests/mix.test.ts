@@ -77,15 +77,13 @@ describe('what it’s made of', () => {
       ['stock', 30, ['AAPL']],
       ['top3', 55, ['AAPL', 'JPM', 'MSFT']],
     ]);
-    expect(found[0].text).toBe('AAPL is 30% of your investments: a bad year for one company would hit hard.');
     expect(stocksBySector(p, new Map()).map((s) => [s.key, s.value])).toEqual([
       ['Technology', 800_000],
       ['Financials', 300_000],
     ]);
     // Over 40% in one industry's companies.
     const tech = portfolio([hold('AAPL', 3_000), hold('MSFT', 3_000), hold('NVDA', 3_000), hold('VTI', 11_000)], []);
-    expect(concentration(tech, new Map()).map((c) => c.kind)).toEqual(['sector']);
-    expect(concentration(tech, new Map())[0].text).toBe('Technology companies are 45% of your investments: one industry’s slump would hit most of it.');
+    expect(concentration(tech, new Map()).map((c) => [c.kind, c.sector, Math.round(c.share * 100)])).toEqual([['sector', 'Technology', 45]]);
     // All in funds: nothing to flag.
     expect(concentration(portfolio([hold('VTI', 9_000), hold('VXUS', 3_000)], []), new Map())).toEqual([]);
   });

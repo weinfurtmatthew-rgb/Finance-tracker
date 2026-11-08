@@ -1,13 +1,13 @@
 /**
  * The Portfolio page's mix and dividends: what your investments are made of (and how far that is from
- * a mix you aim for), where a lot rides on a few companies, and the dividends coming in.
+ * a mix you aim for), companies by sector, and the dividends coming in.
  */
 import { useMemo, useState } from 'preact/hooks';
 import { deleteMeta, setMeta } from '../db';
 import { useAccounts, useMeta } from '../hooks';
 import { useNav } from '../nav';
 import { useSecurities } from '../portfolioModel';
-import { DRIFT_POINTS, KINDS, TARGET_MIX, concentration, drift, mixByKind, stocksBySector, type AssetKind, type TargetMix } from '../lib/mix';
+import { DRIFT_POINTS, KINDS, TARGET_MIX, drift, mixByKind, stocksBySector, type AssetKind, type TargetMix } from '../lib/mix';
 import { dividendSummary, type DividendSummary } from '../lib/dividends';
 import type { Portfolio } from '../lib/portfolio';
 import { formatShortDate, monthLabel, todayISO } from '../lib/dates';
@@ -20,14 +20,13 @@ const whole = (c: number) => formatMoney(c, { whole: true });
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 const pct1 = (x: number) => `${(x * 100).toFixed(1)}%`;
 
-/** By kind, how far that is from your target, and where a lot rides on a few companies. */
+/** By kind, how far that is from your target, and companies by sector. */
 export function MixSection(props: { p: Portfolio }) {
   const nav = useNav();
   const securities = useSecurities();
   const target = useMeta<TargetMix>(TARGET_MIX);
   const mix = useMemo(() => mixByKind(props.p, securities), [props.p, securities]);
   const sectors = useMemo(() => stocksBySector(props.p, securities), [props.p, securities]);
-  const risks = useMemo(() => concentration(props.p, securities), [props.p, securities]);
   const off = target ? drift(mix, target).filter((d) => Math.abs(d.share - d.target) > DRIFT_POINTS) : [];
   const setTarget = () => nav.present((close) => <TargetMixSheet onClose={close} />);
   const setKinds = () => nav.present((close) => <SetKindsSheet p={props.p} onClose={close} />);
@@ -68,16 +67,6 @@ export function MixSection(props: { p: Portfolio }) {
             />
           ))}
           {!off.length && <Row title="On target" subtitle={`Every kind is within ${pct(DRIFT_POINTS)} of your target mix`} chevron={false} />}
-        </Section>
-      )}
-      {risks.length > 0 && (
-        <Section
-          title="Concentration"
-          footer="Funds hold many companies, so they don’t count here. Spreading money out means one company’s bad year matters less."
-        >
-          {risks.map((r) => (
-            <div class="row row-note concentration">{r.text}</div>
-          ))}
         </Section>
       )}
       {sectors.length > 0 && (

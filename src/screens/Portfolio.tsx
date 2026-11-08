@@ -1,17 +1,17 @@
 /**
  * Browse → Portfolio: everything in your investment accounts together. What it's worth, how it did over a
- * period next to the S&P 500, each holding, and your return since you started (lib/portfolio.ts).
+ * period next to the S&P 500, what's worth a look, each holding, taxes, and your return since you started
+ * (lib/portfolio.ts).
  */
 import { useMemo, useState } from 'preact/hooks';
 import { useAccounts, useMeta } from '../hooks';
 import type { Account } from '../types';
 import { useNav } from '../nav';
-import { useHoldings, usePrices, useSecurities } from '../portfolioModel';
+import { usePortfolio, usePrices, useSecurities } from '../portfolioModel';
 import {
   BENCHMARK,
   PERIODS,
   benchmarkResult,
-  buildPortfolio,
   holdingsByTicker,
   periodResult,
   periodStart,
@@ -31,6 +31,7 @@ import { AccountDetail } from './AccountDetail';
 import { HoldingSheet } from './Holdings';
 import { StockPricesSheet } from './StockPrices';
 import { DividendsSection, MixSection } from './PortfolioMix';
+import { MarketSection, TaxesSection, WorthALookSection } from './PortfolioInsights';
 
 const whole = (c: number) => formatMoney(c, { whole: true });
 const signedWhole = (c: number) => `${c > 0 ? '+' : c < 0 ? '−' : ''}${whole(Math.abs(c))}`;
@@ -60,11 +61,10 @@ function thin<T>(items: T[], max = 120): number[] {
 
 export function PortfolioSheet(props: { onClose: () => void }) {
   const nav = useNav();
-  const holdings = useHoldings();
   const accounts = useAccounts();
   const hasKey = !!useMeta<string>(TWELVE_DATA_KEY);
   const today = todayISO();
-  const p = useMemo(() => buildPortfolio([...holdings.values()], today), [holdings, today]);
+  const p = usePortfolio();
   return (
     <Sheet title="Portfolio" onClose={props.onClose}>
       {!p ? (
@@ -144,6 +144,8 @@ function PortfolioView(props: { p: Portfolio; accounts: Account[]; hasKey: boole
         )}
       </section>
 
+      <WorthALookSection p={p} />
+
       <Section
         title="Vs the S&P 500"
         footer={
@@ -172,6 +174,7 @@ function PortfolioView(props: { p: Portfolio; accounts: Account[]; hasKey: boole
         )}
         {!bench && !props.hasKey && <Row title="Turn On Stock Prices" onClick={() => nav.present((close) => <StockPricesSheet onClose={close} />)} />}
       </Section>
+      <MarketSection />
 
       <Section title="Holdings" footer={`Each one’s own change ${label.long}, dividends included (from when you bought it, if that’s later).`}>
         {list.map((h) => (
@@ -216,6 +219,7 @@ function PortfolioView(props: { p: Portfolio; accounts: Account[]; hasKey: boole
 
       <MixSection p={p} />
       <DividendsSection p={p} value={all.endValue} />
+      <TaxesSection p={p} />
 
       <Section
         title="Since you started"

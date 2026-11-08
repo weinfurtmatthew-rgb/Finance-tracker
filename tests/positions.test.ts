@@ -56,8 +56,16 @@ describe('importing it', () => {
     const f = readPositions(fixture('schwab.csv'))!;
     const plan = planImport(f.rows, 'a', undefined, '2026-11-06', true);
     expect(plan.map((c) => [c.ticker, c.change, c.trade])).toEqual([
-      ['SCHB', 'new', { accountId: 'a', date: '2026-11-06', source: 'import', ticker: 'SCHB', kind: 'buy', shares: 100, amount: 248_000, basis: 200_000 }],
-      ['MSFT', 'new', { accountId: 'a', date: '2026-11-06', source: 'import', ticker: 'MSFT', kind: 'buy', shares: 5, amount: 210_000, basis: 150_000 }],
+      [
+        'SCHB',
+        'new',
+        { accountId: 'a', date: '2026-11-06', source: 'import', ticker: 'SCHB', kind: 'buy', shares: 100, amount: 248_000, basis: 200_000, opening: true },
+      ],
+      [
+        'MSFT',
+        'new',
+        { accountId: 'a', date: '2026-11-06', source: 'import', ticker: 'MSFT', kind: 'buy', shares: 5, amount: 210_000, basis: 150_000, opening: true },
+      ],
     ]);
     // Without prices it's worth its value, and its gain is against the cost basis.
     const trade = { ...plan[0].trade!, id: 't', createdAt: 0 } as Trade;
