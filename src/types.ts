@@ -281,6 +281,10 @@ export interface Security {
   type?: string;
   /** Prices you typed in, per share as it traded that day: for ones the price service doesn't have. */
   manualPrices?: { date: ISODate; price: number }[];
+  /** What it holds, as you set it (see lib/mix.ts): 'us', 'intl', 'bonds', 'realestate', 'cash' or 'other'. */
+  kind?: string;
+  /** A company's sector, as you set it. */
+  sector?: string;
 }
 
 /** Save up to `target` in a linked account, optionally by a date. */

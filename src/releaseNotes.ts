@@ -13,6 +13,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-08c',
+    date: 'November 8, 2026',
+    title: 'Mix and dividends',
+    items: [
+      'Portfolio shows your mix: US and international stocks, bonds, real estate and cash. Popular funds and companies are known; set the rest on a holding’s page.',
+      'Set a target mix, and see how far each part is from it and what would put it back.',
+      'It points out when one company, your three biggest, or one industry is a lot of your investments.',
+      'Dividends: the last 12 months, the next 12 at the same rate, your yield, and when the next ones are due.',
+    ],
+  },
+  {
     id: '2026-11-08b',
     date: 'November 8, 2026',
     title: 'Portfolio',

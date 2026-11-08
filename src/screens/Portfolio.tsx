@@ -30,6 +30,7 @@ import { CountUp } from '../components/motion';
 import { AccountDetail } from './AccountDetail';
 import { HoldingSheet } from './Holdings';
 import { StockPricesSheet } from './StockPrices';
+import { DividendsSection, MixSection } from './PortfolioMix';
 
 const whole = (c: number) => formatMoney(c, { whole: true });
 const signedWhole = (c: number) => `${c > 0 ? '+' : c < 0 ? '−' : ''}${whole(Math.abs(c))}`;
@@ -212,6 +213,9 @@ function PortfolioView(props: { p: Portfolio; accounts: Account[]; hasKey: boole
           ))}
         </Section>
       )}
+
+      <MixSection p={p} />
+      <DividendsSection p={p} value={all.endValue} />
 
       <Section
         title="Since you started"

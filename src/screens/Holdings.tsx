@@ -17,6 +17,7 @@ import { ActionSheet, Field, Row, Section, Segmented, Sheet, Toggle } from '../c
 import { CountUp } from '../components/motion';
 import { StockPricesSheet } from './StockPrices';
 import { pricesFor } from '../priceSync';
+import { KINDS, SECTORS, isStock, kindOf, sectorOf } from '../lib/mix';
 
 const whole = (c: number) => formatMoney(c, { whole: true });
 const signed = (c: number) => `${c > 0 ? '+' : c < 0 ? '−' : ''}${formatMoney(Math.abs(c))}`;
@@ -272,6 +273,10 @@ export function HoldingSheet(props: { account: Account; ticker: string; onClose:
             ))}
         </Section>
       )}
+
+      <Section title="Mix" footer="For the mix on the Portfolio page: what it holds, and a company’s sector.">
+        <KindFields ticker={p.ticker} security={security} />
+      </Section>
 
       <Section>
         <button type="button" class="row danger-row" onClick={() => setConfirmDelete(true)}>
@@ -632,4 +637,48 @@ export function holdingsSummary(hs: Holdings): string {
     .sort()
     .at(-1);
   return [`${held.length} holding${held.length === 1 ? '' : 's'}`, asOf && `prices ${formatShortDate(asOf)}`].filter(Boolean).join(' · ');
+}
+
+const saveSecurity = async (ticker: string, changes: Partial<Security>) => {
+  const s = await db.securities.get(ticker);
+  if (s) await db.securities.update(ticker, changes);
+  else await db.securities.put({ ticker, name: ticker, ...changes });
+};
+
+/** A holding's kind, and its sector when it's a company. */
+export function KindFields(props: { ticker: string; security?: Security; label?: string }) {
+  const { ticker, security } = props;
+  const kind = kindOf(ticker, security);
+  const stock = isStock(security, ticker);
+  const sector = sectorOf(ticker, security);
+  return (
+    <>
+      <Field label={props.label ?? 'Holds'}>
+        <select
+          value={kind ?? ''}
+          onChange={(e) => void saveSecurity(ticker, { kind: (e.target as HTMLSelectElement).value || undefined })}
+          aria-label={`What ${ticker} holds`}
+        >
+          {!kind && <option value="">Not set</option>}
+          {KINDS.map((k) => (
+            <option value={k.value}>{k.label}</option>
+          ))}
+        </select>
+      </Field>
+      {stock && (
+        <Field label={props.label ? `${props.label} sector` : 'Sector'}>
+          <select
+            value={sector ?? ''}
+            onChange={(e) => void saveSecurity(ticker, { sector: (e.target as HTMLSelectElement).value || undefined })}
+            aria-label={`${ticker}’s sector`}
+          >
+            {!sector && <option value="">Not set</option>}
+            {SECTORS.map((s) => (
+              <option value={s}>{s}</option>
+            ))}
+          </select>
+        </Field>
+      )}
+    </>
+  );
 }
