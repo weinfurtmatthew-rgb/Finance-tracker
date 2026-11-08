@@ -1,5 +1,5 @@
 import { expect, test, type App } from './helpers';
-import { closeOn, mockTwelveData, MOCK_KEY, type MockTicker } from './prices';
+import { closeOn, mockTwelveData, MOCK_KEY, SPY, type MockTicker } from './prices';
 
 // The app's clock is frozen at Sep 29, 2026 (before the market opens): the latest close is Sep 28's.
 
@@ -31,7 +31,7 @@ async function addInvestmentAccount(app: App, name: string, type: string) {
 }
 
 test('stocks: prices with your own key, a purchase by amount and date, a split, a dividend and a sale @smoke', async ({ app, page }) => {
-  const requests = await mockTwelveData(page, [VTI]);
+  const requests = await mockTwelveData(page, [VTI, SPY]);
   await page.reload();
   await addInvestmentAccount(app, 'Fidelity Brokerage', 'brokerage');
   const holdings = app.sheet().locator('.section', { hasText: 'Holdings' });
@@ -103,16 +103,25 @@ test('stocks: prices with your own key, a purchase by amount and date, a split, 
   await expect(page.locator('button.row', { hasText: 'Fidelity Brokerage' })).toContainText('1 holding · prices Sep 28');
   await expect(page.getByText('Update Investment & Vehicle Values')).toHaveCount(0);
 
-  // Only what's needed was asked for: the key twice, the search, and VTI's closes three ways (once).
-  expect(requests.filter((r) => r.startsWith('/time_series'))).toHaveLength(3);
+  // Only what's needed was asked for: the key twice, the search, and VTI's closes three ways (once), then
+  // the S&P 500's to compare with.
+  await expect.poll(() => requests.filter((r) => r.startsWith('/time_series')).length).toBe(6);
+  expect(requests.filter((r) => r.startsWith('/time_series')).map((r) => new URLSearchParams(r.split('?')[1]).get('symbol'))).toEqual([
+    'VTI',
+    'VTI',
+    'VTI',
+    'SPY',
+    'SPY',
+    'SPY',
+  ]);
   expect(requests.filter((r) => r.startsWith('/api_usage'))).toHaveLength(2);
   expect(requests.every((r) => !r.startsWith('/symbol_search') || !r.includes('apikey'))).toBe(true);
   await app.tab('Settings');
-  await expect(app.sheet().locator('.row', { hasText: 'Twelve Data' })).toContainText('8 of 800 requests used today');
+  await expect(app.sheet().locator('.row', { hasText: 'Twelve Data' })).toContainText('11 of 800 requests used today');
 });
 
 test('stocks without a key: shares and a price you type in, and nothing is sent anywhere', async ({ app, page }) => {
-  const requests = await mockTwelveData(page, [VTI]);
+  const requests = await mockTwelveData(page, [VTI, SPY]);
   await page.reload();
   await addInvestmentAccount(app, 'Fidelity Roth IRA', 'roth-ira');
   const holdings = app.sheet().locator('.section', { hasText: 'Holdings' });
@@ -143,4 +152,82 @@ test('stocks without a key: shares and a price you type in, and nothing is sent 
   await app.tab('Net Worth');
   await expect(page.locator('.section', { hasText: 'Retirement' }).locator('.row', { hasText: 'Fidelity Roth IRA' })).toContainText('$2,300.00');
   expect(requests).toEqual([]);
+});
+
+test('portfolio: what it all comes to, by period, next to the S&P 500 @smoke', async ({ app, page }) => {
+  await mockTwelveData(page, [VTI, SPY]);
+  await page.reload();
+  await app.tab('Settings');
+  await app.sheet().locator('.row', { hasText: 'Twelve Data' }).click();
+  await app.field('API key').locator('input').fill(MOCK_KEY);
+  await app.sheet().getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('.toast')).toHaveText('Stock prices on');
+  await app.closeSheets();
+
+  // VTI in two accounts: $1,000 on Jan 5 and $500 on Mar 2.
+  const buys: [string, string, number, string][] = [
+    ['Brokerage', 'brokerage', 1000, '2026-01-05'],
+    ['Roth IRA', 'roth-ira', 500, '2026-03-02'],
+  ];
+  for (const [name, type, amount, date] of buys) {
+    await addInvestmentAccount(app, name, type);
+    await app.sheet().getByRole('button', { name: 'Add a Stock, ETF or Fund' }).click();
+    await app.field('Ticker').locator('input').fill('VTI');
+    await app.sheet().locator('.row', { hasText: 'Vanguard Total Stock Market' }).click();
+    await app.field('Amount').locator('input').fill(String(amount));
+    await app.field('Date').locator('input').fill(date);
+    await expect(app.sheet()).toContainText('shares today');
+    await app.sheet().getByRole('button', { name: 'Save' }).click();
+    await expect(page.locator('.toast')).toHaveText('VTI added');
+    await app.closeSheets();
+  }
+
+  // Each bought at its day's close, and the Mar 25 dividend bought more shares in both.
+  const last = closeOn(VTI, '2026-09-28');
+  const worth = (amount: number, date: string) => {
+    const bought = amount / closeOn(VTI, date);
+    const shares = bought + Math.round(0.9 * bought * 100) / 100 / closeOn(VTI, '2026-03-25');
+    return { shares, value: Math.round(shares * last * 100) };
+  };
+  const [a, b] = buys.map(([, , amount, date]) => worth(amount, date));
+  const total = a.value + b.value;
+  await app.tab('Browse');
+  await expect(app.browseCard('Portfolio')).toContainText(wholeMoney(total));
+  await app.browseCard('Portfolio').click();
+  const hero = app.sheet().locator('.portfolio-hero');
+  await expect(hero.locator('.detail-big')).toHaveText(money(total));
+  await expect(hero).toContainText('this month');
+
+  // Since the first purchase: the gain leaves out what went in, and the percent is VTI's own return.
+  await hero.getByRole('tab', { name: 'All' }).click();
+  const yours = ((closeOn(VTI, '2026-03-25') + 0.9) / closeOn(VTI, '2026-01-05')) * (last / closeOn(VTI, '2026-03-25')) - 1;
+  const pct = (x: number) => `+${(x * 100).toFixed(1)}%`;
+  await expect(hero.locator('.change-line')).toHaveText(`▲ ${wholeMoney(total - 150_000)} (${pct(yours)}) since you started`);
+  const vs = app.sheet().locator('.section', { hasText: 'Vs the S&P 500' });
+  const row = (title: string) => vs.locator('.row').filter({ has: page.locator('.row-title', { hasText: new RegExp(`^${title}$`) }) });
+  await expect(row('Yours')).toContainText(pct(yours));
+  const spy = (d: string) => closeOn(SPY, d);
+  await expect(row('S&P 500')).toContainText(pct(spy('2026-09-28') / spy('2026-01-05') - 1));
+  const sameMoney = Math.round((100_000 / spy('2026-01-05') + 50_000 / spy('2026-03-02')) * spy('2026-09-28'));
+  await expect(row('Same money in the S&P 500')).toContainText(wholeMoney(sameMoney));
+
+  const holding = app.sheet().locator('.section', { hasText: 'Holdings' }).locator('.holding-row', { hasText: 'VTI' });
+  await expect(holding).toContainText('100% of it · 2 accounts');
+  const started = app
+    .sheet()
+    .locator('.section')
+    .filter({ has: page.locator('.section-title', { hasText: 'Since you started' }) });
+  await expect(started).toContainText('Put in');
+  await expect(started).toContainText('$1,500');
+  await expect(app.sheet()).toContainText('Prices from Twelve Data, as of the close Sep 28.');
+
+  // Today: since the close before Sep 28's (no chart for a day).
+  await hero.getByRole('tab', { name: '1D' }).click();
+  const day =
+    Math.round(a.shares * last * 100) +
+    Math.round(b.shares * last * 100) -
+    Math.round(a.shares * closeOn(VTI, '2026-09-25') * 100) -
+    Math.round(b.shares * closeOn(VTI, '2026-09-25') * 100);
+  await expect(hero.locator('.change-line')).toHaveText(`▲ ${wholeMoney(day)} (${pct(last / closeOn(VTI, '2026-09-25') - 1)}) today`);
+  await expect(hero.locator('.chart')).toHaveCount(0);
 });

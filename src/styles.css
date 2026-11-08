@@ -4460,3 +4460,11 @@ html.app-hidden *::after {
   color: var(--text-2);
   white-space: normal;
 }
+
+/* Portfolio: seven periods fit across the card */
+.portfolio-hero .segmented {
+  max-width: none;
+}
+.portfolio-hero .segmented button {
+  padding-inline: 2px;
+}

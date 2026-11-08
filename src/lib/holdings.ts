@@ -272,12 +272,14 @@ export function positionValueOn(p: Position, date?: ISODate): Cents {
 
 /**
  * The account's cash over time. With a balance you entered, that's the truth on its day: later flows move
- * it on, earlier ones are undone going back. Without one it starts at nothing. It never goes below zero
- * (a buy from more cash than there was is new money for the rest).
+ * it on, earlier ones are undone going back. Without one it starts at nothing. It never goes below zero:
+ * a buy from more cash than there was is new money for the rest, and going back, a balance lower than a
+ * sale kept as cash means money was taken out. Those come back as `implied` (money in +, out −).
  */
-export function cashSteps(flows: CashFlow[], entered?: Account['cash']): { steps: Steps; start: Cents } {
+export function cashSteps(flows: CashFlow[], entered?: Account['cash']): { steps: Steps; start: Cents; implied: CashFlow[] } {
   const sorted = [...flows].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   const steps: Steps = { dates: [], values: [] };
+  const implied: CashFlow[] = [];
   let bal = entered?.amount ?? 0;
   let start = 0;
   let i = 0;
@@ -287,17 +289,21 @@ export function cashSteps(flows: CashFlow[], entered?: Account['cash']): { steps
     const back: [ISODate, Cents][] = [];
     for (let j = before.length - 1; j >= 0; j--) {
       back.push([before[j].date, bal]);
-      bal = Math.max(0, bal - before[j].amount);
+      const raw = bal - before[j].amount;
+      if (raw < 0) implied.push({ date: before[j].date, amount: raw });
+      bal = Math.max(0, raw);
     }
     start = bal;
     for (let j = back.length - 1; j >= 0; j--) setStep(steps, back[j][0], back[j][1]);
     bal = entered.amount;
   }
   for (; i < sorted.length; i++) {
-    bal = Math.max(0, bal + sorted[i].amount);
+    const raw = bal + sorted[i].amount;
+    if (raw < 0) implied.push({ date: sorted[i].date, amount: -raw });
+    bal = Math.max(0, raw);
     setStep(steps, sorted[i].date, bal);
   }
-  return { steps, start };
+  return { steps, start, implied };
 }
 
 export interface Holdings {
@@ -309,6 +315,11 @@ export interface Holdings {
   cashStart: Cents;
   /** The first trade: before it, the account is worth what you entered for it then, if anything. */
   first: ISODate;
+  /**
+   * Money put in (+) or taken out (−), oldest first: buys that weren't paid with its cash, sales whose
+   * money left it, and what its cash implies. Its cash before the first trade counts as put in that day.
+   */
+  external: CashFlow[];
 }
 
 /** An account's holdings, or undefined when it has no trades. */
@@ -333,12 +344,16 @@ export function buildHoldings(account: Account, trades: Trade[], prices: Map<str
   );
   const held = (p: Position) => (p.source === 'cost' ? p.value > 0 : (p.shares ?? 0) > 0);
   positions.sort((a, b) => Number(held(b)) - Number(held(a)) || b.value - a.value || (a.ticker < b.ticker ? -1 : 1));
-  const { steps, start } = cashSteps(
+  const { steps, start, implied } = cashSteps(
     positions.flatMap((p) => p.flows),
     account.cash,
   );
   const first = trades.reduce((m, t) => (t.date < m ? t.date : m), trades[0].date);
-  return { accountId: account.id, positions, cash: steps, cashStart: start, first };
+  const external: CashFlow[] = [...implied];
+  if (start > 0) external.push({ date: first, amount: start });
+  for (const t of trades) if (!t.cash) external.push({ date: t.date, amount: t.kind === 'buy' ? t.amount : -t.amount });
+  external.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  return { accountId: account.id, positions, cash: steps, cashStart: start, first, external };
 }
 
 /** Holdings for every investment account that has trades. */

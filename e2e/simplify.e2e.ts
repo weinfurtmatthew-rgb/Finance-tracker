@@ -21,14 +21,15 @@ test('Browse: grouped, as a list or as tiles, and it remembers', async ({ app, p
   await app.importAll();
   await app.tab('Browse');
   for (const group of ['Money', 'Plan & Look Back', 'People & Trips']) await expect(page.getByRole('heading', { name: group })).toBeVisible();
-  await expect(page.locator('.browse-row')).toHaveCount(10);
+  await expect(page.locator('.browse-row')).toHaveCount(11);
   await expect(app.browseCard('Credit Score')).toHaveCount(1);
+  await expect(app.browseCard('Portfolio')).toHaveCount(1);
   await expect(app.browseCard('Categories')).toHaveCount(0);
   await page.getByRole('button', { name: 'Show as tiles' }).click();
-  await expect(page.locator('.browse-card')).toHaveCount(10);
+  await expect(page.locator('.browse-card')).toHaveCount(11);
   await page.reload();
   await app.tab('Browse');
-  await expect(page.locator('.browse-card')).toHaveCount(10);
+  await expect(page.locator('.browse-card')).toHaveCount(11);
   await expect(page.getByRole('button', { name: 'Show as a list' })).toBeVisible();
   // Money owed to you is part of People.
   await app.browseCard('People').click();

@@ -15,6 +15,7 @@ import type { ISODate, Trade } from './types';
 import { addDays, todayISO } from './lib/dates';
 import { fetchDaily, fetchUsage, PriceError, TWELVE_DATA_KEY, type PriceErrorKind } from './lib/twelveData';
 import { historyFrom, historyFromSeries, isFinalBar, mergeRecent, type Bar, type PriceHistory } from './lib/prices';
+import { BENCHMARK } from './lib/portfolio';
 
 /** The free plan's limits. Tests raise them: their clock is frozen, so no minute ever passes. */
 const FREE = { perMinute: 8, perDay: 800 };
@@ -161,6 +162,17 @@ function firstTrades(trades: Trade[]): Map<string, ISODate> {
   return first;
 }
 
+/** What to keep prices for: each ticker from its first trade, and the S&P 500 from the first trade of all (to compare with). */
+function wanted(trades: Trade[]): Map<string, ISODate> {
+  const first = firstTrades(trades);
+  if (first.size)
+    first.set(
+      BENCHMARK,
+      [...first.values()].reduce((m, d) => (d < m ? d : m)),
+    );
+  return first;
+}
+
 /** Every day since `from`: one request brings about 20 years, so a purchase from before then takes more. */
 async function fetchSince(ticker: string, from: ISODate, key: string, adjust: 'none' | 'splits' | 'all') {
   const bars: Bar[] = [];
@@ -213,7 +225,7 @@ let refusedKey: string | undefined;
 async function run(force: boolean): Promise<void> {
   const key = (await getMeta<string>(TWELVE_DATA_KEY))?.trim();
   if (!key || (!force && key === refusedKey)) return;
-  const first = firstTrades(await db.trades.toArray());
+  const first = wanted(await db.trades.toArray());
   const cached = new Map((await db.priceCache.toArray()).map((h) => [h.ticker, h]));
   const today = todayISO();
   const now = Date.now();
@@ -223,8 +235,8 @@ async function run(force: boolean): Promise<void> {
   const jobs = [...first]
     .map(([ticker, day]) => ({ ticker, from: historyFrom(day, today), h: cached.get(ticker) }))
     .filter((j) => force || isDue(j.h, j.from, now))
-    // Never downloaded first, then the longest since.
-    .sort((a, b) => (a.h?.checkedAt ?? 0) - (b.h?.checkedAt ?? 0));
+    // Never downloaded first, then the longest since; the S&P 500 after what you hold.
+    .sort((a, b) => (a.h?.checkedAt ?? 0) - (b.h?.checkedAt ?? 0) || Number(a.ticker === BENCHMARK) - Number(b.ticker === BENCHMARK));
   if (!jobs.length) return;
   setState({ running: true });
   let error: PriceSyncState['error'];
