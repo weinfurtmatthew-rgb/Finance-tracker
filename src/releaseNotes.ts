@@ -13,6 +13,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-08',
+    date: 'November 8, 2026',
+    title: 'Stocks, ETFs and funds',
+    items: [
+      'Add what’s in an investment account, IRA or 401(k): on its page in Net Worth, tap Add a Stock, ETF or Fund.',
+      'Turn on stock prices in Settings with a free Twelve Data key. Then how much you put in and when is enough: the app works out the shares, follows splits, and reinvests dividends (or pays them into the account’s cash).',
+      'Each holding shows what it’s worth, what it cost and your gain, and the account’s value follows its prices.',
+      'Without a key, add the shares and type in prices yourself. Only ticker symbols are sent to Twelve Data, never amounts or accounts.',
+    ],
+  },
+  {
     id: '2026-11-04',
     date: 'November 4, 2026',
     title: 'Credit score',

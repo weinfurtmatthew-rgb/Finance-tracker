@@ -8,6 +8,8 @@ import { isValued } from '../lib/networth';
 import { isIra } from '../lib/ira';
 import { is401k, k401Limit, k401Year, missedMatch } from '../lib/k401';
 import { useBirthYear, usePay } from '../retirementModel';
+import { useTrades } from '../portfolioModel';
+import { canHoldStocks } from '../lib/holdings';
 import { formatDate, formatShortDate, todayISO } from '../lib/dates';
 import { CD_TERMS, cdValueOn, maturityDate, termLabel, termMonths } from '../lib/cd';
 import { BalanceCheckSheet } from '../components/BalanceCheck';
@@ -88,6 +90,9 @@ function AccountForm(props: Props & { txns: Transaction[]; values: Valuation[] }
   const [confirmDelete, setConfirmDelete] = useState(false);
   const liability = isLiability({ type });
   const valued = isValued({ type });
+  // An investment account with holdings: its value comes from them, not from a value typed here.
+  const trades = useTrades();
+  const hasHoldings = !!a && canHoldStocks({ type }) && trades.some((t) => t.accountId === a.id);
 
   // CDs: what went in when the current term started, the term and the rate; the value grows from there.
   const isCd = type === 'cd';
@@ -134,6 +139,8 @@ function AccountForm(props: Props & { txns: Transaction[]; values: Valuation[] }
       ...(a?.checkedOn ? { checkedOn: a.checkedOn } : {}),
       ...(a?.balanceSetAt ? { balanceSetAt: a.balanceSetAt } : {}),
       ...(a?.closedOn ? { closedOn: a.closedOn } : {}),
+      ...(a?.cash ? { cash: a.cash } : {}),
+      ...(a?.cashDividends ? { cashDividends: a.cashDividends } : {}),
     };
     // Rates for the Plan calculators: APR & minimum on cards and loans, APY on bank accounts.
     if (cdTerms) {
@@ -174,8 +181,8 @@ function AccountForm(props: Props & { txns: Transaction[]; values: Valuation[] }
       await db.accounts.put(record);
       // Only a new or changed value is recorded, so renaming an account doesn't add a history point.
       const today = todayISO();
-      if (!balance.trim()) {
-        // No value entered (yet).
+      if (!balance.trim() || hasHoldings) {
+        // No value entered (yet), or it comes from its holdings.
       } else if (lastValue?.date === today) await db.valuations.update(lastValue.id, { value: signed });
       else if (!lastValue || signed !== current) await db.valuations.add({ id: newId(), accountId: record.id, date: today, value: signed });
     } else {
@@ -193,8 +200,9 @@ function AccountForm(props: Props & { txns: Transaction[]; values: Valuation[] }
   };
 
   const remove = async () => {
-    await db.transaction('rw', db.accounts, db.transactions, db.valuations, db.goals, async () => {
+    await db.transaction('rw', [db.accounts, db.transactions, db.valuations, db.goals, db.trades], async () => {
       await db.transactions.where('accountId').equals(a!.id).delete();
+      await db.trades.where('accountId').equals(a!.id).delete();
       await db.valuations.where('accountId').equals(a!.id).delete();
       await db.goals.filter((g) => g.accountId === a!.id).delete();
       await db.accounts.delete(a!.id);
@@ -270,6 +278,8 @@ function AccountForm(props: Props & { txns: Transaction[]; values: Valuation[] }
           </Field>
           <Toggle label="Interest goes to another account" checked={paidOut} onChange={setPaidOut} />
         </Section>
+      ) : hasHoldings ? (
+        <p class="section-footer">Its value comes from its holdings and cash, on the account’s page.</p>
       ) : (
         <Section
           title={valued ? 'Value today' : liability ? 'Amount owed today' : 'Balance today'}

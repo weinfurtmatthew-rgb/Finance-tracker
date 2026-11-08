@@ -22,13 +22,18 @@ export function PrivacySheet(props: { onClose: () => void }) {
 
         <h3>What it sends</h3>
         <p>
-          Nothing about your money. The app has no server to send it to, and it's built so it can only talk to the website it's loaded from (a
-          security rule that blocks every other address). It contacts that website only to:
+          Nothing about your money. The app has no server to send it to, and it's built so it can only talk to the website it's loaded from, and
+          to Twelve Data's price service (a security rule blocks every other address). It contacts that website only to:
         </p>
         <ul>
           <li>load the app itself, and its updates;</li>
           <li>download the on-device AI model, if you turn that on in Settings. The model then runs on your phone.</li>
         </ul>
+        <p>
+          It contacts Twelve Data only if you turn on stock prices in Settings with a key of your own: to get prices of the stocks, ETFs and funds
+          you hold, and to look up tickers as you type them. It sends ticker symbols (like VTI) and your key, never amounts, shares or accounts.
+          Twelve Data can see your phone's IP address, as any website can.
+        </p>
         <p>
           The app is hosted on GitHub Pages. Like any website host, GitHub can see that your phone loaded the app (for example its IP address),
           but never anything you enter.

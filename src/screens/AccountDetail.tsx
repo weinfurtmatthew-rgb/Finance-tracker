@@ -19,6 +19,8 @@ import { AccountEditor } from './AccountEditor';
 import { CdMaturitySheet } from './CdMaturity';
 import { IraSection } from './Ira';
 import { K401Section } from './K401';
+import { HoldingsSection, holdingsSummary } from './Holdings';
+import { canHoldStocks } from '../lib/holdings';
 
 /** An account up close: its balance over time, when it was last checked, and recent activity. */
 export function AccountDetail(props: { account: Account; onClose: () => void }) {
@@ -45,6 +47,8 @@ export function AccountDetail(props: { account: Account; onClose: () => void }) 
   const anchors = book.values.get(a.id) ?? [];
   const termStart = cd ? anchors.find((v) => v.date === cd.openedOn) : undefined;
   const stage = cd ? cdStage(cd, today) : null;
+  // An investment account with holdings: its value comes from them.
+  const hs = book.holdings.get(a.id);
 
   return (
     <Sheet title={a.name} onClose={props.onClose} onSave={edit} saveLabel="Edit" closeLabel="Done">
@@ -66,18 +70,20 @@ export function AccountDetail(props: { account: Account; onClose: () => void }) 
                   a.type === 'roth-ira' || a.type === 'roth-401k'
                     ? 'Roth: tax-free when you take it out in retirement'
                     : `${a.type === 'ira' ? 'Traditional' : 'Pre-tax'}: taxed as income when you take it out`,
-                  anchors.length ? `value updated ${formatShortDate(anchors[anchors.length - 1].date)}` : 'value not set yet',
+                  hs ? holdingsSummary(hs) : anchors.length ? `value updated ${formatShortDate(anchors[anchors.length - 1].date)}` : 'value not set yet',
                 ]
-              : [
-                  a.institution,
-                  a.last4 && `•••• ${a.last4}`,
-                  // Cards: how much of the limit is used, and when the next statement closes.
-                  a.type === 'credit' &&
-                    a.creditLimit &&
-                    `${Math.round((Math.max(0, -now) / a.creditLimit) * 100)}% of the ${formatMoney(a.creditLimit, { whole: true })} limit`,
-                  a.type === 'credit' && a.statementDay && `statement closes ${formatShortDate(nextStatementClose(a.statementDay, today))}`,
-                  a.checkedOn ? `checked against the bank ${formatShortDate(a.checkedOn)}` : 'not checked against the bank yet',
-                ]
+              : hs
+                ? [a.institution, holdingsSummary(hs)]
+                : [
+                    a.institution,
+                    a.last4 && `•••• ${a.last4}`,
+                    // Cards: how much of the limit is used, and when the next statement closes.
+                    a.type === 'credit' &&
+                      a.creditLimit &&
+                      `${Math.round((Math.max(0, -now) / a.creditLimit) * 100)}% of the ${formatMoney(a.creditLimit, { whole: true })} limit`,
+                    a.type === 'credit' && a.statementDay && `statement closes ${formatShortDate(nextStatementClose(a.statementDay, today))}`,
+                    a.checkedOn ? `checked against the bank ${formatShortDate(a.checkedOn)}` : 'not checked against the bank yet',
+                  ]
           )
             .filter(Boolean)
             .join(' · ')}
@@ -133,6 +139,7 @@ export function AccountDetail(props: { account: Account; onClose: () => void }) 
           </button>
         )}
       </div>
+      {canHoldStocks(a) && <HoldingsSection account={a} />}
       {isIra(a) && <IraSection account={a} />}
       {is401k(a) && <K401Section account={a} />}
       {recent.length > 0 && !isIra(a) && (
