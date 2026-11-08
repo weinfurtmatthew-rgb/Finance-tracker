@@ -158,6 +158,14 @@ value follows their prices (`src/lib/holdings.ts`).
     (its prices are downloaded alongside yours: 3 more requests, then 1 per update), on one chart with yours
   - Each holding across accounts with its own return over the period, the best and worst, what you've put in, your
     gain, and from a year on your yearly return (money-weighted, like a savings rate)
+  - **Mix** (`src/lib/mix.ts`): US stocks, international stocks, bonds, real estate and cash. The free plan doesn't say
+    what a fund holds or a company's sector, so about 100 popular funds and 150 companies are known, companies are
+    US stocks (international for depositary receipts), and you can set any holding on its page. A **target mix**
+    shows how far each kind is and what would put it back
+  - **Concentration:** one company over 20% of your investments, your three biggest over 50%, or one industry's
+    companies over 40% (funds don't count: they hold many)
+  - **Dividends** (`src/lib/dividends.ts`): the last 12 months (and how much was reinvested), the next 12 at the same
+    rate on what you hold now, your yield, when the next ones are likely due, and month by month
 
 ### Activity
 

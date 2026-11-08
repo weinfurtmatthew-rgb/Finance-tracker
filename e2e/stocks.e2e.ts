@@ -231,3 +231,86 @@ test('portfolio: what it all comes to, by period, next to the S&P 500 @smoke', a
   await expect(hero.locator('.change-line')).toHaveText(`▲ ${wholeMoney(day)} (${pct(last / closeOn(VTI, '2026-09-25') - 1)}) today`);
   await expect(hero.locator('.chart')).toHaveCount(0);
 });
+
+test('portfolio: the mix, a company that’s a lot of it, a target mix, and dividends', async ({ app, page }) => {
+  const AAPL: MockTicker = { ticker: 'AAPL', name: 'Apple Inc.', type: 'Common Stock', exchange: 'NASDAQ', price: (i) => 190 + 0.12 * i };
+  const BND: MockTicker = { ticker: 'BND', name: 'Vanguard Total Bond Market Index Fund ETF', type: 'ETF', exchange: 'NASDAQ', price: (i) => 72 + 0.01 * i };
+  await mockTwelveData(page, [VTI, AAPL, BND, SPY]);
+  await page.reload();
+  await app.tab('Settings');
+  await app.sheet().locator('.row', { hasText: 'Twelve Data' }).click();
+  await app.field('API key').locator('input').fill(MOCK_KEY);
+  await app.sheet().getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('.toast')).toHaveText('Stock prices on');
+  await app.closeSheets();
+
+  // $6,000 of VTI, $3,000 of Apple and $1,000 of BND, all on Jan 5.
+  await addInvestmentAccount(app, 'Brokerage', 'brokerage');
+  const buys: [MockTicker, string, number][] = [
+    [VTI, 'Vanguard Total Stock Market', 6000],
+    [AAPL, 'Apple Inc.', 3000],
+    [BND, 'Vanguard Total Bond Market', 1000],
+  ];
+  for (const [m, pick, amount] of buys) {
+    await app
+      .sheet()
+      .getByRole('button', { name: /^(Add a Stock, ETF or Fund|Add)$/ })
+      .first()
+      .click();
+    await app.field('Ticker').locator('input').fill(m.ticker);
+    await app.sheet().locator('.row', { hasText: pick }).click();
+    await app.field('Amount').locator('input').fill(String(amount));
+    await app.field('Date').locator('input').fill('2026-01-05');
+    await expect(app.sheet()).toContainText('the close on Jan 5');
+    await app.sheet().getByRole('button', { name: 'Save' }).click();
+    await expect(page.locator('.toast')).toHaveText(`${m.ticker} added`);
+  }
+  await app.closeSheets();
+
+  const at = (m: MockTicker, dollars: number) => Math.round((dollars / closeOn(m, '2026-01-05')) * closeOn(m, '2026-09-28') * 100);
+  const bought = 6000 / closeOn(VTI, '2026-01-05');
+  const dividend = Math.round(0.9 * bought * 100);
+  const vti = Math.round((bought + dividend / 100 / closeOn(VTI, '2026-03-25')) * closeOn(VTI, '2026-09-28') * 100);
+  const [aapl, bnd] = [at(AAPL, 3000), at(BND, 1000)];
+  const total = vti + aapl + bnd;
+  const share = (v: number) => `${Math.round((v / total) * 100)}%`;
+
+  await app.tab('Browse');
+  await app.browseCard('Portfolio').click();
+  const mix = app
+    .sheet()
+    .locator('.section')
+    .filter({ has: page.locator('.section-title', { hasText: /^Mix/ }) });
+  await expect(mix.locator('.ranked-row', { hasText: 'US stocks' })).toContainText(share(vti + aapl));
+  await expect(mix.locator('.ranked-row', { hasText: 'Bonds' })).toContainText(share(bnd));
+  const section = (title: string) =>
+    app
+      .sheet()
+      .locator('.section')
+      .filter({ has: page.locator('.section-title', { hasText: new RegExp(`^${title}`) }) });
+  await expect(section('Concentration')).toContainText(`AAPL is ${share(aapl)} of your investments: a bad year for one company would hit hard.`);
+  await expect(section('Companies by sector').locator('.ranked-row', { hasText: 'Technology' })).toContainText(share(aapl));
+
+  // Aiming for 60% US, 20% international, 20% bonds.
+  await mix.getByRole('button', { name: 'Set Target' }).click();
+  await app.field('US stocks').locator('input').fill('60');
+  await app.field('International stocks').locator('input').fill('20');
+  await app.field('Bonds').locator('input').fill('10');
+  await expect(app.sheet()).toContainText('They add up to 90%: make it 100%.');
+  await app.field('Bonds').locator('input').fill('20');
+  await app.sheet().getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('.toast')).toHaveText('Target mix saved');
+  await expect(mix.locator('.ranked-row', { hasText: 'US stocks' })).toContainText('target 60%');
+  const intl = section('Vs your target').locator('.row', { hasText: 'International stocks: 0%, target 20%' });
+  await expect(intl).toContainText(`${wholeMoney(Math.round(0.2 * total))} more would put it on target`);
+
+  // Dividends: VTI's in March, reinvested.
+  const dividends = app
+    .sheet()
+    .locator('.section')
+    .filter({ has: page.locator('.section-title', { hasText: /^Dividends$/ }) });
+  await expect(dividends.locator('.row', { hasText: 'Last 12 months' })).toContainText(wholeMoney(dividend));
+  await expect(dividends.locator('.row', { hasText: 'Last 12 months' })).toContainText(`${wholeMoney(dividend)} reinvested`);
+  await dividends.locator('.row', { hasText: 'Last 12 months' }).click();
+  await expect(app.sheet().locator('.row', { hasText: 'VTI' })).toContainText(`${((0.9 / closeOn(VTI, '2026-09-28')) * 100).toFixed(1)}% yield`);
+});

@@ -120,4 +120,6 @@ test('the stock sheets are accessible too', async ({ app, page }) => {
   await app.browseCard('Portfolio').click();
   await expect(app.sheet().locator('.portfolio-hero .chart')).toBeVisible();
   await check('Portfolio');
+  await app.sheet().getByRole('button', { name: 'Set Target' }).click();
+  await check('Target Mix');
 });
