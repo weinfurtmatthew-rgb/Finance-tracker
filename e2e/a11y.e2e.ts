@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
-import { expect, test } from './helpers';
+import { expect, fixture, test } from './helpers';
 import { mockTwelveData, MOCK_KEY, SPY } from './prices';
 
 /** What axe finds on the page right now, as "rule: element" lines (empty when clean). */
@@ -113,6 +113,10 @@ test('the stock sheets are accessible too', async ({ app, page }) => {
   await app.sheet().getByRole('button', { name: 'Save' }).click();
   await expect(app.sheet().locator('.holding-row', { hasText: 'VTI' })).toBeVisible();
   await check('Account with holdings');
+  await app.sheet().getByLabel('Import positions from your brokerage').setInputFiles(fixture('fidelity-positions.csv'));
+  await expect(app.sheet().getByRole('heading', { name: 'Import Positions' })).toBeVisible();
+  await check('Import Positions');
+  await app.sheet().locator('.sheet-header button').first().click();
   await app.sheet().locator('.holding-row', { hasText: 'VTI' }).click();
   await check('Holding');
   await app.closeSheets();

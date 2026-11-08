@@ -13,6 +13,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-08d',
+    date: 'November 8, 2026',
+    title: 'Import your positions',
+    items: [
+      'On an investment account’s page, import a positions file from Fidelity, Schwab or Vanguard: every holding and the cash, in one go.',
+      'Each holding starts at its value that day and keeps its cost basis, so its gain is right from the start.',
+      'Import again later to catch up: more or fewer shares are bought or sold, and anything no longer in the file can be sold.',
+    ],
+  },
+  {
     id: '2026-11-08c',
     date: 'November 8, 2026',
     title: 'Mix and dividends',
