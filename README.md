@@ -126,6 +126,31 @@ bank or card app, Credit Karma, Experian), and it stays on this phone (`src/lib/
   in Can I afford it? and Debt payoff (for accounts without a rate of their own), a credit note in the rent
   calculator's landlord check, and a Credit score card in Year in Review
 
+### Stocks, ETFs & funds
+
+Add what's in an investment account, IRA or 401(k) on its page in Net Worth (**Add a Stock, ETF or Fund**), and its
+value follows their prices (`src/lib/holdings.ts`).
+
+- **Prices with your own free key:** Settings → Stock Prices takes a free [Twelve Data](https://twelvedata.com) key
+  (US stocks, ETFs and mutual funds; 800 requests a day, 8 a minute). Prices are downloaded straight from Twelve Data
+  on the phone, by ticker symbol only: amounts, shares and accounts never leave it, and the key isn't in backups.
+  A holding's first prices take 3 requests and each update after that 1, at most every 4 hours while the market is
+  open (`src/priceSync.ts`)
+- **How much and when is enough:** a purchase is the amount you put in and the day; the shares come from that day's
+  close, and the sheet shows what that comes to before you save ("About 10.0197 shares at $499.02, the close on
+  Jan 5. After its 2-for-1 split on Jun 15, that's 20.0393 shares today"). Or enter the shares if you know them
+- **Splits and dividends**, which the free plan doesn't list, are worked out from the prices: each day's close comes
+  three ways (as traded, adjusted for splits, and for splits and dividends), and a split or dividend is a step between
+  them on its day (`src/lib/prices.ts`). Dividends buy more shares at that day's close (reinvested), or go to the
+  account's cash
+- Each holding shows its value, what it cost and your gain, its dividends and its trades. **Sales** use the oldest
+  shares first, and can keep the money in the account as cash (or it leaves); a purchase can be paid from that cash.
+  Enter the account's cash as your brokerage shows it, and trades and dividends move it on from there
+- **Without a key** (or for a fund Twelve Data's free plan doesn't have), enter the shares and type in the price now
+  and then; a holding without shares or prices is valued at what you put in
+- From its first trade, an account with holdings is worth its holdings and cash in Net Worth and its history; values
+  you typed in before that still count for the days before
+
 ### Activity
 
 - A month card (spent, came in, number of transactions) with arrows to step through months. Its totals follow the
@@ -362,7 +387,8 @@ changes, and what's worked out from it (bills, spending by month, balances, the 
 index) is computed once and shared until its inputs change.
 
 Stack: Vite, Preact, TypeScript, Dexie (IndexedDB), vite-plugin-pwa (offline service worker), Papa Parse.
-A strict Content-Security-Policy (`connect-src 'self'`) prevents the app from sending data to any other server.
+A strict Content-Security-Policy (`connect-src 'self' https://api.twelvedata.com`) prevents the app from sending
+data to any other server; the price service gets ticker symbols only, and only once you add your own key.
 
 Every push runs the unit tests, the browser tests and the real-AI smoke test; pushing to `main` then deploys to
 GitHub Pages (see `.github/workflows/deploy.yml`). A failing browser test stops the deploy.

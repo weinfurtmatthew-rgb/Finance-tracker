@@ -74,6 +74,13 @@ export interface Account {
   contributionRate?: number;
   employerMatch?: number;
   employerMatchUpTo?: number;
+  /**
+   * Investment accounts with holdings (see lib/holdings.ts): the cash in the account as your brokerage
+   * showed it on a day (trades and dividends move it from there), and the tickers whose dividends are
+   * paid out as cash instead of buying more shares.
+   */
+  cash?: { amount: Cents; date: ISODate };
+  cashDividends?: string[];
   /** A hidden account that still counts in net worth history before this day (a CD you cashed out). */
   closedOn?: ISODate;
   /** Last day the balance was confirmed to match the bank's. */
@@ -241,6 +248,39 @@ export interface Valuation {
   accountId: string;
   date: ISODate;
   value: Cents;
+}
+
+/**
+ * Buying or selling a stock, ETF or fund in an investment account (see lib/holdings.ts). You say how
+ * much and when; the shares come from that day's price unless you give them.
+ */
+export interface Trade {
+  id: string;
+  accountId: string;
+  /** Upper case, as the price service knows it: "VTI", "BRK.B". */
+  ticker: string;
+  date: ISODate;
+  kind: 'buy' | 'sell';
+  /** What it cost, or what the sale brought in (always positive). */
+  amount: Cents;
+  /** Shares as they were that day (before later splits). Without them, amount ÷ that day's close. */
+  shares?: number;
+  /** A sale of every share held then. */
+  all?: boolean;
+  /** Paid for with the account's cash (a buy), or the money stayed in it as cash (a sale). */
+  cash?: boolean;
+  source: 'manual' | 'import';
+  createdAt: number;
+}
+
+/** What the app knows about a ticker you hold. */
+export interface Security {
+  ticker: string;
+  name: string;
+  /** "Common Stock", "ETF", "Mutual Fund"… */
+  type?: string;
+  /** Prices you typed in, per share as it traded that day: for ones the price service doesn't have. */
+  manualPrices?: { date: ISODate; price: number }[];
 }
 
 /** Save up to `target` in a linked account, optionally by a date. */

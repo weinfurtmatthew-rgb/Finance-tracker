@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { expect, test } from './helpers';
+import { mockTwelveData, MOCK_KEY } from './prices';
 
 /** What axe finds on the page right now, as "rule: element" lines (empty when clean). */
 async function problems(page: Page) {
@@ -72,4 +73,45 @@ test('the sheets opened from Browse are accessible too', async ({ app, page }) =
     expect(await problems(page), card).toEqual([]);
     expect(await overflow(page), `${card}: sideways overflow`).toEqual([]);
   }
+});
+
+test('the stock sheets are accessible too', async ({ app, page }) => {
+  await mockTwelveData(page, [
+    { ticker: 'VTI', name: 'Vanguard Total Stock Market Index Fund ETF', type: 'ETF', exchange: 'NYSE', price: (i) => 240 + 0.1 * i },
+  ]);
+  await page.reload();
+  const check = async (where: string) => {
+    await page.waitForTimeout(400);
+    expect(await problems(page), where).toEqual([]);
+    expect(await overflow(page), `${where}: sideways overflow`).toEqual([]);
+  };
+  await app.tab('Net Worth');
+  await page
+    .getByRole('button', { name: /^Add (account|Account)$/ })
+    .first()
+    .click();
+  await app.field('Name').locator('input').fill('Brokerage');
+  await app.field('Type').locator('select').selectOption('brokerage');
+  await app.sheet().getByRole('button', { name: 'Save' }).click();
+  await app.closeSheets();
+  await page.locator('.row', { hasText: 'Brokerage' }).first().click();
+  await app.sheet().getByRole('button', { name: 'Turn On Stock Prices' }).click();
+  await check('Stock Prices');
+  await app.field('API key').locator('input').fill(MOCK_KEY);
+  await app.sheet().getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('.toast')).toHaveText('Stock prices on');
+  await check('Stock Prices (on)');
+  await app.sheet().locator('.sheet-header button').first().click();
+  await app.sheet().getByRole('button', { name: 'Add a Stock, ETF or Fund' }).click();
+  await app.field('Ticker').locator('input').fill('vti');
+  await app.sheet().locator('.row', { hasText: 'Vanguard Total Stock Market' }).click();
+  await app.field('Amount').locator('input').fill('1000');
+  await app.field('Date').locator('input').fill('2026-01-05');
+  await expect(app.sheet()).toContainText('the close on Jan 5');
+  await check('Add Holding');
+  await app.sheet().getByRole('button', { name: 'Save' }).click();
+  await expect(app.sheet().locator('.holding-row', { hasText: 'VTI' })).toBeVisible();
+  await check('Account with holdings');
+  await app.sheet().locator('.holding-row', { hasText: 'VTI' }).click();
+  await check('Holding');
 });

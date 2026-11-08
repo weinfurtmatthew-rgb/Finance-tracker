@@ -17,6 +17,7 @@ import { SetPasscode } from './Lock';
 import { CategoriesSheet } from './Categories';
 import { RulesSheet } from './Rules';
 import { AiSettings } from '../components/AiSettings';
+import { StockPricesRow } from './StockPrices';
 import { DEFAULT_SETTINGS, type PriceAlertRule } from '../lib/recurring';
 import type { AmountMode } from '../types';
 
@@ -180,9 +181,14 @@ function Settings() {
         />
       </Section>
 
+      <StockPricesRow />
+
       <AiSettings />
 
-      <Section title="Storage" footer="Stored in this browser's private database on your iPhone. Nothing is uploaded; the app has no server.">
+      <Section
+        title="Storage"
+        footer="Stored in this browser's private database on your iPhone. Nothing is uploaded; the app has no server. With stock prices on, only ticker symbols are sent, to Twelve Data."
+      >
         <Row title="Transactions" detail={txns.length.toLocaleString()} chevron={false} />
         {usage && <Row title="Space Used" detail={usage} chevron={false} />}
         <Row title="Erase All Data" danger chevron={false} onClick={() => setAsk('erase')} />

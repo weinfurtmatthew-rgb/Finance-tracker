@@ -1,6 +1,7 @@
 import { useStore } from './store';
 import type { Account, Category, Goal, Rule, Transaction, Valuation } from './types';
 import { makeBook } from './lib/networth';
+import { useHoldings } from './portfolioModel';
 
 // All of these read the app's shared copy of the data (see store.tsx); none of them query the database.
 
@@ -49,11 +50,12 @@ export function useLoaded() {
   return { accounts, transactions, categories, lastAccountId: s.meta.get('lastManualAccount') as string | undefined };
 }
 
-/** Balances over time (transactions + values you entered), shared by Net Worth, Today and goals. */
+/** Balances over time (transactions, values you entered and holdings), shared by Net Worth, Today and goals. */
 export function useBook() {
   const s = useStore();
   const accounts = s.raw.accounts ?? EMPTY;
   const txns = s.raw.transactions ?? EMPTY;
   const valuations = s.raw.valuations ?? EMPTY;
-  return s.derive('book', [accounts, txns, valuations], () => makeBook(accounts, txns, valuations));
+  const holdings = useHoldings();
+  return s.derive('book', [accounts, txns, valuations, holdings], () => makeBook(accounts, txns, valuations, holdings));
 }

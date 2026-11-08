@@ -125,7 +125,10 @@ export function ContributionSheet(props: { accountId?: string; year?: number; on
   const valid = !!accountId && cents != null && cents > 0 && !!date && date <= todayISO();
   const room = iraRoom(year, txns, birthYear);
   // The value you last entered already includes what went in by that day; later contributions add to it.
-  const last = useBook().values.get(accountId)?.at(-1);
+  // An IRA with holdings is worth what they are: a contribution is money to buy them with.
+  const book = useBook();
+  const last = book.values.get(accountId)?.at(-1);
+  const hasHoldings = book.holdings.has(accountId);
 
   const save = async () => {
     if (!valid) return;
@@ -162,11 +165,19 @@ export function ContributionSheet(props: { accountId?: string; year?: number; on
         footer={
           <>
             {year}: {whole(room.contributed)} of {whole(room.limit)} in so far, across your IRAs. Deadline {formatDate(room.deadline)}.
-            {last && date && (
+            {hasHoldings ? (
               <>
                 <br />
-                {date <= last.date ? 'Already counted in' : 'Adds to'} the {whole(last.value)} value from {formatDate(last.date)}.
+                Its value comes from its holdings: add what this buys on the IRA’s page.
               </>
+            ) : (
+              last &&
+              date && (
+                <>
+                  <br />
+                  {date <= last.date ? 'Already counted in' : 'Adds to'} the {whole(last.value)} value from {formatDate(last.date)}.
+                </>
+              )
             )}
           </>
         }

@@ -4,6 +4,7 @@ import { cdValueOn } from './cd';
 import { isIra } from './ira';
 import { is401k } from './k401';
 import { isLiability } from './balances';
+import { holdingsValueOn, type Holdings } from './holdings';
 
 /** Accounts whose balance is a value you enter (market or resale value), not the sum of transactions. */
 export const isValued = (a: Pick<Account, 'type'>) => a.type === 'brokerage' || a.type === 'vehicle' || isIra(a) || is401k(a);
@@ -19,9 +20,11 @@ export interface BalanceBook {
   values: Map<string, Valuation[]>;
   /** Per IRA: contributions sorted by date, with running totals (added on top of the last value). */
   contributions: Map<string, { dates: ISODate[]; totals: Cents[] }>;
+  /** Investment accounts with stocks and funds in them: their value comes from those (lib/holdings.ts). */
+  holdings: Map<string, Holdings>;
 }
 
-export function makeBook(accounts: Account[], txns: Transaction[], valuations: Valuation[]): BalanceBook {
+export function makeBook(accounts: Account[], txns: Transaction[], valuations: Valuation[], holdings: Map<string, Holdings> = new Map()): BalanceBook {
   const byAcct = new Map<string, Transaction[]>();
   // Appending (not copying the list for every transaction) keeps this linear: years of history are thousands of rows.
   for (const t of txns) {
@@ -46,7 +49,7 @@ export function makeBook(accounts: Account[], txns: Transaction[], valuations: V
     else values.set(v.accountId, [v]);
   }
   for (const list of values.values()) list.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-  return { accounts, running, values, contributions };
+  return { accounts, running, values, contributions, holdings };
 }
 
 /** Index of the last element <= date (binary search), or -1. */
@@ -68,11 +71,24 @@ function lastOnOrBefore(dates: ISODate[], date: ISODate): number {
  * Balance of an account at the end of `date` (or now). Investments and vehicles use the latest value
  * you entered on or before that day; before the first value, that first value is used (so history
  * doesn't show a fake jump the day you start tracking). CDs grow on their own from their deposit.
+ * An investment account with holdings is worth its holdings and cash from its first trade on.
  */
 export function balanceOn(book: BalanceBook, a: Account, date?: ISODate): Cents {
   const vals = book.values.get(a.id);
   // A cashed-out CD: the money moved on the day it closed.
   if (a.closedOn && (date ?? todayISO()) >= a.closedOn) return 0;
+  const hs = book.holdings.get(a.id);
+  if (hs) {
+    if (!date || date >= hs.first) return holdingsValueOn(hs, date);
+    // Before its first trade: a value you'd entered for it then, if any.
+    const i = vals?.length
+      ? lastOnOrBefore(
+          vals.map((v) => v.date),
+          date,
+        )
+      : -1;
+    return i >= 0 ? vals![i].value : 0;
+  }
   if (a.type === 'cd' && vals?.length) return cdValueOn(a, vals, date ?? todayISO());
   // IRAs: the last value you entered, plus what you've contributed since.
   if (isIra(a)) {
@@ -144,6 +160,7 @@ export function historyStart(book: BalanceBook): ISODate | undefined {
   let first: ISODate | undefined;
   for (const r of book.running.values()) if (r.dates.length && (!first || r.dates[0] < first)) first = r.dates[0];
   for (const v of book.values.values()) if (v.length && (!first || v[0].date < first)) first = v[0].date;
+  for (const h of book.holdings.values()) if (!first || h.first < first) first = h.first;
   return first;
 }
 
@@ -191,7 +208,8 @@ export function changeSince(book: BalanceBook, since: ISODate): { total: Cents; 
 
 export function staleValued(book: BalanceBook, today: ISODate): Account[] {
   return book.accounts.filter((a) => {
-    if (a.archived || !isValued(a)) return false;
+    // Holdings are valued from their prices.
+    if (a.archived || !isValued(a) || book.holdings.has(a.id)) return false;
     const vals = book.values.get(a.id);
     return !vals?.length || diffDays(vals[vals.length - 1].date, today) > VALUE_STALE_DAYS;
   });

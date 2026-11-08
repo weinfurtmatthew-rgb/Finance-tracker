@@ -4420,3 +4420,43 @@ html.app-hidden *::after {
 .accent-swatch[data-swatch='graphite'] {
   background: #3d4351;
 }
+
+/* Holdings in an investment account */
+.holding-title {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.holding-title b {
+  flex: none;
+  font-weight: 700;
+}
+.holding-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-2);
+}
+.holding-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+.holding-detail .money {
+  color: var(--text);
+  font-weight: 600;
+}
+.button-pair {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 10px;
+  margin-top: 16px;
+}
+.row.row-note {
+  font-size: 14px;
+  color: var(--text-2);
+  white-space: normal;
+}

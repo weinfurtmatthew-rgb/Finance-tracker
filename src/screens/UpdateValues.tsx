@@ -16,7 +16,8 @@ export function UpdateValues(props: { onClose: () => void }) {
 
 function Form(props: { book: BalanceBook; onClose: () => void }) {
   const nav = useNav();
-  const accounts = props.book.accounts.filter((a) => isValued(a) && !a.archived);
+  // Accounts with holdings are valued from their prices.
+  const accounts = props.book.accounts.filter((a) => isValued(a) && !a.archived && !props.book.holdings.has(a.id));
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(accounts.map((a) => [a.id, (balanceOn(props.book, a) / 100).toFixed(2)])),
   );

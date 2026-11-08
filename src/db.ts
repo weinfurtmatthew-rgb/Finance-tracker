@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie';
-import type { Account, Budget, Category, CsvMapping, Goal, MetaEntry, Recurring, Rule, Transaction, Valuation } from './types';
+import type { Account, Budget, Category, CsvMapping, Goal, MetaEntry, Recurring, Rule, Security, Trade, Transaction, Valuation } from './types';
+import type { PriceHistory } from './lib/prices';
 import { ADDED_IN_V6, CARD_PAYMENT, DEFAULT_CATEGORIES, TRANSFER } from './lib/categories';
 import { keywordCategory } from './lib/categorize';
 
@@ -14,6 +15,10 @@ export class FinanceDB extends Dexie {
   budgets!: Table<Budget, string>;
   valuations!: Table<Valuation, string>;
   goals!: Table<Goal, string>;
+  trades!: Table<Trade, string>;
+  securities!: Table<Security, string>;
+  /** Downloaded prices (not backed up: they're downloaded again). */
+  priceCache!: Table<PriceHistory, string>;
 
   constructor(name = 'finance-tracker') {
     super(name);
@@ -68,6 +73,12 @@ export class FinanceDB extends Dexie {
         // Charity has its own category now; rename "Gifts & Donations" unless you renamed it yourself.
         await table.filter((c: Category) => c.id === 'gifts' && c.name === 'Gifts & Donations').modify({ name: 'Gifts' });
       });
+    // v7: stocks, ETFs and funds held in investment accounts, and their prices.
+    this.version(7).stores({
+      trades: 'id, accountId, ticker, date',
+      securities: 'ticker',
+      priceCache: 'ticker',
+    });
     this.on('populate', (tx) => {
       tx.table('categories').bulkAdd(DEFAULT_CATEGORIES);
     });

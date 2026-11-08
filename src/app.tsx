@@ -24,6 +24,7 @@ import { Ambient } from './components/Ambient';
 import { IntroContext } from './components/motion';
 import { applyAccent, type Accent } from './lib/appearance';
 import { Celebration } from './components/Celebration';
+import { usePriceUpdates } from './priceSync';
 
 const TABS: { id: Tab; label: string; glyph: GlyphName }[] = [
   { id: 'home', label: 'Today', glyph: 'today' },
@@ -108,6 +109,8 @@ export function App() {
 
   // The offline service worker; a new version waits for a moment that won't interrupt you.
   useQuietUpdates(sheets.length > 0 || locked !== false, tab);
+  // Stock prices, while the app is open and unlocked (with a price key).
+  usePriceUpdates(locked === false && !!lockState && !lockState.needsIntro);
 
   const toast = useCallback((message: string) => {
     setToastMsg(message);

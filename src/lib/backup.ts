@@ -1,15 +1,15 @@
 import type { FinanceDB } from '../db';
 
 export const BACKUP_FORMAT = 'finance-tracker-backup';
-export const BACKUP_VERSION = 4;
+export const BACKUP_VERSION = 5;
 
-/** Settings that stay on this device and are never written to a backup file. */
-const LOCAL_ONLY_META = new Set(['passcode', 'whatsNewSeen']);
+/** Settings that stay on this device and are never written to a backup file (a key is a password). */
+const LOCAL_ONLY_META = new Set(['passcode', 'whatsNewSeen', 'twelveDataKey' /* TWELVE_DATA_KEY */]);
 /** Saved locally but not worth carrying in a backup (a restore clears them along with the rest). */
 const NOT_BACKED_UP = new Set([...LOCAL_ONLY_META, 'importUndo' /* IMPORT_UNDO_KEY */]);
 
 export async function exportBackup(db: FinanceDB): Promise<string> {
-  const [accounts, transactions, categories, rules, csvMappings, meta, recurring, budgets, valuations, goals] = await Promise.all([
+  const [accounts, transactions, categories, rules, csvMappings, meta, recurring, budgets, valuations, goals, trades, securities] = await Promise.all([
     db.accounts.toArray(),
     db.transactions.toArray(),
     db.categories.toArray(),
@@ -20,12 +20,28 @@ export async function exportBackup(db: FinanceDB): Promise<string> {
     db.budgets.toArray(),
     db.valuations.toArray(),
     db.goals.toArray(),
+    db.trades.toArray(),
+    db.securities.toArray(),
   ]);
   return JSON.stringify({
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
-    data: { accounts, transactions, categories, rules, csvMappings, recurring, budgets, valuations, goals, meta: meta.filter((m) => !NOT_BACKED_UP.has(m.key)) },
+    // Downloaded prices aren't included: they're downloaded again.
+    data: {
+      accounts,
+      transactions,
+      categories,
+      rules,
+      csvMappings,
+      recurring,
+      budgets,
+      valuations,
+      goals,
+      trades,
+      securities,
+      meta: meta.filter((m) => !NOT_BACKED_UP.has(m.key)),
+    },
   });
 }
 
@@ -46,6 +62,8 @@ function validate(json: any) {
   d.budgets ??= []; // ...and versions 1-2 had no budgets
   d.valuations ??= []; // ...and versions 1-3 had no values or goals
   d.goals ??= [];
+  d.trades ??= []; // ...and versions 1-4 had no stocks
+  d.securities ??= [];
   return json;
 }
 
@@ -57,8 +75,9 @@ export function summarizeBackup(text: string): BackupSummary {
 /** Replace everything on this device with the backup's contents (the passcode is kept). */
 export async function restoreBackup(db: FinanceDB, text: string): Promise<void> {
   const { data } = validate(JSON.parse(text));
-  await db.transaction('rw', [db.accounts, db.transactions, db.categories, db.rules, db.csvMappings, db.meta, db.recurring, db.budgets, db.valuations, db.goals], async () => {
-    await Promise.all([db.accounts.clear(), db.transactions.clear(), db.categories.clear(), db.rules.clear(), db.csvMappings.clear(), db.recurring.clear(), db.budgets.clear(), db.valuations.clear(), db.goals.clear()]);
+  const tables = [db.accounts, db.transactions, db.categories, db.rules, db.csvMappings, db.meta, db.recurring, db.budgets, db.valuations, db.goals, db.trades, db.securities];
+  await db.transaction('rw', tables, async () => {
+    await Promise.all(tables.filter((t) => t !== db.meta).map((t) => t.clear()));
     const meta = await db.meta.toArray();
     await db.meta.bulkDelete(meta.filter((m) => !LOCAL_ONLY_META.has(m.key)).map((m) => m.key));
     await db.accounts.bulkAdd(data.accounts);
@@ -70,6 +89,8 @@ export async function restoreBackup(db: FinanceDB, text: string): Promise<void> 
     await db.budgets.bulkAdd(data.budgets);
     await db.valuations.bulkAdd(data.valuations);
     await db.goals.bulkAdd(data.goals);
+    await db.trades.bulkAdd(data.trades);
+    await db.securities.bulkAdd(data.securities);
     await db.meta.bulkPut(data.meta.filter((m: { key: string }) => !LOCAL_ONLY_META.has(m.key)));
   });
 }

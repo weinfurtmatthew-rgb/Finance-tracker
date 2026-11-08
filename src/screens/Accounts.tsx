@@ -25,6 +25,7 @@ import { AccountEditor } from './AccountEditor';
 import { AccountDetail } from './AccountDetail';
 import { ImportFlow } from '../lazy';
 import { UpdateValues } from './UpdateValues';
+import { holdingsSummary } from './Holdings';
 import { GoalEditor } from './GoalEditor';
 
 /** How a retirement account is described in its row. */
@@ -160,6 +161,8 @@ export function Accounts() {
     const stage = a.type === 'cd' ? cdStage(a, today) : null;
     // An IRA: what's gone in since you last entered its value.
     const since = isIra(a) && lastVal ? contributedAfter(book, a.id, lastVal.date) : 0;
+    // Holdings: valued from their prices.
+    const hs = book.holdings.get(a.id);
     return (
       <Row
         title={a.name}
@@ -167,16 +170,25 @@ export function Accounts() {
           stage
             ? [apyLabel(a.apy), stage === 'matured' ? `matured ${formatDate(a.maturesOn!)}` : `matures ${formatDate(a.maturesOn!)}`].filter(Boolean).join(' · ')
             : isIra(a) || is401k(a)
-              ? [RETIREMENT_KIND[a.type], lastVal ? `updated ${formatShortDate(lastVal.date)}` : 'value not set', since > 0 && `+${formatMoney(since, { whole: true })} since`]
+              ? (hs
+                  ? [RETIREMENT_KIND[a.type], holdingsSummary(hs)]
+                  : [
+                      RETIREMENT_KIND[a.type],
+                      lastVal ? `updated ${formatShortDate(lastVal.date)}` : 'value not set',
+                      since > 0 && `+${formatMoney(since, { whole: true })} since`,
+                    ]
+                )
                   .filter(Boolean)
                   .join(' · ')
-              : valued
-                ? lastVal
-                  ? `Value updated ${formatShortDate(lastVal.date)}`
-                  : 'Value not set yet'
-                : [a.institution, a.last4 && `•••• ${a.last4}`, `${counts.get(a.id) ?? 0} transactions`, a.checkedOn && `✓ ${formatShortDate(a.checkedOn)}`]
-                    .filter(Boolean)
-                    .join(' · ')
+              : hs
+                ? holdingsSummary(hs)
+                : valued
+                  ? lastVal
+                    ? `Value updated ${formatShortDate(lastVal.date)}`
+                    : 'Value not set yet'
+                  : [a.institution, a.last4 && `•••• ${a.last4}`, `${counts.get(a.id) ?? 0} transactions`, a.checkedOn && `✓ ${formatShortDate(a.checkedOn)}`]
+                      .filter(Boolean)
+                      .join(' · ')
         }
         detail={<Money cents={isLiability(a) ? -b : b} />}
         onClick={() => nav.present((close) => <AccountDetail account={a} onClose={close} />)}
@@ -253,7 +265,9 @@ export function Accounts() {
               ]}
             />
           )}
-          <p class="section-footer">Investment and vehicle values before your first update are shown at that first value.</p>
+          {open.some((a) => isValued(a) && !book.holdings.has(a.id)) && (
+            <p class="section-footer">Investment and vehicle values before your first update are shown at that first value.</p>
+          )}
 
           {change.accounts.length > 0 && (
             <Section title={`Change since ${formatShortDate(lastMonthEnd)}`}>
@@ -313,7 +327,7 @@ export function Accounts() {
               </Section>
             );
           })}
-          {open.some(isValued) && (
+          {open.some((a) => isValued(a) && !book.holdings.has(a.id)) && (
             <Section>
               <button type="button" class="row link-row" onClick={() => nav.present((close) => <UpdateValues onClose={close} />)}>
                 Update Investment &amp; Vehicle Values

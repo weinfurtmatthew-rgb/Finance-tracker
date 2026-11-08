@@ -10,7 +10,8 @@ import { createContext, type ComponentChildren } from 'preact';
 import { useContext, useEffect, useMemo, useState } from 'preact/hooks';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from './db';
-import type { Account, Budget, Category, Goal, Recurring, Rule, Transaction, Valuation } from './types';
+import type { Account, Budget, Category, Goal, Recurring, Rule, Security, Trade, Transaction, Valuation } from './types';
+import type { PriceHistory } from './lib/prices';
 import { todayISO } from './lib/dates';
 
 export interface Tables {
@@ -22,6 +23,9 @@ export interface Tables {
   recurring: Recurring[];
   budgets: Budget[];
   goals: Goal[];
+  trades: Trade[];
+  securities: Security[];
+  priceCache: PriceHistory[];
 }
 
 export interface Store {
@@ -66,6 +70,9 @@ export function DataProvider(props: { children: ComponentChildren }) {
   const recurring = useLiveQuery(() => db.recurring.orderBy('id').toArray(), []);
   const budgets = useLiveQuery(() => db.budgets.toArray(), []);
   const goals = useLiveQuery(() => db.goals.orderBy('id').toArray(), []);
+  const trades = useLiveQuery(() => db.trades.toArray(), []);
+  const securities = useLiveQuery(() => db.securities.toArray(), []);
+  const priceCache = useLiveQuery(() => db.priceCache.toArray(), []);
   const metaRows = useLiveQuery(() => db.meta.toArray(), []);
   const today = useToday();
   // Lives for the whole app: computed values are kept per key with the inputs they came from.
@@ -73,7 +80,7 @@ export function DataProvider(props: { children: ComponentChildren }) {
 
   const meta = useMemo(() => (metaRows ? new Map(metaRows.map((m) => [m.key, m.value])) : undefined), [metaRows]);
   const store = useMemo<Store>(() => {
-    const raw = { accounts, transactions, categories, rules, valuations, recurring, budgets, goals };
+    const raw = { accounts, transactions, categories, rules, valuations, recurring, budgets, goals, trades, securities, priceCache };
     return {
       raw,
       meta,
@@ -87,7 +94,7 @@ export function DataProvider(props: { children: ComponentChildren }) {
         return value;
       },
     };
-  }, [accounts, transactions, categories, rules, valuations, recurring, budgets, goals, meta, today]);
+  }, [accounts, transactions, categories, rules, valuations, recurring, budgets, goals, trades, securities, priceCache, meta, today]);
 
   return <StoreContext.Provider value={store}>{props.children}</StoreContext.Provider>;
 }
