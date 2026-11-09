@@ -283,6 +283,11 @@ them to try a what-if. Results are estimates, not advice.
   share or the whole place on a colored band. Type a listing's rent for a verdict and a bar of where your take-home
   goes. Enter your gross salary for the landlord check (40× rent). Ask "what rent can I afford?" or "can I afford
   $1,400 rent?"
+- **Mortgage calculator** (`src/lib/mortgage.ts`): a home's monthly cost (principal and interest for 30, 20 or 15
+  years, property tax, insurance, PMI under 20% down until the loan is 78% of the price, and HOA), the interest over the
+  loan and when it's paid off, against your take-home pay (28% comfortable, over 36% a stretch) and your housing now.
+  Before you enter a price, the price that fits 28% of take-home pay. Cash to buy (down payment and closing costs) and
+  what's left, and how paying extra each month shortens the loan
 - **Debt payoff:** avalanche (highest APR first) vs snowball (smallest balance first) with extra payments, payoff
   dates, total interest and a chart. Set each card's APR and minimum on the account; otherwise typical values are used
 - **True cost of a habit:** pick a subscription or a place you go often; what it costs over 1–30 years vs investing it

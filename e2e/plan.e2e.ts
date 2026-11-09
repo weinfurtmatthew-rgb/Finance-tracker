@@ -4,6 +4,7 @@ const CALCULATORS = [
   'Emergency fund',
   'Can I afford it?',
   'Rent calculator',
+  'Mortgage calculator',
   'Debt payoff',
   'True cost of a habit',
   'Savings growth',
@@ -91,4 +92,29 @@ test('rent calculator: ranges, roommates, a listing and the landlord check @smok
   await expect(app.sheet().locator('.hero-card')).toContainText('Expensive');
   await expect(app.sheet().locator('.takehome-legend')).toContainText('Saving $600');
   await app.sheet().locator('.takehome').screenshot({ path: `test-results/rent-takehome-${test.info().project.name}.png` });
+});
+
+test('mortgage calculator: the monthly cost, PMI under 20% down, paying extra, and cash to buy', async ({ app }) => {
+  await app.importAll();
+  await app.openPlan();
+  await app.sheet().locator('.row', { hasText: 'Mortgage calculator' }).click();
+  // Before a price: the price that fits 28% of take-home pay.
+  await expect(app.sheet().locator('.hero-card')).toContainText('A price that fits');
+  // $500,000 with 20% down at 6.5% for 30 years: $2,528 principal and interest, $458 tax, $167 insurance.
+  await app.field('Home price').locator('input').fill('500000');
+  await expect(app.sheet().locator('.hero-card')).toContainText('$3,153');
+  await expect(app.sheet().locator('.hero-card')).toContainText('$2,528 principal & interest');
+  await expect(app.sheet().locator('.status-badge')).toContainText('of your take-home pay');
+  await expect(app.sheet().locator('.kpis')).toContainText('$400K');
+  const month = app.sheet().locator('.section', { hasText: 'Principal & interest' });
+  await expect(month.locator('.row', { hasText: 'Property tax' })).toContainText('$458');
+  await expect(month.locator('.row', { hasText: 'PMI' })).toHaveCount(0);
+  // 10% down: PMI, until the loan is 78% of the price.
+  await app.field('Down payment').locator('input').fill('10');
+  await expect(month.locator('.row', { hasText: 'PMI' })).toContainText('$188');
+  await expect(month).toContainText('PMI stops once you owe 78% of the price');
+  await expect(app.sheet().locator('.section', { hasText: 'Cash to buy' }).locator('.row', { hasText: 'Down payment' })).toContainText('$50,000');
+  // $500 extra a month pays it off years sooner.
+  await app.field('Extra / month').locator('input').fill('500');
+  await expect(app.sheet().locator('.section', { hasText: 'Pay extra' })).toContainText(/Paid off [\d.]+ years sooner, with \$[\d,]+ less interest\./);
 });

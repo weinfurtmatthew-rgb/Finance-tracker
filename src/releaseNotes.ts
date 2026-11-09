@@ -13,6 +13,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-09',
+    date: 'November 9, 2026',
+    title: 'Mortgage calculator',
+    items: [
+      'Plan has a mortgage calculator: a home’s monthly cost with property tax, insurance, PMI and HOA, and what it is next to your take-home pay and your rent now.',
+      'See the price that fits your budget, the cash you’d need to buy, and how paying a little extra each month shortens the loan.',
+    ],
+  },
+  {
     id: '2026-11-08e',
     date: 'November 8, 2026',
     title: 'Taxes, and what’s worth a look',
