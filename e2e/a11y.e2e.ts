@@ -73,6 +73,14 @@ test('the sheets opened from Browse are accessible too', async ({ app, page }) =
     expect(await problems(page), card).toEqual([]);
     expect(await overflow(page), `${card}: sideways overflow`).toEqual([]);
   }
+  await app.closeSheets();
+  await app.openPlan();
+  await app.sheet().locator('.row', { hasText: 'Mortgage calculator' }).click();
+  await app.field('Home price').locator('input').fill('450000');
+  await app.field('Down payment').locator('input').fill('10');
+  await page.waitForTimeout(400);
+  expect(await problems(page), 'Mortgage').toEqual([]);
+  expect(await overflow(page), 'Mortgage: sideways overflow').toEqual([]);
 });
 
 test('the stock sheets are accessible too', async ({ app, page }) => {

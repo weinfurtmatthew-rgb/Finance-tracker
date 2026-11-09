@@ -14,6 +14,7 @@ import { GrowthCalc } from './Growth';
 import { RetirementCalc, useRetirementTotals } from './Retirement';
 import { RecapPage } from '../Recap';
 import { RentCalc, defaultSavingsGoal, otherCostsFrom } from './Rent';
+import { MortgageCalc } from './Mortgage';
 import { rentLimits } from '../../lib/rent';
 
 /** The calculators, each starting from your real numbers. */
@@ -87,6 +88,12 @@ export function Plan(props: { onClose: () => void }) {
           title="Rent calculator"
           subtitle={rentOk > 0 ? `Acceptable rent for you: up to ${money(rentOk)}/mo · roommates too` : 'Cheap, acceptable and expensive rent for you'}
           onClick={() => open((close) => <RentCalc data={d} onClose={close} />)}
+        />
+        <Row
+          icon={<IconChip name="key" hue="aqua" size="sm" />}
+          title="Mortgage calculator"
+          subtitle="A home's monthly cost, with taxes, insurance and PMI, against your budget"
+          onClick={() => open((close) => <MortgageCalc data={d} onClose={close} />)}
         />
         <Row
           icon={<IconChip name="card" hue="orange" size="sm" />}
