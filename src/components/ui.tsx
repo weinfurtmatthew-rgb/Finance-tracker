@@ -111,7 +111,9 @@ export function Money(props: { cents: Cents; colored?: boolean; whole?: boolean;
   );
 }
 
-function LookIcon(props: { look: Look; size?: 'sm' | 'md' | 'lg' }) {
+type IconSize = 'xs' | 'sm' | 'md' | 'lg';
+
+function LookIcon(props: { look: Look; size?: IconSize }) {
   const { look } = props;
   return (
     <span class={`cat-icon ${'glyph' in look ? 'icon-chip' : 'emoji-chip'} ${props.size ?? 'md'}`} style={{ background: look.background }} aria-hidden="true">
@@ -121,12 +123,30 @@ function LookIcon(props: { look: Look; size?: 'sm' | 'md' | 'lg' }) {
 }
 
 /** A category's icon: a line icon on a colored chip for built-in categories, or its emoji. */
-export function CategoryIcon(props: { category?: Category; size?: 'sm' | 'md' | 'lg' }) {
+export function CategoryIcon(props: { category?: Category; size?: IconSize }) {
   return <LookIcon look={categoryLook(props.category)} size={props.size} />;
 }
 
+/** A category's small icon and its name on one line, for lists, bars and buttons. */
+export function CategoryLabel(props: { category?: Category; fallback?: string }) {
+  return (
+    <span class="cat-label">
+      <CategoryIcon category={props.category} size="xs" />
+      <span class="cat-label-name">{props.category?.name ?? props.fallback ?? 'Unknown'}</span>
+    </span>
+  );
+}
+
+/**
+ * A category's name where only text fits (a native picker's options, a subtitle): built-in categories
+ * are drawn with a line icon elsewhere, so here it's the name alone; ones you made keep their emoji.
+ */
+export function categoryText(c: Category): string {
+  return 'glyph' in categoryLook(c) || !c.emoji ? c.name : `${c.emoji} ${c.name}`;
+}
+
 /** The icon for a kind of recurring item (subscription, bill…) that has no category. */
-export function KindIcon(props: { kind: RecurringKind; size?: 'sm' | 'md' | 'lg' }) {
+export function KindIcon(props: { kind: RecurringKind; size?: IconSize }) {
   return <LookIcon look={kindLook(props.kind)} size={props.size} />;
 }
 
@@ -217,9 +237,7 @@ export function CategorySelect(props: {
           {categories
             .filter((c) => c.group === group && (!c.hidden || c.id === value))
             .map((c) => (
-              <option value={c.id}>
-                {c.emoji} {c.name}
-              </option>
+              <option value={c.id}>{categoryText(c)}</option>
             ))}
         </optgroup>
       ))}

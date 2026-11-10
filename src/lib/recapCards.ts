@@ -58,7 +58,7 @@ export function recapCards(r: Recap, cats: Map<string, Category>): RecapCard[] {
       kicker: 'Where it went',
       big: catName(first.id),
       sub: `${money(first.value)} · ${pct(first.share)} of your spending`,
-      lines: r.topCategories.slice(1, 5).map((c, i) => `${i + 2}. ${catEmoji(c.id)} ${c.label} · ${money(c.value)}`),
+      lines: r.topCategories.slice(1, 5).map((c, i) => `${i + 2}. ${c.label} · ${money(c.value)}`),
       theme: 'orange',
     });
   }
@@ -221,8 +221,8 @@ export function recapCards(r: Recap, cats: Map<string, Category>): RecapCard[] {
       big: `${diff >= 0 ? '+' : '−'}${money(Math.abs(diff))}`,
       sub: `${money(r.spent)} vs ${money(v.spentBefore)} over the same dates`,
       lines: [
-        ...v.up.slice(0, 2).map((c) => `More on ${catEmoji(c.id)} ${c.label}: +${money(c.value)}`),
-        ...v.down.slice(0, 2).map((c) => `Less on ${catEmoji(c.id)} ${c.label}: −${money(-c.value)}`),
+        ...v.up.slice(0, 2).map((c) => `More on ${c.label}: +${money(c.value)}`),
+        ...v.down.slice(0, 2).map((c) => `Less on ${c.label}: −${money(-c.value)}`),
       ],
       theme: 'orange',
     });

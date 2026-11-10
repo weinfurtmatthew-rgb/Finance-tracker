@@ -7,7 +7,7 @@ import { last12Months, yearPeriod, type Recap, type RecapPeriod } from '../lib/r
 import { recapCards, type RecapCard } from '../lib/recapCards';
 import { formatMoney } from '../lib/money';
 import { useRecap, useRecapYears } from '../recapModel';
-import { Section, Sheet } from '../components/ui';
+import { CategoryLabel, Section, Sheet } from '../components/ui';
 import { ColumnChart, RankedBars } from '../components/charts';
 
 /** Choices for the period: this year so far, the last 12 months, and each earlier year with data. */
@@ -141,7 +141,7 @@ export function RecapPage(props: { onClose: () => void; initialKey?: string }) {
                       key: t.id,
                       label: (
                         <>
-                          <span aria-hidden="true">{cats.get(t.id)?.emoji}</span> {t.label}
+                          <CategoryLabel category={cats.get(t.id)} fallback={t.label} />
                         </>
                       ),
                       value: t.value,

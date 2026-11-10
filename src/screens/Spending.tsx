@@ -11,7 +11,7 @@ import { formatMoney } from '../lib/money';
 import { budgetProgress, monthElapsed, monthSpent } from '../lib/budgets';
 import { billsShown, isBillCategory } from '../lib/spend';
 import { countsAsCost } from '../lib/recurring';
-import { Money, Section } from '../components/ui';
+import { CategoryLabel, Money, Section } from '../components/ui';
 import { ColumnChart, RankedBars, compactMoney } from '../components/charts';
 import { BudgetMeter, budgetStatusText } from '../components/BudgetMeter';
 import { SummaryCard } from '../components/SummaryCard';
@@ -209,11 +209,7 @@ export function Spending() {
               <RankedBars
                 items={where.map(([id, v]) => ({
                   key: id,
-                  label: (
-                    <>
-                      <span aria-hidden="true">{cats.get(id)?.emoji}</span> {cats.get(id)?.name ?? 'Unknown'}
-                    </>
-                  ),
+                  label: <CategoryLabel category={cats.get(id)} />,
                   value: v,
                 }))}
                 onSelect={openCategory}

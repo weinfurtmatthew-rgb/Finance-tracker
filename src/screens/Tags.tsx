@@ -7,7 +7,7 @@ import type { Transaction } from '../types';
 import { formatMoney } from '../lib/money';
 import { addDays, formatDay, formatShortDate, todayISO } from '../lib/dates';
 import { allTags, cleanTag, lines, tagKey } from '../lib/lines';
-import { ActionSheet, CategoryIcon, Empty, Field, Row, Section, Sheet } from '../components/ui';
+import { ActionSheet, CategoryIcon, CategoryLabel, Empty, Field, Row, Section, Sheet } from '../components/ui';
 import { RankedBars } from '../components/charts';
 
 const hasTag = (t: Transaction, tag: string) => !!t.tags?.some((x) => tagKey(x) === tagKey(tag));
@@ -112,7 +112,7 @@ export function TagDetail(props: { tag: string; onClose: () => void }) {
               key: id,
               label: (
                 <>
-                  <span aria-hidden="true">{cats.get(id)?.emoji}</span> {cats.get(id)?.name ?? 'Other'}
+                  <CategoryLabel category={cats.get(id)} fallback="Other" />
                 </>
               ),
               value: v,

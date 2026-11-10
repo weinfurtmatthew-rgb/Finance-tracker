@@ -13,6 +13,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-10',
+    date: 'November 10, 2026',
+    title: 'A tidier look',
+    items: [
+      'Categories use one set of icons everywhere: Spending, Budgets and Year in Review show the same colored icons as your transactions. Categories you made keep their emoji.',
+      'Labels in forms and calculators stay on one line, and category names in Spending are no longer cut off.',
+    ],
+  },
+  {
     id: '2026-11-09',
     date: 'November 9, 2026',
     title: 'Mortgage calculator',

@@ -50,8 +50,9 @@ set, payment-app lines it merged, remembered file columns (`src/lib/importUndo.t
 - Frosted-glass cards over soft, still light that takes its color from the screen (green on Today, blue on
   Activity, violet on Recurring…), with a fine grain so large areas don't look flat
 - A floating glass tab bar, glass buttons and controls, and rounded numerals for amounts
-- Line icons for the built-in categories, colored by family: food orange, getting around violet, shopping magenta,
-  home & bills yellow, money coming in aqua. Categories you make (or give your own emoji) keep their emoji
+- Line icons for the built-in categories wherever they appear (transactions, Spending's bars, budgets, Year in
+  Review), colored by family: food orange, getting around violet, shopping magenta, home & bills yellow, money coming
+  in aqua. Categories you make (or give your own emoji) keep their emoji; the category picker lists names
 - **Accent color** (Settings → Appearance): Blue, Green, Violet, Orange, Pink or Graphite recolors buttons, links,
   the selected tab and highlights; each is checked for readable contrast in light and dark mode
 - Everything is free. Settings → About → **Support Finance Tracker** opens a pay-what-you-want link when the app is
