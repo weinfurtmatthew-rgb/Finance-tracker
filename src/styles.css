@@ -487,8 +487,7 @@ label.row:active,
 }
 .field-label {
   flex: none;
-  width: 34%;
-  max-width: 150px;
+  max-width: 62%;
 }
 .field-control {
   flex: 1;
@@ -592,6 +591,26 @@ label.row:active,
   height: 64px;
   border-radius: 19px;
   font-size: 34px;
+}
+.cat-icon.xs {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  font-size: 14px;
+}
+/* A category's small icon with its name beside it (lists, bars, buttons). */
+.cat-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.cat-label-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .icon-chip {
   color: #fff;
@@ -1693,13 +1712,16 @@ a.row {
 /* Ranked bars */
 .ranked {
   padding: 8px 0;
+  display: grid;
+  grid-template-columns: fit-content(58%) 1fr;
+  column-gap: 10px;
 }
 .ranked-row {
   display: grid;
-  grid-template-columns: minmax(96px, 42%) 1fr;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: center;
-  gap: 2px 10px;
-  width: 100%;
+  row-gap: 2px;
   padding: 7px 16px;
   text-align: left;
 }
@@ -2079,6 +2101,10 @@ button.hero-card {
   align-self: center;
   color: var(--text-2);
   padding: 0 2px;
+}
+/* A unit in words ("months", "just you") stands a little apart from its number. */
+.affix.unit {
+  margin-left: 4px;
 }
 .kpis.two {
   grid-template-columns: repeat(2, 1fr);
@@ -2534,6 +2560,15 @@ button.hero-card {
   font-weight: 600;
   color: var(--text);
   min-height: 20px;
+  display: grid;
+}
+/* Both lines share one spot; the resting one keeps its room while a part is named. */
+.rent-readout > span {
+  grid-area: 1 / 1;
+  align-self: end;
+}
+.rent-readout > .held {
+  visibility: hidden;
 }
 .rent-track-wrap {
   padding: 0 4px 4px;
@@ -2636,6 +2671,13 @@ button.hero-card {
 }
 .rent-ticks span:first-child {
   transform: none;
+}
+/* The two limits close together: one label ends at its mark and the other starts at its own. */
+.rent-ticks.tight span:nth-child(2) {
+  transform: translateX(calc(-100% - 3px));
+}
+.rent-ticks.tight span:nth-child(3) {
+  transform: translateX(3px);
 }
 .rent-key-marker {
   display: inline-block;

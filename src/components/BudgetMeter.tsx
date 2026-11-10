@@ -1,5 +1,6 @@
 import type { Category } from '../types';
 import { Glyph, type GlyphName } from './icons';
+import { CategoryLabel } from './ui';
 import { formatMoney } from '../lib/money';
 import type { BudgetProgress } from '../lib/budgets';
 
@@ -18,9 +19,7 @@ export function BudgetMeter(props: { progress: BudgetProgress; category?: Catego
   return (
     <button type="button" class="meter-row" onClick={props.onClick}>
       <span class="meter-head">
-        <span>
-          <span aria-hidden="true">{props.category?.emoji}</span> {props.category?.name ?? 'Unknown'}
-        </span>
+        <CategoryLabel category={props.category} />
         <span class="muted">
           {formatMoney(p.spent, { whole: true })} of {formatMoney(p.limit, { whole: true })}
         </span>

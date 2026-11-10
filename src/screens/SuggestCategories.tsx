@@ -5,7 +5,7 @@ import { useNav } from '../nav';
 import { formatMoney } from '../lib/money';
 import { useAi } from '../ai/client';
 import { suggestForUncategorized, type PayeeGroup } from '../ai/suggest';
-import { CategorySelect, Empty, Section, Sheet, Toggle } from '../components/ui';
+import { CategorySelect, Empty, Section, Sheet, Toggle, categoryText } from '../components/ui';
 
 export function SuggestCategories(props: { onClose: () => void }) {
   const nav = useNav();
@@ -86,7 +86,7 @@ export function SuggestCategories(props: { onClose: () => void }) {
                 />
                 {g.suggestion && cats.get(g.suggestion.categoryId) && choice[g.key] !== g.suggestion.categoryId && (
                   <button type="button" class="link small" onClick={() => setChoice({ ...choice, [g.key]: g.suggestion!.categoryId })}>
-                    Maybe {cats.get(g.suggestion.categoryId)!.emoji} {cats.get(g.suggestion.categoryId)!.name}?
+                    Maybe {categoryText(cats.get(g.suggestion.categoryId)!)}?
                   </button>
                 )}
               </div>

@@ -76,7 +76,7 @@ export function CountField(props: { label: string; unit: string; value: string; 
   return (
     <Field label={props.label} hint={props.hint}>
       <input inputMode="numeric" value={props.value} placeholder="0" onInput={onText(props.set)} aria-label={props.label} />
-      <span class="affix">{props.unit}</span>
+      <span class="affix unit">{props.unit}</span>
     </Field>
   );
 }

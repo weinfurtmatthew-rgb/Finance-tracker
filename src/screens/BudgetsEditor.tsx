@@ -5,7 +5,7 @@ import { useSpending } from '../spendingModel';
 import { monthKey, todayISO } from '../lib/dates';
 import { formatMoney, parseUserAmount } from '../lib/money';
 import { suggestLimits } from '../lib/budgets';
-import { Section, Sheet } from '../components/ui';
+import { CategoryLabel, Section, Sheet } from '../components/ui';
 
 export function BudgetsEditor(props: { onClose: () => void }) {
   const nav = useNav();
@@ -66,7 +66,7 @@ function Form(props: {
         {ordered.map((c) => (
           <label class="field">
             <span class="field-label">
-              <span aria-hidden="true">{c.emoji}</span> {c.name}
+              <CategoryLabel category={c} />
             </span>
             <span class="field-control">
               <input

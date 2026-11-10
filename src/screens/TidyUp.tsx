@@ -10,7 +10,7 @@ import { oldGuesses } from '../lib/cleanup';
 import { useAi } from '../ai/client';
 import { suggestForTxns } from '../ai/suggest';
 import type { Suggestion } from '../ai/similar';
-import { CategoryIcon, CategorySelect, Empty, Section, Sheet } from '../components/ui';
+import { CategoryIcon, CategorySelect, Empty, Section, Sheet, categoryText } from '../components/ui';
 
 /** Transactions whose category is only an old guess, for the one-time tidy-up. */
 export function useOldGuesses(): Transaction[] | undefined {
@@ -123,7 +123,7 @@ export function TidyUp(props: { onClose: () => void }) {
                   />
                   {hint && value !== hint.categoryId && cats.get(hint.categoryId) && (
                     <button type="button" class="link small" onClick={() => setChoice({ ...choice, [key]: hint.categoryId })}>
-                      Maybe {cats.get(hint.categoryId)!.emoji} {cats.get(hint.categoryId)!.name}?
+                      Maybe {categoryText(cats.get(hint.categoryId)!)}?
                     </button>
                   )}
                 </div>

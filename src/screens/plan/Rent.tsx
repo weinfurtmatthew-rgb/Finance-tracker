@@ -211,6 +211,19 @@ function RangeRow(props: { tier: RentTier; share: string; place?: string }) {
 }
 
 /**
+ * The line above a chart: what it shows, or the part being pointed at. The resting words always keep
+ * their room (hidden while a part is named), so the chart below never moves under the pointer.
+ */
+function Readout(props: { resting: string; focused?: string }) {
+  return (
+    <p class="rent-readout" aria-live="polite">
+      <span class={props.focused ? 'held' : undefined}>{props.resting}</span>
+      {props.focused && <span>{props.focused}</span>}
+    </p>
+  );
+}
+
+/**
  * The three zones on one scale, with this place and the landlord's limit marked. Tap or hover a zone
  * for its range.
  */
@@ -231,18 +244,10 @@ function RentBand(props: { limits: RentLimits; check?: RentCheck; listing: Cents
   ];
   const describe = (z: (typeof zones)[number]) =>
     z.tier === 'cheap' ? `Cheap: up to ${money(z.to)}` : z.tier === 'acceptable' ? `Acceptable: ${money(z.from)}–${money(z.to)}` : `Expensive: over ${money(z.from)}`;
-  const readout = focus
-    ? describe(zones.find((z) => z.tier === focus)!)
-    : mark != null
-      ? `This place: ${money(mark)}${place ? ' rent' : ' a month for you'}`
-      : place
-        ? 'Whole-place rent'
-        : 'Your monthly housing cost';
+  const resting = mark != null ? `This place: ${money(mark)}${place ? ' rent' : ' a month for you'}` : place ? 'Whole-place rent' : 'Your monthly housing cost';
   return (
     <figure class="chart rent-band" aria-label={`Rent ranges ${place ? 'for the whole place' : 'for your share'}: ${zones.map(describe).join('; ')}`}>
-      <p class="rent-readout" aria-live="polite">
-        {readout}
-      </p>
+      <Readout resting={resting} focused={focus ? describe(zones.find((z) => z.tier === focus)!) : undefined} />
       <div class="rent-track-wrap">
         <div class="rent-track">
           {zones.map((z) => (
@@ -269,7 +274,7 @@ function RentBand(props: { limits: RentLimits; check?: RentCheck; listing: Cents
           {mark != null && <span class="rent-marker" style={{ left: x(mark) }} aria-hidden="true" />}
           {mark != null && <span class="rent-pin" style={{ left: x(mark) }} aria-hidden="true" />}
         </div>
-        <div class="rent-ticks" aria-hidden="true">
+        <div class={`rent-ticks${(ok - cheap) / max < 0.2 ? ' tight' : ''}`} aria-hidden="true">
           <span style={{ left: '0%' }}>$0</span>
           <span style={{ left: x(cheap) }}>{tile(cheap)}</span>
           <span style={{ left: x(ok) }}>{tile(ok)}</span>
@@ -309,9 +314,10 @@ function TakeHomeBar(props: { takeHome: Cents; other: Cents; goal: Cents; cost: 
   const f = parts.find((p) => p.key === focus);
   return (
     <figure class="chart takehome" aria-label={`Take-home ${money(takeHome)}: ${parts.map((p) => `${p.name} ${money(p.value)}`).join(', ')}${short ? `, short ${money(short)}` : ''}`}>
-      <p class="rent-readout" aria-live="polite">
-        {f ? `${f.name}: ${money(f.value)} (${pct(f.value / takeHome, 0)})` : `Your ${money(takeHome)} take-home ${props.forListing ? 'at this rent' : 'at the acceptable limit'}`}
-      </p>
+      <Readout
+        resting={`Your ${money(takeHome)} take-home ${props.forListing ? 'at this rent' : 'at the acceptable limit'}`}
+        focused={f ? `${f.name}: ${money(f.value)} (${pct(f.value / takeHome, 0)})` : undefined}
+      />
       <div class="takehome-bar">
         {parts.map((p) => (
           <button

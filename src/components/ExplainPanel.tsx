@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
 import { Glyph } from './icons';
+import { CategoryLabel } from './ui';
 import type { Category, Transaction } from '../types';
 import { explainDescription } from '../ai/explain';
 import { useAi } from '../ai/client';
@@ -52,7 +53,7 @@ export function ExplainPanel(props: { txn: Transaction; categories: Category[]; 
         )}
         {cat && cat.id !== t.categoryId && (
           <button type="button" class="pill" onClick={() => props.onUseCategory(cat.id)}>
-            {cat.emoji} {cat.name}
+            <CategoryLabel category={cat} />
           </button>
         )}
       </div>

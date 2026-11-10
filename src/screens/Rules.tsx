@@ -3,7 +3,7 @@ import { db, newId } from '../db';
 import { useCategories, useRules } from '../hooks';
 import { useNav } from '../nav';
 import type { Rule } from '../types';
-import { Empty, Field, Row, Section, Sheet, Toggle, CategorySelect } from '../components/ui';
+import { Empty, Field, Row, Section, Sheet, Toggle, CategorySelect, categoryText } from '../components/ui';
 
 function RuleEditor(props: { rule?: Rule; onClose: () => void }) {
   const nav = useNav();
@@ -98,7 +98,7 @@ export function RulesSheet(props: { onClose: () => void }) {
             return (
               <Row
                 title={`“${r.match}”`}
-                subtitle={[r.payee && `Rename to ${r.payee}`, c && `${c.emoji} ${c.name}`].filter(Boolean).join(' · ')}
+                subtitle={[r.payee && `Rename to ${r.payee}`, c && categoryText(c)].filter(Boolean).join(' · ')}
                 onClick={() => edit(r)}
               />
             );
