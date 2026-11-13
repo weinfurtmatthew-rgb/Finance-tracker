@@ -99,7 +99,7 @@ test('a Rocket Money export imported the old way is repaired, then the Citizens 
   await expect(app.txnRows('Blue Bottle')).toHaveCount(2);
   await expect(app.txnRows(/Shaw/)).toHaveCount(2);
   await expect(app.txnRows('Target')).toHaveCount(1);
-  await expect(app.txnRows('Target')).toContainText('-$43.10');
+  await expect(app.txnRows('Target')).toContainText('−$43.10');
   await app.tab('Net Worth');
   await expect(page.locator('button.row', { hasText: 'Citizens Checking' })).toContainText('$1,445.87');
   await expect(page.locator('button.row', { hasText: 'Discover it' })).toBeVisible();

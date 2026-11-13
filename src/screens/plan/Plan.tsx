@@ -75,30 +75,35 @@ export function Plan(props: { onClose: () => void }) {
           icon={<IconChip name="vault" hue="blue" size="sm" />}
           title="Emergency fund"
           subtitle={d.monthlySpending > 0 ? `Your cash covers ${duration(r.months)} of spending` : 'How long your cash would last'}
+          wrap
           onClick={() => open((close) => <RunwayCalc data={d} onClose={close} />)}
         />
         <Row
           icon={<IconChip name="cart" hue="green" size="sm" />}
           title="Can I afford it?"
           subtitle="Check a purchase against your cash and budget"
+          wrap
           onClick={() => open((close) => <AffordCalc data={d} onClose={close} />)}
         />
         <Row
           icon={<IconChip name="home" hue="yellow" size="sm" />}
           title="Rent calculator"
           subtitle={rentOk > 0 ? `Acceptable rent for you: up to ${money(rentOk)}/mo · roommates too` : 'Cheap, acceptable and expensive rent for you'}
+          wrap
           onClick={() => open((close) => <RentCalc data={d} onClose={close} />)}
         />
         <Row
           icon={<IconChip name="key" hue="aqua" size="sm" />}
           title="Mortgage calculator"
           subtitle="A home's monthly cost, with taxes, insurance and PMI, against your budget"
+          wrap
           onClick={() => open((close) => <MortgageCalc data={d} onClose={close} />)}
         />
         <Row
           icon={<IconChip name="card" hue="orange" size="sm" />}
           title="Debt payoff"
           subtitle={owed > 0 ? `${money(owed)} owed · avalanche vs snowball` : 'Avalanche vs snowball'}
+          wrap
           onClick={() => open((close) => <DebtCalc data={d} onClose={close} />)}
         />
         <Row
@@ -109,6 +114,7 @@ export function Plan(props: { onClose: () => void }) {
               ? `Subscriptions: ${money(d.subscriptionsMonthly)}/mo, what's that over 10 years?`
               : 'What a habit costs over the years'
           }
+          wrap
           onClick={() => open((close) => <TrueCostCalc data={d} onClose={close} />)}
         />
       </Section>
@@ -118,33 +124,44 @@ export function Plan(props: { onClose: () => void }) {
           icon={<IconChip name="bank" hue="blue" size="sm" />}
           title="Savings growth"
           subtitle={d.apy != null ? `${tile(d.savings)} at ${pct(d.apy, 2)} APY` : 'What your savings could grow to'}
+          wrap
           onClick={() => open((close) => <GrowthCalc kind="savings" data={d} onClose={close} />)}
         />
         <Row
           icon={<IconChip name="trend" hue="aqua" size="sm" />}
           title="Investment growth"
           subtitle={d.invested > 0 ? `${tile(d.invested)} invested today` : 'How money grows at a steady return'}
+          wrap
           onClick={() => open((close) => <GrowthCalc kind="invest" data={d} onClose={close} />)}
         />
         <Row
           icon={<IconChip name="flag" hue="green" size="sm" />}
           title="Retirement savings"
           subtitle={retirement.total > 0 ? `${tile(retirement.total)} saved for retirement` : 'What your IRAs and 401(k) could grow to by retirement'}
+          wrap
           onClick={() => open((close) => <RetirementCalc onClose={close} />)}
         />
         <Row
           icon={<IconChip name="sun" hue="yellow" size="sm" />}
           title="Financial independence"
           subtitle={d.monthlySpending > 0 ? `Your FI number: ${tile(fi.target)}` : 'When could work become optional?'}
+          wrap
           onClick={() => open((close) => <RetireCalc mode="fi" data={d} onClose={close} />)}
         />
         <Row
           icon={<IconChip name="dice" hue="violet" size="sm" />}
           title="Will my money last?"
           subtitle="Test a retirement budget in 1,000 markets"
+          wrap
           onClick={() => open((close) => <RetireCalc mode="last" data={d} onClose={close} />)}
         />
-        <Row icon={<IconChip name="play" hue="magenta" size="sm" />} title="Year in review" subtitle="Your year so far, Wrapped-style" onClick={() => open((close) => <RecapPage onClose={close} />)} />
+        <Row
+          icon={<IconChip name="play" hue="magenta" size="sm" />}
+          title="Year in review"
+          subtitle="Your year so far, Wrapped-style"
+          wrap
+          onClick={() => open((close) => <RecapPage onClose={close} />)}
+        />
       </Section>
     </Sheet>
   );

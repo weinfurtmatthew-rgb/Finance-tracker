@@ -209,6 +209,22 @@ button.card:active,
   height: 100%;
   margin: 0 auto;
 }
+/*
+ * The same light once more above the page, showing only along the bottom edge: fully there below the
+ * floating bar's middle, gone by its top. What scrolls past fades into the background instead of
+ * showing sharply in the gaps around the bar.
+ */
+.ambient.edge {
+  z-index: 9;
+  background: var(--bg);
+  --edge-solid: calc(var(--tabbar-bottom) + 20px);
+  --edge-clear: calc(var(--tabbar-bottom) + var(--tabbar-h) + 14px);
+  -webkit-mask-image: linear-gradient(to top, #000 var(--edge-solid), transparent var(--edge-clear));
+  mask-image: linear-gradient(to top, #000 var(--edge-solid), transparent var(--edge-clear));
+}
+.ambient.edge .glow {
+  animation: none;
+}
 .glow {
   position: absolute;
   border-radius: 50%;
@@ -360,6 +376,25 @@ button.card:active,
   color: var(--text-2);
   margin: 8px 6px 0;
   line-height: 1.4;
+}
+/* Headings, captions and centered lines break into even lines; longer text avoids a lone last word. */
+h1,
+h2,
+h3,
+.row-title,
+.card-sub,
+.empty p,
+.section-footer.center,
+.plan-answer .card-sub,
+.onboarding-body {
+  text-wrap: balance;
+}
+p,
+.section-footer,
+.field-hint,
+.row-subtitle,
+.callout {
+  text-wrap: pretty;
 }
 .center {
   text-align: center;
@@ -597,6 +632,10 @@ label.row:active,
   height: 24px;
   border-radius: 7px;
   font-size: 14px;
+}
+/* One of several parts joined by dots (see Dotted): it moves to the next line whole, and wraps only if it is longer than a line. */
+.nb {
+  display: inline-block;
 }
 /* A category's small icon with its name beside it (lists, bars, buttons). */
 .cat-label {
@@ -1028,6 +1067,7 @@ label.row:active,
 }
 .sheet-header .link {
   font-weight: 500;
+  white-space: nowrap;
 }
 .sheet-header .link.strong {
   font-weight: 700;
@@ -3808,6 +3848,17 @@ button.hero-card {
   gap: 10px;
   padding: 16px;
 }
+.highlight-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.highlight-title {
+  font-weight: 600;
+}
+.highlight-text {
+  line-height: 1.4;
+}
 .detail-budget {
   margin-top: 12px;
   gap: 10px;
@@ -3940,7 +3991,8 @@ button.hero-card {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-top: clamp(24px, 14dvh, 132px);
   animation: story-in 0.35s ease-out;
 }
 .onboarding-page .icon-chip {

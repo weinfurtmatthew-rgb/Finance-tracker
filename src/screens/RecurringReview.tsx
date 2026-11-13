@@ -8,7 +8,7 @@ import { formatMoney } from '../lib/money';
 import { FREQUENCIES, KINDS, suggestionToRecurring, type Suggestion } from '../lib/recurring';
 import { cancelLinkFor } from '../lib/cancelLinks';
 import { dismissSuggestion } from '../lib/recurringActions';
-import { Empty, KindIcon, Sheet } from '../components/ui';
+import { Dotted, Empty, KindIcon, Sheet } from '../components/ui';
 
 async function confirm(s: Suggestion, kind: RecurringKind) {
   const rec = suggestionToRecurring(s, kind, newId());
@@ -26,8 +26,8 @@ function SuggestionCard(props: { s: Suggestion }) {
         <KindIcon kind={kind} />
         <span class="row-main">
           <span class="row-title">{s.name}</span>
-          <span class="row-subtitle">
-            {FREQUENCIES[s.frequency].label} · {s.count} charges · last {formatShortDate(s.lastDate)}
+          <span class="row-subtitle wrap">
+            <Dotted parts={[FREQUENCIES[s.frequency].label, `${s.count} charges`, `last ${formatShortDate(s.lastDate)}`]} />
           </span>
         </span>
         <span class={`row-detail ${s.amount > 0 ? 'pos-text' : ''}`}>{formatMoney(s.amount, { sign: s.amount > 0 })}</span>

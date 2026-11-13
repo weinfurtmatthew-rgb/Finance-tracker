@@ -7,7 +7,7 @@ import { last12Months, yearPeriod, type Recap, type RecapPeriod } from '../lib/r
 import { recapCards, type RecapCard } from '../lib/recapCards';
 import { formatMoney } from '../lib/money';
 import { useRecap, useRecapYears } from '../recapModel';
-import { CategoryLabel, Section, Sheet } from '../components/ui';
+import { CategoryLabel, Dotted, Section, Sheet } from '../components/ui';
 import { ColumnChart, RankedBars } from '../components/charts';
 
 /** Choices for the period: this year so far, the last 12 months, and each earlier year with data. */
@@ -219,7 +219,7 @@ export function RecapTeaser(props: { onOpen: () => void }) {
         )}
       </span>
       <span class="card-sub">
-        {[recap.topCategories[0] && `Top: ${recap.topCategories[0].label}`, recap.habit && `#1 spot: ${recap.habit.name}`].filter(Boolean).join(' · ')} · See your year ›
+        <Dotted parts={[recap.topCategories[0] && `Top: ${recap.topCategories[0].label}`, recap.habit && `#1 spot: ${recap.habit.name}`, 'See your year ›']} />
       </span>
     </button>
   );
