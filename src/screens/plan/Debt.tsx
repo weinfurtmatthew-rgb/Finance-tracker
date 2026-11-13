@@ -67,7 +67,7 @@ export function DebtCalc(props: { data: PlanData; onClose: () => void }) {
             <Answer
               label="Debt-free in"
               value="Never"
-              sub="These payments don't cover the interest. Raise the minimums or add an extra amount."
+              sub="These payments don’t cover the interest. Raise the minimums or add an extra amount."
               status="critical"
               statusText="Payments too low"
             />
@@ -159,7 +159,7 @@ export function DebtCalc(props: { data: PlanData; onClose: () => void }) {
 
       <Section
         title="Extra each month"
-        footer="Anything above the minimums. It goes to the target debt, and each paid-off debt's minimum rolls into the next."
+        footer="Anything above the minimums. It goes to the target debt, and each paid-off debt’s minimum rolls into the next."
       >
         <MoneyField label="Extra" value={extraText} set={setExtra} />
       </Section>

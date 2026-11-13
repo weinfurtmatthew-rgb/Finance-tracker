@@ -33,7 +33,7 @@ export function BudgetMeter(props: { progress: BudgetProgress; category?: Catego
         aria-label={`${props.category?.name}: ${status.text}`}
       >
         <span class="meter-fill" style={{ width: `${Math.min(100, p.ratio * 100)}%` }} />
-        {props.elapsed > 0 && props.elapsed < 1 && <span class="meter-pace" style={{ left: `calc(${props.elapsed * 100}% - 1px)` }} title="Where you'd be at an even pace" />}
+        {props.elapsed > 0 && props.elapsed < 1 && <span class="meter-pace" style={{ left: `calc(${props.elapsed * 100}% - 1px)` }} title="Where you’d be at an even pace" />}
       </span>
       <span class="meter-sub">
         {status.icon && <Glyph name={status.icon} class="status-glyph" />}

@@ -131,7 +131,7 @@ export function affordability(args: {
   const reasons: string[] = [];
   let score = 0;
   if (cashAfter < 0) {
-    reasons.push("You don't have enough cash for the upfront cost.");
+    reasons.push('You don’t have enough cash for the upfront cost.');
     score += 3;
   } else if (runwayAfter < 1) {
     reasons.push('Less than a month of spending would be left in cash.');
@@ -141,7 +141,7 @@ export function affordability(args: {
     score += 1;
   }
   if (leftAfterBillsAfter != null && leftAfterBillsAfter < 0) {
-    reasons.push("You'd be short for bills due before your next payday.");
+    reasons.push('You’d be short for bills due before your next payday.');
     score += 2;
   }
   if (monthlyPayment > 0 && surplusAfter < 0) {

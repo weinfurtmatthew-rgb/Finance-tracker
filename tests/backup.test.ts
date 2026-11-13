@@ -64,7 +64,7 @@ describe('checkBackup', () => {
     json.data.transactions.push({ ...json.data.transactions[0] }, { ...json.data.transactions[1], id: 't3', accountId: 'gone' });
     expect(checkBackup(JSON.stringify(json)).problems).toEqual([
       '1 transaction appears twice.',
-      "1 transaction belongs to an account that isn't in the file.",
+      '1 transaction belongs to an account that isn’t in the file.',
     ]);
   });
 

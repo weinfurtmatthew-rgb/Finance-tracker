@@ -28,10 +28,10 @@ const month = (m: string) => monthLabel(m).split(' ')[0];
 /** A fun comparison for your habit: "that's about 190 burritos". */
 function habitComparison(name: string, visits: number): string | undefined {
   const n = name.toLowerCase();
-  if (/chipotle|taco|burrito/.test(n)) return `That's about ${plural(visits, 'burrito bowl')}.`;
-  if (/starbucks|dunkin|coffee|peet|cafe/.test(n)) return `That's about ${plural(visits, 'coffee')} (${Math.round(visits / 52)} a week).`;
-  if (/pizza|domino/.test(n)) return `That's about ${plural(visits, 'pizza')}.`;
-  if (/uber|lyft/.test(n)) return `That's ${plural(visits, 'ride')}.`;
+  if (/chipotle|taco|burrito/.test(n)) return `That’s about ${plural(visits, 'burrito bowl')}.`;
+  if (/starbucks|dunkin|coffee|peet|cafe/.test(n)) return `That’s about ${plural(visits, 'coffee')} (${Math.round(visits / 52)} a week).`;
+  if (/pizza|domino/.test(n)) return `That’s about ${plural(visits, 'pizza')}.`;
+  if (/uber|lyft/.test(n)) return `That’s ${plural(visits, 'ride')}.`;
   return undefined;
 }
 

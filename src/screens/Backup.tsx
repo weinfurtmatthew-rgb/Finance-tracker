@@ -50,7 +50,7 @@ export function BackupSheet(props: { onClose: () => void }) {
       }
       // Read it back the way a restore would, and make sure everything made it in.
       const check = checkBackup(readBack);
-      if (readBack !== plain || check.accounts !== accounts || check.transactions !== transactions) throw new Error("The backup didn't match your data. Please try again.");
+      if (readBack !== plain || check.accounts !== accounts || check.transactions !== transactions) throw new Error('The backup didn’t match your data. Please try again.');
       await setMeta('backupProtect', on);
       const stamp = new Date().toISOString().slice(0, 10);
       setReady({ name: `finance-backup-${stamp}${on ? '-protected' : ''}.json`, file, check, protectedFile: on });
@@ -69,7 +69,7 @@ export function BackupSheet(props: { onClose: () => void }) {
       else nav.celebrate('First backup saved', 'Your data now has a copy off this phone.');
       props.onClose();
     } catch (e) {
-      if ((e as Error).name !== 'AbortError') setError(`Couldn't save: ${(e as Error).message}`);
+      if ((e as Error).name !== 'AbortError') setError(`Couldn’t save: ${(e as Error).message}`);
     }
   };
 
@@ -84,13 +84,13 @@ export function BackupSheet(props: { onClose: () => void }) {
             <strong>Backup ready and checked</strong>
             <span class="card-sub">
               {plural(ready.check.accounts, 'account')} and {plural(ready.check.transactions, 'transaction')}
-              {ready.protectedFile ? ', protected with your password.' : '.'} It was read back and matches what's in the app.
+              {ready.protectedFile ? ', protected with your password.' : '.'} It was read back and matches what’s in the app.
             </span>
           </section>
           <button type="button" class="button primary wide" onClick={save}>
             Save to Files…
           </button>
-          <p class="section-footer">Choose “Save to Files” and pick iCloud Drive (or another folder that isn't only on this phone).</p>
+          <p class="section-footer">Choose “Save to Files” and pick iCloud Drive (or another folder that isn’t only on this phone).</p>
         </>
       ) : (
         <>
@@ -101,7 +101,7 @@ export function BackupSheet(props: { onClose: () => void }) {
             <Section
               footer={
                 <>
-                  <strong>Write this password down.</strong> If you forget it, the backup can't be opened, by you or anyone else. It isn't saved
+                  <strong>Write this password down.</strong> If you forget it, the backup can’t be opened, by you or anyone else. It isn’t saved
                   anywhere.
                 </>
               }
@@ -109,7 +109,7 @@ export function BackupSheet(props: { onClose: () => void }) {
               <Field label="Password" hint={password && password.length < MIN_PASSWORD ? `At least ${MIN_PASSWORD} characters.` : undefined}>
                 <input type="password" autocomplete="new-password" value={password} onInput={(e) => setPassword((e.target as HTMLInputElement).value)} />
               </Field>
-              <Field label="Again" hint={confirm && confirm !== password ? "The passwords don't match." : undefined}>
+              <Field label="Again" hint={confirm && confirm !== password ? 'The passwords don’t match.' : undefined}>
                 <input type="password" autocomplete="new-password" value={confirm} onInput={(e) => setConfirm((e.target as HTMLInputElement).value)} />
               </Field>
             </Section>

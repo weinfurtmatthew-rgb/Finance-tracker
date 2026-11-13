@@ -68,7 +68,7 @@ function Fi(props: { data: PlanData }) {
       <Answer
         label="Your FI number"
         value={money(plan.target)}
-        sub={`${pct(wr)} of this covers ${money(spend)} a year of spending, in today's dollars`}
+        sub={`${pct(wr)} of this covers ${money(spend)} a year of spending, in today’s dollars`}
       />
       <div class="plan-block">
         <Progress value={invested / Math.max(1, plan.target)} label="Progress toward your FI number" />
@@ -85,9 +85,9 @@ function Fi(props: { data: PlanData }) {
         <Stat label="Savings rate" value={d.monthlyIncome > 0 ? pct(plan.savingsRate, 0) : '—'} sub="of income invested" />
         <Stat label="Real return" value={pct(realRate(ret, inflation))} sub="after inflation" />
       </div>
-      <Section title="Invested, in today's dollars">
+      <Section title="Invested, in today’s dollars">
         <LineChart
-          title="Projected investments by year in today's dollars"
+          title="Projected investments by year in today’s dollars"
           dates={axis.dates}
           labels={axis.labels}
           series={[
@@ -176,9 +176,9 @@ function Last(props: { data: PlanData }) {
             <Stat label="Typical" value={tile(sim.ending.p50)} sub="left at the end" />
             <Stat label="Good markets" value={tile(sim.ending.p90)} sub="left at the end" />
           </div>
-          <Section title="Typical balance, in today's dollars">
+          <Section title="Typical balance, in today’s dollars">
             <LineChart
-              title="Median simulated balance by year, in today's dollars"
+              title="Median simulated balance by year, in today’s dollars"
               dates={axis.dates}
               labels={axis.labels}
               series={[
@@ -196,7 +196,7 @@ function Last(props: { data: PlanData }) {
       )}
       <Section
         title="Your numbers"
-        footer={`Each simulated year earns a random return around ${pct(ret)} (swings of about ±${pct(vol, 0)}), then the withdrawal comes out. Results are in today's dollars. ${DISCLAIMER}`}
+        footer={`Each simulated year earns a random return around ${pct(ret)} (swings of about ±${pct(vol, 0)}), then the withdrawal comes out. Results are in today’s dollars. ${DISCLAIMER}`}
       >
         <MoneyField
           label="Start with"

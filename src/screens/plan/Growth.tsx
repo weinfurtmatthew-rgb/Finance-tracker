@@ -57,7 +57,7 @@ export function GrowthCalc(props: { data: PlanData; kind: 'savings' | 'invest'; 
       <Answer
         label={`In ${years} year${years === 1 ? '' : 's'}`}
         value={money(end.balance)}
-        sub={`about ${money(real)} in today's dollars, at ${pct(inflation)} inflation`}
+        sub={`about ${money(real)} in today’s dollars, at ${pct(inflation)} inflation`}
       />
       <div class="kpis">
         <Stat label="You put in" value={tile(end.contributed)} />
@@ -100,7 +100,7 @@ export function GrowthCalc(props: { data: PlanData; kind: 'savings' | 'invest'; 
         />
         <PercentField label={savings ? 'APY' : 'Return / yr'} value={rateText} set={setRate} hint={rateHint} />
         <CountField label="Years" unit="yrs" value={yearsText} set={setYears} />
-        <PercentField label="Inflation" value={inflationText} set={setInflation} hint="Used for the today's-dollars figure" />
+        <PercentField label="Inflation" value={inflationText} set={setInflation} hint="Used for the today’s-dollars figure" />
       </Section>
       <Section title="Saving for something?" footer={DISCLAIMER}>
         <MoneyField
@@ -113,7 +113,7 @@ export function GrowthCalc(props: { data: PlanData; kind: 'savings' | 'invest'; 
                 ? 'Not reachable with these numbers'
                 : toGoal === 0
                   ? 'Already there'
-                  : `You'd reach it in about ${duration(toGoal)}`
+                  : `You’d reach it in about ${duration(toGoal)}`
               : 'Optional: see how long it takes to reach an amount'
           }
         />

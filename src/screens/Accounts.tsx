@@ -50,7 +50,7 @@ function GoalRow(props: { p: GoalProgress; onClick: () => void }) {
   if (p.done) lines.push('Goal reached!');
   else {
     lines.push(`${formatMoney(p.remaining, { whole: true })} to go`);
-    if (p.projectedDate) lines.push(`At your recent pace of ${formatMoney(p.pace, { whole: true })}/mo you'll get there around ${monthLabel(monthKey(p.projectedDate))}.`);
+    if (p.projectedDate) lines.push(`At your recent pace of ${formatMoney(p.pace, { whole: true })}/mo you’ll get there around ${monthLabel(monthKey(p.projectedDate))}.`);
     else lines.push('The linked account hasn’t grown over the last 3 months.');
     if (g.targetDate) {
       if (p.neededMonthly != null) {
@@ -229,7 +229,7 @@ export function Accounts() {
           {stale.length > 0 && (
             <button type="button" class="callout warn" onClick={() => nav.present((close) => <UpdateValues onClose={close} />)}>
               <strong>Update {stale.length === 1 ? stale[0].name : `${stale.length} values`}</strong>
-              <p>Investment and vehicle values are over a month old (or not set). Tap to enter today's values.</p>
+              <p>Investment and vehicle values are over a month old (or not set). Tap to enter today’s values.</p>
             </button>
           )}
 

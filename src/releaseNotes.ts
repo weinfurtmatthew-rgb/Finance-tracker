@@ -13,6 +13,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13b',
+    date: 'November 13, 2026',
+    title: 'Finishing touches',
+    items: [
+      'The amount at the top of a transaction stays centered as you type.',
+      'Lists that open, like Show as table and the bank guides in Import, use a chevron that turns as they open.',
+      'Year in Review’s categories show each share next to its amount, one line per category.',
+      'Apostrophes are typeset the same way everywhere.',
+    ],
+  },
+  {
     id: '2026-11-13',
     date: 'November 13, 2026',
     title: 'Smoother edges',

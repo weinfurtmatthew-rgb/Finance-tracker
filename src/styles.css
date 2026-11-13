@@ -1109,11 +1109,28 @@ label.row:active,
   font-weight: 800;
 }
 .big-amount input {
-  width: 6ch;
   font-family: var(--rounded);
   font-size: 44px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+}
+/* The field is as wide as a hidden copy of its text (or of the 0.00 placeholder), plus room for the caret. */
+.amount-fit {
+  display: inline-grid;
+  font-variant-numeric: tabular-nums;
+}
+.amount-fit::after {
+  content: attr(data-value);
+  grid-area: 1 / 1;
+  padding-right: 2px;
+  visibility: hidden;
+  white-space: pre;
+}
+.amount-fit input {
+  grid-area: 1 / 1;
+  /* Tiny when the grid is measured (so only the hidden copy sets the width), then as wide as the grid. */
+  width: 1ch;
+  min-width: 100%;
 }
 .segmented {
   display: flex;
@@ -1258,6 +1275,48 @@ details.help {
 details.help summary {
   cursor: pointer;
   font-weight: 500;
+}
+/*
+ * Disclosures (<details>): a chevron that points right when closed and down when open, in place of the
+ * browser's triangle. In a list it sits at the row's end like other chevrons; after a link it follows the text.
+ */
+summary {
+  list-style: none;
+}
+summary::-webkit-details-marker {
+  display: none;
+}
+summary::after {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  border-radius: 0 0 1px 0;
+  vertical-align: 2px;
+  transform: rotate(-45deg);
+  transition: transform 0.2s ease;
+}
+details[open] > summary::after {
+  transform: translateY(-2px) rotate(45deg);
+}
+details.help > summary {
+  position: relative;
+  padding-right: 28px;
+}
+details.help > summary::after {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  margin: -5px 0 0;
+  color: var(--text-3);
+}
+@media (prefers-reduced-motion: reduce) {
+  summary::after {
+    transition: none;
+  }
 }
 details.help p {
   color: var(--text-2);
@@ -1797,6 +1856,9 @@ a.row {
   grid-column: 2;
   font-size: 12px;
   color: var(--text-2);
+}
+.ranked.with-share .ranked-fill {
+  max-width: calc(100% - 100px);
 }
 
 /* Budget meters */

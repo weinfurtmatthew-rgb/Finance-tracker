@@ -101,7 +101,7 @@ export function RecurringDetail(props: { id: string; onClose: () => void }) {
                 I cancelled it
               </button>
               <button type="button" class="row link-row" onClick={keepTrial}>
-                I'm keeping it (track as subscription)
+                I’m keeping it (track as subscription)
               </button>
             </>
           )}
@@ -169,14 +169,14 @@ export function RecurringDetail(props: { id: string; onClose: () => void }) {
 
       {ask === 'cancel' && (
         <ActionSheet
-          message={`Mark ${r.name} as cancelled? It stops appearing in upcoming bills, and the app tracks how much you save. If it charges again, you'll get a warning.`}
+          message={`Mark ${r.name} as cancelled? It stops appearing in upcoming bills, and the app tracks how much you save. If it charges again, you’ll get a warning.`}
           actions={[{ label: 'Mark as Cancelled', bold: true, onClick: () => setCancelled(true) }]}
           onCancel={() => setAsk(null)}
         />
       )}
       {ask === 'delete' && (
         <ActionSheet
-          message={`Stop tracking ${r.name}? Your transactions aren't affected.`}
+          message={`Stop tracking ${r.name}? Your transactions aren’t affected.`}
           actions={[{ label: 'Stop Tracking', destructive: true, onClick: remove }]}
           onCancel={() => setAsk(null)}
         />

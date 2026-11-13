@@ -45,7 +45,7 @@ export function AiSettings() {
       )}
       {confirm && (
         <ActionSheet
-          message="Delete the downloaded AI model from this phone? Your data isn't affected, and you can download it again later."
+          message="Delete the downloaded AI model from this phone? Your data isn’t affected, and you can download it again later."
           actions={[
             {
               label: 'Remove AI',

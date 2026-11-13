@@ -209,7 +209,7 @@ export function TagTripSheet(props: { onClose: () => void }) {
           <input type="date" value={to} aria-label="To" onInput={(e) => setTo((e.target as HTMLInputElement).value)} />
         </Field>
       </Section>
-      <Section title={`${inRange.length} transactions in these dates`} footer="Spending is ticked; card payments, transfers and income aren't. Tap to change.">
+      <Section title={`${inRange.length} transactions in these dates`} footer="Spending is ticked; card payments, transfers and income aren’t. Tap to change.">
         {inRange.map((t) => {
           const on = picked.includes(t);
           return (

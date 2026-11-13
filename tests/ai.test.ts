@@ -142,7 +142,7 @@ describe('summary', () => {
   };
   const sentences = factSentences(facts);
   it('facts are plain sentences', () => {
-    expect(sentences[0]).toBe("You've spent $2,271 so far this month, 9% less than at this point last month ($2,500).");
+    expect(sentences[0]).toBe('You’ve spent $2,271 so far this month, 9% less than at this point last month ($2,500).');
     expect(sentences).toContain('Over budget: Dining.');
   });
 });

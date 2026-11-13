@@ -79,7 +79,7 @@ test('rent calculator: ranges, roommates, a listing and the landlord check @smok
   await expect(app.sheet().locator('.hero-card')).toContainText('a place up to $4,200');
   await app.field('Listing rent / mo').locator('input').fill('3600');
   await expect(app.sheet().locator('.hero-card')).toContainText('Acceptable');
-  await expect(app.sheet().locator('.hero-card')).toContainText('You\'d pay $1,300 a month ($1,200 rent + $100 extras)');
+  await expect(app.sheet().locator('.hero-card')).toContainText('You’d pay $1,300 a month ($1,200 rent + $100 extras)');
   await app.sheet().getByRole('tab', { name: 'Whole place' }).click();
   await expect(app.sheet().locator('.rent-readout').first()).toContainText('This place: $3,600 rent');
 

@@ -167,6 +167,28 @@ export function Dotted(props: { parts: (ComponentChildren | false | null | undef
   );
 }
 
+/**
+ * The large amount at the top of a form: the sign and dollar mark, then a field as wide as what's typed, so
+ * the whole amount sits centered.
+ */
+export function BigAmount(props: { negative: boolean; value: string; onInput: (value: string) => void; autoFocus?: boolean }) {
+  return (
+    <label class="big-amount">
+      <span aria-hidden="true">{props.negative ? '−$' : '+$'}</span>
+      <span class="amount-fit" data-value={props.value || '0.00'}>
+        <input
+          inputMode="decimal"
+          placeholder="0.00"
+          aria-label="Amount"
+          value={props.value}
+          onInput={(e) => props.onInput((e.target as HTMLInputElement).value)}
+          autoFocus={props.autoFocus}
+        />
+      </span>
+    </label>
+  );
+}
+
 /** The icon for a kind of recurring item (subscription, bill…) that has no category. */
 export function KindIcon(props: { kind: RecurringKind; size?: IconSize }) {
   return <LookIcon look={kindLook(props.kind)} size={props.size} />;

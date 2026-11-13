@@ -53,7 +53,10 @@ set, payment-app lines it merged, remembered file columns (`src/lib/importUndo.t
   fades into the background around it (the same light again, above the page and masked to the bottom edge)
 - Amounts use a true minus sign (−, not a hyphen). Headings and short lines break into even lines (`text-wrap:
   balance`), paragraphs avoid a lone last word, and lines of parts joined by dots break only between parts (`Dotted`
-  in `src/components/ui.tsx`)
+  in `src/components/ui.tsx`). Text uses curly apostrophes (’); straight ones stay only where text is matched
+  against bank data (merchant names in `src/lib/categorize.ts`, payee names in `src/lib/payee.ts`)
+- Lists that open (`<details>`) show a chevron that turns as they open instead of the browser's triangle, and the
+  amount at the top of a transaction is as wide as what's typed, so it stays centered (`BigAmount`)
 - Line icons for the built-in categories wherever they appear (transactions, Spending's bars, budgets, Year in
   Review), colored by family: food orange, getting around violet, shopping magenta, home & bills yellow, money coming
   in aqua. Categories you make (or give your own emoji) keep their emoji; the category picker lists names

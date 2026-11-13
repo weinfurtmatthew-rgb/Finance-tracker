@@ -52,8 +52,8 @@ export function useAsk() {
       return {
         question: q,
         error: ai.embed
-          ? "Sorry, I couldn't work out what to look up. Try asking about spending, a category, a store, income, subscriptions, budgets or net worth."
-          : "I couldn't understand that with the basic parser. Try one of the examples, or turn on on-device AI in Settings for more flexible questions.",
+          ? 'Sorry, I couldn’t work out what to look up. Try asking about spending, a category, a store, income, subscriptions, budgets or net worth.'
+          : 'I couldn’t understand that with the basic parser. Try one of the examples, or turn on on-device AI in Settings for more flexible questions.',
       };
     }
     const lastMonthEnd = dayInMonth(`${addMonths(monthKey(today), -1)}-01`, 0, 31);

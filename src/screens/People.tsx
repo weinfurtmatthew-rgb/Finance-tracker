@@ -24,7 +24,7 @@ import {
 } from '../lib/p2p';
 import { owedByPerson, owedItems } from '../lib/lines';
 import { categorize, payeeHistory } from '../lib/categorize';
-import { CategoryIcon, CategorySelect, Empty, Field, Money, Row, Section, Segmented, Sheet, Toggle } from '../components/ui';
+import { BigAmount, CategoryIcon, CategorySelect, Empty, Field, Money, Row, Section, Segmented, Sheet, Toggle } from '../components/ui';
 import { TransactionEditor } from './TransactionEditor';
 import { OwedSheet, settle } from './Owed';
 
@@ -408,16 +408,7 @@ export function LogPayment(props: { onClose: () => void; app?: PaymentApp }) {
             { value: 'in', label: 'I received' },
           ]}
         />
-        <label class="big-amount">
-          <span aria-hidden="true">{direction === 'out' ? '−$' : '+$'}</span>
-          <input
-            inputMode="decimal"
-            placeholder="0.00"
-            aria-label="Amount"
-            value={amount}
-            onInput={(e) => setAmount((e.target as HTMLInputElement).value)}
-          />
-        </label>
+        <BigAmount negative={direction === 'out'} value={amount} onInput={setAmount} />
       </div>
       <Section>
         <Field label="App">

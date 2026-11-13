@@ -115,7 +115,7 @@ export function checkBackup(text: string): BackupCheck {
     if (!accountIds.has(t.accountId)) orphans++;
   }
   if (dupes) problems.push(`${dupes} transaction${dupes === 1 ? ' appears' : 's appear'} twice.`);
-  if (orphans) problems.push(`${orphans} transaction${orphans === 1 ? ' belongs' : 's belong'} to an account that isn't in the file.`);
+  if (orphans) problems.push(`${orphans} transaction${orphans === 1 ? ' belongs' : 's belong'} to an account that isn’t in the file.`);
   return { accounts: d.accounts.length, transactions: d.transactions.length, exportedAt: json.exportedAt, problems };
 }
 

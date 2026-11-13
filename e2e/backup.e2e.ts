@@ -19,7 +19,7 @@ test('back up with a password, check the file, and restore it @smoke', async ({ 
   const create = sheet.getByRole('button', { name: 'Create Backup' });
   await app.field('Password').locator('input').fill('correct horse');
   await app.field('Again').locator('input').fill('correct hors');
-  await expect(sheet.getByText("The passwords don't match.")).toBeVisible();
+  await expect(sheet.getByText('The passwords don’t match.')).toBeVisible();
   await expect(create).toBeDisabled();
   await app.field('Again').locator('input').fill('correct horse');
   await create.click();

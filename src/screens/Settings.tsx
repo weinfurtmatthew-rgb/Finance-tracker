@@ -188,7 +188,7 @@ function Settings() {
 
       <Section
         title="Storage"
-        footer="Stored in this browser's private database on your iPhone. Nothing is uploaded; the app has no server. With stock prices on, only ticker symbols are sent, to Twelve Data."
+        footer="Stored in this browser’s private database on your iPhone. Nothing is uploaded; the app has no server. With stock prices on, only ticker symbols are sent, to Twelve Data."
       >
         <Row title="Transactions" detail={txns.length.toLocaleString()} chevron={false} />
         {usage && <Row title="Space Used" detail={usage} chevron={false} />}
@@ -282,7 +282,7 @@ function Settings() {
       {ask === 'backup-every' && (
         <ActionSheet
           title="Remind me to back up"
-          message="A reminder shows on Today when it's been this long since your last backup."
+          message="A reminder shows on Today when it’s been this long since your last backup."
           actions={BACKUP_INTERVALS.map((i) => ({
             label: i.label,
             bold: i.days === backupEvery,
@@ -314,7 +314,7 @@ function Settings() {
       {ask === 'undo-import' && lastImport && (
         <ActionSheet
           title="Undo this import?"
-          message={`${lastImport.label}. Its transactions are removed and anything it changed goes back to how it was, including edits you've made to those transactions since.`}
+          message={`${lastImport.label}. Its transactions are removed and anything it changed goes back to how it was, including edits you’ve made to those transactions since.`}
           actions={[
             {
               label: 'Undo Import',

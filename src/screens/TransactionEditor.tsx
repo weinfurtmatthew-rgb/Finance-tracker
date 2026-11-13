@@ -11,7 +11,7 @@ import { allTags, owedItems, splitProblem } from '../lib/lines';
 import { SplitEditor, partCents, type PartDraft } from '../components/SplitEditor';
 import { TagInput } from '../components/TagInput';
 import { SettleSheet } from './Owed';
-import { ActionSheet, CategorySelect, Field, Section, Segmented, Sheet, Toggle } from '../components/ui';
+import { ActionSheet, BigAmount, CategorySelect, Field, Section, Segmented, Sheet, Toggle } from '../components/ui';
 import { ExplainPanel } from '../components/ExplainPanel';
 import { APP_NAMES, bankLineApp, isAppTransferLine } from '../lib/p2p';
 
@@ -156,17 +156,7 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
             { value: 'in', label: 'Money in' },
           ]}
         />
-        <label class="big-amount">
-          <span aria-hidden="true">{direction === 'out' ? '−$' : '+$'}</span>
-          <input
-            inputMode="decimal"
-            placeholder="0.00"
-            aria-label="Amount"
-            value={amount}
-            onInput={(e) => setAmount((e.target as HTMLInputElement).value)}
-            autoFocus={!t}
-          />
-        </label>
+        <BigAmount negative={direction === 'out'} value={amount} onInput={setAmount} autoFocus={!t} />
       </div>
       {t?.p2p && t.p2p.role !== 'funding' && (
         <p class="section-footer intro">
@@ -280,7 +270,7 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
       )}
       {ask === 'delete' && (
         <ActionSheet
-          message={`Delete ${payee || 'this transaction'} (${formatMoney(t!.amount)})? This can't be undone.`}
+          message={`Delete ${payee || 'this transaction'} (${formatMoney(t!.amount)})? This can’t be undone.`}
           actions={[{ label: 'Delete Transaction', destructive: true, onClick: remove }]}
           onCancel={() => setAsk(null)}
         />

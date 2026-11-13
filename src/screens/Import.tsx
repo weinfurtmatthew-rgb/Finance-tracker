@@ -148,7 +148,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
         setNewName(`${guessInstitution('', file.name) || 'Bank'} ${typeName(guessAccountType('', st))}`.trim());
       } else {
         const table = readCsv(text);
-        if (table.headerIndex < 0) throw new Error("This doesn't look like a transactions file.");
+        if (table.headerIndex < 0) throw new Error('This doesn’t look like a transactions file.');
         const found = await db.csvMappings.get(headerSignature(table.headers));
         const detected = detectFormat(table, known.find((a) => a.id === (nextAccount ?? found?.accountId))?.type);
         // A Rocket Money file is always read as one (a layout saved from a plain import of it was wrong).
@@ -340,7 +340,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
           )}
           {byAi > 0 && (
             <p>
-              <Glyph name="spark" /> On-device AI categorized {byAi} more. They're marked so you can check them.
+              <Glyph name="spark" /> On-device AI categorized {byAi} more. They’re marked so you can check them.
             </p>
           )}
           <div class="button-stack">
@@ -388,7 +388,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
         </Empty>
         <PaybackList paybacks={nudges.paybacks} />
         {done.balanceSet ? (
-          <p class="section-footer intro">✓ Balance set from {parsed?.kind === 'app' ? `${APP_NAMES[parsed.file.app]}'s statement` : "your bank's file"}.</p>
+          <p class="section-footer intro">✓ Balance set from {parsed?.kind === 'app' ? `${APP_NAMES[parsed.file.app]}'s statement` : 'your bank’s file'}.</p>
         ) : (
           !isValued(done.account) && (
             <BalanceCheck
@@ -426,7 +426,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
           </details>
           <details class="help">
             <summary>Discover</summary>
-            <p>Sign in at discover.com, go to your card's activity and choose download. Pick <b>CSV</b> (or Quicken/QFX). Purchases appear as positive numbers in Discover's CSV, and the app flips them automatically.</p>
+            <p>Sign in at discover.com, go to your card’s activity and choose download. Pick <b>CSV</b> (or Quicken/QFX). Purchases appear as positive numbers in Discover’s CSV, and the app flips them automatically.</p>
           </details>
           <details class="help">
             <summary>Capital One</summary>
@@ -446,7 +446,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
           </details>
           <details class="help">
             <summary>Fidelity</summary>
-            <p>Sign in at fidelity.com, open <b>Activity &amp; Orders</b>, pick a date range and use the download icon to get a CSV. Buys and sells are filed under Investments, and dividends count as income. Update the account's balance by hand for an accurate net worth.</p>
+            <p>Sign in at fidelity.com, open <b>Activity &amp; Orders</b>, pick a date range and use the download icon to get a CSV. Buys and sells are filed under Investments, and dividends count as income. Update the account’s balance by hand for an accurate net worth.</p>
           </details>
         </Section>
       </Sheet>
@@ -577,7 +577,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
       </Section>
 
       {m && (
-        <Section title="Columns" footer="Purchases should show as negative amounts in the preview below. If they're positive, turn on Flip signs.">
+        <Section title="Columns" footer="Purchases should show as negative amounts in the preview below. If they’re positive, turn on Flip signs.">
           <Field label="Date">
             <ColSelect value={m.date} onChange={(v) => setMapping({ date: v ?? 0 })} />
           </Field>
@@ -621,7 +621,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
       {likely.length > 0 && (
         <Section
           title={`Already in ${accounts?.find((a) => a.id === accountId)?.name ?? 'this account'}`}
-          footer="Same amount and store within a few days of a transaction you imported from a different file (for example a CSV before, a QFX now). They're skipped so nothing counts twice."
+          footer="Same amount and store within a few days of a transaction you imported from a different file (for example a CSV before, a QFX now). They’re skipped so nothing counts twice."
         >
           <details class="help likely-list">
             <summary>

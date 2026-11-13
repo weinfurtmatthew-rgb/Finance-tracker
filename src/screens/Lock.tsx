@@ -91,7 +91,7 @@ export function LockScreen(props: { record: PasscodeRecord; onUnlock: () => void
       {confirmReset && (
         <ActionSheet
           title="Erase everything?"
-          message="The passcode can't be recovered. The only way back in is to erase all data on this device. You can then restore from a backup file."
+          message="The passcode can’t be recovered. The only way back in is to erase all data on this device. You can then restore from a backup file."
           actions={[{ label: 'Erase All Data', destructive: true, onClick: props.onReset }]}
           onCancel={() => setConfirmReset(false)}
         />
@@ -108,7 +108,7 @@ export function SetPasscode(props: { onDone: (record: PasscodeRecord) => void })
     <Keypad
       key={first ? 'confirm' : 'first'}
       title={first ? 'Confirm Passcode' : 'Choose a Passcode'}
-      subtitle={first ? 'Enter it again' : `${LENGTH} digits. There is no way to recover it, so make it one you'll remember.`}
+      subtitle={first ? 'Enter it again' : `${LENGTH} digits. There is no way to recover it, so make it one you’ll remember.`}
       error={error}
       onComplete={async (code) => {
         if (!first) {
@@ -118,7 +118,7 @@ export function SetPasscode(props: { onDone: (record: PasscodeRecord) => void })
           props.onDone(await createPasscode(code));
         } else {
           setFirst(undefined);
-          setError("Passcodes didn't match. Try again.");
+          setError('Passcodes didn’t match. Try again.');
         }
       }}
     />
