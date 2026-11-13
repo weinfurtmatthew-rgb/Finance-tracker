@@ -66,7 +66,12 @@ export interface SearchIndex {
   places: PlaceMatch[];
 }
 
-export function buildSearchIndex(txns: Transaction[], categoryName: (id: string) => string | undefined): SearchIndex {
+export function buildSearchIndex(
+  txns: Transaction[],
+  categoryName: (id: string) => string | undefined,
+  /** The name a charge is shown with, when it isn't its payee (an Apple charge shown as “Apple Music”). */
+  shownAs?: (id: string) => string | undefined,
+): SearchIndex {
   const places = new Map<string, PlaceMatch>();
   const rows = txns.map((t) => {
     const key = (t.payee || t.description).trim().toLowerCase();
@@ -78,7 +83,7 @@ export function buildSearchIndex(txns: Transaction[], categoryName: (id: string)
     return {
       t,
       // NUL can't be typed, so matches never run across two fields.
-      text: `${t.payee}\u0000${t.description}\u0000${t.notes}`.toLowerCase(),
+      text: `${t.payee}\u0000${t.description}\u0000${t.notes}\u0000${shownAs?.(t.id) ?? ''}`.toLowerCase(),
       tags: (t.tags ?? []).map(tagKey),
       amount: (t.amount / 100).toFixed(2),
       category: categoryName(t.categoryId)?.toLowerCase() ?? '',

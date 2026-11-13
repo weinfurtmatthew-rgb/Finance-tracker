@@ -28,8 +28,8 @@ export function BillCalendar(props: { statuses: RecurringStatus[]; today: string
       // Past charges in this month come from history; future ones from the schedule.
       for (const t of s.history) if (t.date >= first && t.date <= last) out.push({ status: s, date: t.date });
       let d = s.nextDue;
-      while (d < first) d = nextOnSchedule(d, s.rec);
-      for (const o of occurrences(d, last, s.rec)) if (o >= props.today || o === s.nextDue) out.push({ status: s, date: o });
+      while (d < first) d = nextOnSchedule(d, s.schedule);
+      for (const o of occurrences(d, last, s.schedule)) if (o >= props.today || o === s.nextDue) out.push({ status: s, date: o });
     }
     return out;
   }, [props.statuses, month, props.today]);

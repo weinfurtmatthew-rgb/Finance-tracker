@@ -29,10 +29,29 @@ export const countsAsCost = (r: Pick<Recurring, 'kind'>) => r.kind === 'subscrip
 // Matching transactions to a recurring item
 // ---------------------------------------------------------------------------------------------
 
+const wordPatterns = new Map<string, RegExp>();
+
+/**
+ * Does the text contain `needle` as whole words? "max" is in "HBO Max" but not "Maxwell's Pub", and "apple" is in
+ * "APPLE.COM/BILL" but not "Applebee's". An end that is itself punctuation ("paypal *") needs no boundary.
+ */
+export function containsWords(text: string, needle: string): boolean {
+  let re = wordPatterns.get(needle);
+  if (!re) {
+    const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const edge = (c: string) => /[\p{L}\p{N}]/u.test(c);
+    const before = edge(needle[0]) ? '(?:^|[^\\p{L}\\p{N}])' : '';
+    const after = edge(needle[needle.length - 1]) ? '(?:$|[^\\p{L}\\p{N}])' : '';
+    re = new RegExp(`${before}${escaped}${after}`, 'u');
+    wordPatterns.set(needle, re);
+  }
+  return re.test(text);
+}
+
 export function matchesRecurring(r: Recurring, t: Transaction): boolean {
   if (isOutflow(r) ? t.amount >= 0 : t.amount <= 0) return false;
   const needle = r.match.trim().toLowerCase();
-  if (!needle || !`${t.description}\n${t.payee}`.toLowerCase().includes(needle)) return false;
+  if (!needle || !containsWords(`${t.description}\n${t.payee}`.toLowerCase(), needle)) return false;
   if (r.matchAmount != null && r.matchAmount !== 0) {
     const ratio = Math.abs(t.amount) / Math.abs(r.matchAmount);
     if (ratio < 0.8 || ratio > 1.25) return false;
@@ -40,11 +59,51 @@ export function matchesRecurring(r: Recurring, t: Transaction): boolean {
   return true;
 }
 
+/** Lower is a better fit: an item limited to a close amount beats one that takes any amount; then the longer match text. */
+function fit(r: Recurring, t: Transaction): number {
+  const amount = r.matchAmount ? Math.abs(Math.log(Math.abs(t.amount) / Math.abs(r.matchAmount))) : 1;
+  return amount - r.match.trim().length / 1000;
+}
+
+/**
+ * The charges that belong to each item. A charge counts once: when several items match it (an Apple charge, and
+ * Apple subscriptions at $9.99 and $10.99), it goes to the closest amount, then the most specific match text.
+ */
+export function assignCharges(recs: Recurring[], txns: Transaction[]): Map<string, Transaction[]> {
+  const out = new Map<string, Transaction[]>(recs.map((r) => [r.id, []]));
+  for (const t of txns) {
+    let best: Recurring | undefined;
+    let bestFit = Infinity;
+    for (const r of recs) {
+      if (!matchesRecurring(r, t)) continue;
+      const f = fit(r, t);
+      if (f < bestFit) {
+        best = r;
+        bestFit = f;
+      }
+    }
+    if (best) out.get(best.id)!.push(t);
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Schedules
 // ---------------------------------------------------------------------------------------------
 
-type Schedule = Pick<Recurring, 'frequency' | 'dayOfMonth' | 'days'>;
+/**
+ * A weekly or every-2-weeks schedule whose days take turns, like a paycheck that lands on a Tuesday, then a
+ * Thursday two weeks later: gaps of 16 and 12 days. `anchor` is a date on the schedule; the next date is
+ * `gaps[0]` days after it, then `gaps[1]` after that, and so on.
+ */
+export interface Alternate {
+  anchor: ISODate;
+  gaps: [number, number];
+}
+
+export type Schedule = Pick<Recurring, 'frequency' | 'dayOfMonth' | 'days'> & { alternate?: Alternate };
+
+const mod = (n: number, m: number) => ((n % m) + m) % m;
 
 function nearest(date: ISODate, candidates: ISODate[]): ISODate {
   return candidates.reduce((best, c) => (Math.abs(diffDays(date, c)) < Math.abs(diffDays(date, best)) ? c : best));
@@ -73,6 +132,12 @@ export function nextOnSchedule(gridDate: ISODate, s: Schedule): ISODate {
     return candidates.find((c) => c > gridDate)!;
   }
   if (f.months) return dayInMonth(gridDate, f.months, s.dayOfMonth ?? dayOfMonth(gridDate));
+  if (s.alternate) {
+    const [a, b] = s.alternate.gaps;
+    const k = mod(diffDays(s.alternate.anchor, gridDate), a + b);
+    if (k === 0) return addDays(gridDate, a);
+    if (k === a) return addDays(gridDate, b);
+  }
   return addDays(gridDate, f.days);
 }
 
@@ -84,7 +149,38 @@ export function previousOnSchedule(gridDate: ISODate, s: Schedule): ISODate {
     return candidates.reverse().find((c) => c < gridDate)!;
   }
   if (f.months) return dayInMonth(gridDate, -f.months, s.dayOfMonth ?? dayOfMonth(gridDate));
+  if (s.alternate) {
+    const [a, b] = s.alternate.gaps;
+    const k = mod(diffDays(s.alternate.anchor, gridDate), a + b);
+    if (k === 0) return addDays(gridDate, -b);
+    if (k === a) return addDays(gridDate, -a);
+  }
   return addDays(gridDate, -f.days);
+}
+
+/**
+ * Gaps that take turns around a period (16, 12, 16 days around 14: a Tuesday, then a Thursday) as [the last gap,
+ * the one before it]; null when the gaps are steady or don't take turns.
+ */
+export function alternatingGaps(gaps: number[], period: number): [number, number] | null {
+  if (gaps.length < 3) return null;
+  const recent = gaps.slice(-6);
+  const last = recent[recent.length - 1];
+  const before = recent[recent.length - 2];
+  if (Math.abs(last - before) < 2 || Math.min(last, before) < 1) return null;
+  if (Math.abs(last + before - 2 * period) > 1) return null;
+  const takesTurns = recent.every((g, i) => Math.abs(g - ((recent.length - 1 - i) % 2 === 0 ? last : before)) <= 1);
+  return takesTurns ? [last, before] : null;
+}
+
+/** For a weekly or every-2-weeks item whose recent charges take turns between two days: that schedule. */
+function alternateFrom(r: Recurring, history: Transaction[]): Alternate | undefined {
+  if (r.frequency !== 'weekly' && r.frequency !== 'biweekly') return undefined;
+  const dates = [...new Set(history.slice(0, 7).map((t) => t.date))].sort();
+  const gaps = dates.slice(1).map((d, i) => diffDays(dates[i], d));
+  const turns = alternatingGaps(gaps, FREQUENCIES[r.frequency].days);
+  // The gap after the latest charge is the one before the last gap; then they keep taking turns.
+  return turns ? { anchor: dates[dates.length - 1], gaps: [turns[1], turns[0]] } : undefined;
 }
 
 /** Due dates from `first` through `to` (inclusive). */
@@ -114,6 +210,8 @@ export const DEFAULT_SETTINGS: RecurringSettings = {
 
 export interface RecurringStatus {
   rec: Recurring;
+  /** The item's schedule, with the days it takes turns between when its charges show that (see Alternate). */
+  schedule: Schedule;
   /** Matched transactions, newest first. */
   history: Transaction[];
   lastPaid?: ISODate;
@@ -160,12 +258,15 @@ export function recurringStatus(r: Recurring, txns: Transaction[], today: ISODat
   const lastPaid = [r.lastPaidOn, lastCharge].filter((d): d is ISODate => !!d).sort().pop();
   const expected = expectedAmount(r, history, settings.amountMode);
 
+  const alternate = alternateFrom(r, history);
+  const schedule: Schedule = alternate ? { frequency: r.frequency, dayOfMonth: r.dayOfMonth, days: r.days, alternate } : r;
+
   let nextDue: ISODate;
   if (r.kind === 'trial' && r.trialEndsOn) nextDue = r.trialEndsOn;
-  else if (lastPaid) nextDue = nextOnSchedule(snapToSchedule(lastPaid, r), r);
+  else if (lastPaid) nextDue = nextOnSchedule(snapToSchedule(lastPaid, schedule), schedule);
   else nextDue = today;
 
-  const status: RecurringStatus = { rec: r, history, lastPaid, nextDue, late: nextDue < today, expected };
+  const status: RecurringStatus = { rec: r, schedule, history, lastPaid, nextDue, late: nextDue < today, expected };
 
   if (r.kind === 'trial') status.trialEnded = !!r.trialEndsOn && r.trialEndsOn < today;
 
@@ -181,8 +282,8 @@ export function recurringStatus(r: Recurring, txns: Transaction[], today: ISODat
   if (r.status === 'cancelled' && r.cancelledOn) {
     // A couple of days' grace for charges that were already pending when you cancelled.
     status.chargedAfterCancel = history.find((t) => t.date > addDays(r.cancelledOn!, 2));
-    const from = nextOnSchedule(snapToSchedule(lastPaid && lastPaid > r.cancelledOn ? lastPaid : r.cancelledOn, r), r);
-    status.saved = occurrences(from, today, r).length * Math.abs(expected);
+    const from = nextOnSchedule(snapToSchedule(lastPaid && lastPaid > r.cancelledOn ? lastPaid : r.cancelledOn, schedule), schedule);
+    status.saved = occurrences(from, today, schedule).length * Math.abs(expected);
   }
   return status;
 }
@@ -210,10 +311,10 @@ export function upcoming(statuses: RecurringStatus[], today: ISODate, to: ISODat
     let first = s.nextDue;
     if (s.late) {
       items.push({ status: s, date: s.nextDue, amount: s.expected, late: true });
-      while (first < today) first = nextOnSchedule(first, s.rec);
+      while (first < today) first = nextOnSchedule(first, s.schedule);
       if (first === s.nextDue) continue;
     }
-    for (const d of occurrences(first, to, s.rec)) items.push({ status: s, date: d, amount: s.expected, late: false });
+    for (const d of occurrences(first, to, s.schedule)) items.push({ status: s, date: d, amount: s.expected, late: false });
   }
   return items.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 }
@@ -273,6 +374,9 @@ export function detectPattern(datesIn: ISODate[]): Pattern | null {
     return spread <= 6 ? Math.round(median(doms)) : doms[doms.length - 1];
   };
 
+  // Days that take turns (paid on a Tuesday, then a Thursday): weekly or every 2 weeks on average.
+  if (alternatingGaps(gaps, 7)) return { frequency: 'weekly' };
+  if (alternatingGaps(gaps, 14)) return { frequency: 'biweekly' };
   if (dates.length >= 3) {
     if (med >= 6 && med <= 8 && fits(7, 1)) return { frequency: 'weekly' };
     if (med >= 12 && med <= 18) {

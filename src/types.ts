@@ -213,6 +213,8 @@ export interface Recurring {
   match: string;
   /** When set, only charges within about ±20% of this amount match (used to split Apple bills). */
   matchAmount?: Cents;
+  /** Show `name` on its charges instead of their payee: an Apple charge shown as “Apple Music”. */
+  showName?: boolean;
   /** Typical amount, signed like transactions (negative = money out). Used for the 'manual' mode. */
   amount: Cents;
   /** Overrides the default prediction mode from Settings. */

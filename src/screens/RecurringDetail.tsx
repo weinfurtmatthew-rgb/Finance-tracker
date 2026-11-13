@@ -39,7 +39,7 @@ export function RecurringDetail(props: { id: string; onClose: () => void }) {
 
   const paid = async () => {
     await markPaid(r.id, s.nextDue);
-    nav.toast(`Marked paid · next due ${formatShortDate(nextOnSchedule(s.nextDue, r))}`);
+    nav.toast(`Marked paid · next due ${formatShortDate(nextOnSchedule(s.nextDue, s.schedule))}`);
   };
   const setCancelled = async (on: boolean) => {
     await db.recurring.update(r.id, on ? { status: 'cancelled', cancelledOn: todayISO() } : { status: 'active', cancelledOn: undefined });

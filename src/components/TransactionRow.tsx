@@ -3,16 +3,19 @@ import { Glyph } from './icons';
 import { useNav } from '../nav';
 import { CategoryIcon, Money } from './ui';
 import { TransactionEditor } from '../screens/TransactionEditor';
+import { useChargeNames } from '../recurringModel';
 
 export function TransactionRow(props: { txn: Transaction; category?: Category; account?: Account; showDate?: boolean }) {
   const nav = useNav();
   const { txn } = props;
   const transfer = props.category?.group === 'transfer';
+  // An Apple charge for a subscription you named shows that name (see Recurring.showName).
+  const shownAs = useChargeNames().get(txn.id);
   return (
     <button type="button" class="row txn-row" onClick={() => nav.present((close) => <TransactionEditor txn={txn} onClose={close} />)}>
       <CategoryIcon category={props.category} />
       <span class="row-main">
-        <span class="row-title">{txn.payee || txn.description}</span>
+        <span class="row-title">{shownAs ?? (txn.payee || txn.description)}</span>
         <span class="row-subtitle">
           {txn.categorySource === 'ai' && (
             <span class="ai-mark" title="Categorized by on-device AI, not reviewed yet">

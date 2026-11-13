@@ -5,6 +5,7 @@ import { addDays, dayInMonth } from './lib/dates';
 import { accountBalance } from './lib/balances';
 import {
   DEFAULT_SETTINGS,
+  assignCharges,
   countsAsCost,
   detectRecurring,
   isOutflow,
@@ -47,6 +48,8 @@ export interface RecurringModel {
   monthlySubscriptions: Cents;
   dueThisMonth: { total: Cents; count: number };
   cashFlow?: CashFlow;
+  /** Transaction id → the name to show for it, for items set to show their name (an Apple charge as “Apple Music”). */
+  chargeNames: Map<string, string>;
 }
 
 const EMPTY: never[] = [];
@@ -83,7 +86,11 @@ export function useRecurringModel(): RecurringModel {
         reminderDays: reminderDays ?? DEFAULT_SETTINGS.reminderDays,
       };
       const recs = recurring ?? EMPTY;
-      const statuses = recs.map((r) => recurringStatus(r, txns, today, settings));
+      // Each charge belongs to one item (the closest amount wins when several match).
+      const owned = assignCharges(recs, txns);
+      const statuses = recs.map((r) => recurringStatus(r, owned.get(r.id)!, today, settings));
+      const chargeNames = new Map<string, string>();
+      for (const s of statuses) if (s.rec.showName) for (const t of s.history) chargeNames.set(t.id, s.rec.name);
       const cats = byId(categories);
       const suggestions = recurring ? detectRecurring(txns, cats, recs, new Set(dismissed ?? [])) : [];
       const hidden = new Set(dismissedAlerts ?? []);
@@ -116,7 +123,7 @@ export function useRecurringModel(): RecurringModel {
         .filter((s) => s.rec.kind === 'income')
         .map((s) => {
           let d = s.nextDue;
-          while (d < today) d = nextOnSchedule(d, s.rec);
+          while (d < today) d = nextOnSchedule(d, s.schedule);
           return d;
         })
         .sort();
@@ -141,7 +148,13 @@ export function useRecurringModel(): RecurringModel {
         monthlySubscriptions,
         dueThisMonth,
         cashFlow,
+        chargeNames,
       };
     },
   );
+}
+
+/** The names to show on charges instead of their payee (see Recurring.showName). */
+export function useChargeNames(): Map<string, string> {
+  return useRecurringModel().chargeNames;
 }

@@ -1586,6 +1586,25 @@ a.row {
   gap: 8px;
   margin-top: 10px;
 }
+/* Naming a charge billed under another name ("Apple ($10.99)" is Apple Music). */
+.suggestion-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: var(--fill);
+  font-size: 15px;
+}
+.suggestion-name-label {
+  flex: none;
+  color: var(--text-2);
+}
+.suggestion-name input {
+  flex: 1;
+  min-width: 0;
+}
 .suggestion-actions .chip {
   font-size: 14px;
   min-width: 0;

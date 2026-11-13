@@ -387,6 +387,16 @@ published site and runs `tests/ai-smoke.test.ts` against it.
 - **Bills & Subscriptions** (Browse) with Upcoming, Calendar and All views
 - **Detection:** the app suggests repeating charges (weekly, every 2 weeks, twice a month, monthly, quarterly, yearly) and you confirm each one.
   Apple's `APPLE.COM/BILL` charges are split by amount into separate subscriptions. Charges that have stopped aren't suggested.
+- **Apple subscriptions:** Apple bills every App Store subscription as "Apple", so they're suggested by price ("Apple ($10.99)").
+  Name one ("Apple Music") and its charges show that name in Activity, Today and Search (`Recurring.showName`; the payee stays
+  Apple). The review points to iPhone Settings → your name → Subscriptions, which lists each one with its price.
+- **Paydays that take turns:** a paycheck that lands on a Tuesday, then a Thursday two weeks later (gaps of 16 and 12 days) is
+  found as every 2 weeks, and its next dates follow the turns (`alternatingGaps`, `Schedule.alternate`), for the calendar,
+  bills before payday and per-paycheck goals. Weekly works the same way (9 and 5 days).
+- **Matching:** an item's words must appear whole in a transaction's name or description ("max" matches HBO Max, not
+  Maxwell's), and a charge counts for one item only: the closest amount, then the most specific words (`assignCharges`).
+  A new subscription, trial or loan only counts charges close to its amount (bills that vary, like electric, take any), and
+  the editor lists what will match as you type.
 - Tracks subscriptions, bills & utilities, rent & loans, credit card payments, paychecks and **free trials**
 - **Totals:** monthly cost, yearly cost, due this month, and **left after bills** (checking balance minus bills due before your next payday)
 - **Paid status:** marked automatically when a matching charge is imported, or tap **Mark paid**

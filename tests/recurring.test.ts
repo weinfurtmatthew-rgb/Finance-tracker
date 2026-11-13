@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_SETTINGS, detectPattern, detectRecurring, matchesRecurring, nextOnSchedule, occurrences, priceIncreased,
-  recurringStatus, snapToSchedule, suggestionToRecurring, upcoming,
+  DEFAULT_SETTINGS, alternatingGaps, assignCharges, containsWords, detectPattern, detectRecurring, matchesRecurring, nextOnSchedule,
+  occurrences, priceIncreased, recurringStatus, snapToSchedule, suggestionToRecurring, upcoming,
 } from '../src/lib/recurring';
 import { DEFAULT_CATEGORIES } from '../src/lib/categories';
 import type { Recurring, Transaction } from '../src/types';
@@ -44,8 +44,30 @@ describe('detectPattern', () => {
   it('yearly from two charges', () => {
     expect(detectPattern(['2025-03-14', '2026-03-14'])).toEqual({ frequency: 'yearly', dayOfMonth: 14 });
   });
+  it('every two weeks, taking turns between a Tuesday and a Thursday', () => {
+    // Tue Jul 7, Thu Jul 23, Tue Aug 4, …: gaps of 16 and 12 days.
+    expect(detectPattern(['2026-07-07', '2026-07-23', '2026-08-04', '2026-08-20', '2026-09-01', '2026-09-17'])).toEqual({ frequency: 'biweekly' });
+    // Further apart (a Monday, then a Friday): 18 and 10 days.
+    expect(detectPattern(['2026-07-06', '2026-07-24', '2026-08-03', '2026-08-21', '2026-08-31'])).toEqual({ frequency: 'biweekly' });
+  });
+  it('weekly, taking turns between a Tuesday and a Thursday', () => {
+    expect(detectPattern(['2026-08-04', '2026-08-13', '2026-08-18', '2026-08-27', '2026-09-01', '2026-09-10'])).toEqual({ frequency: 'weekly' });
+  });
   it('rejects random purchases', () => {
     expect(detectPattern(['2026-08-01', '2026-08-04', '2026-08-19', '2026-09-20', '2026-09-22'])).toBeNull();
+  });
+});
+
+describe('alternatingGaps', () => {
+  it('finds gaps that take turns around the period, last gap first', () => {
+    expect(alternatingGaps([16, 12, 16, 12, 16], 14)).toEqual([16, 12]);
+    expect(alternatingGaps([9, 5, 9, 5], 7)).toEqual([5, 9]);
+  });
+  it('steady gaps, too few gaps, or ones that don\u2019t average out are not taking turns', () => {
+    expect(alternatingGaps([14, 14, 14], 14)).toBeNull();
+    expect(alternatingGaps([16, 12], 14)).toBeNull();
+    expect(alternatingGaps([16, 15, 16, 15], 14)).toBeNull(); // twice a month: averages about 15
+    expect(alternatingGaps([16, 12, 14, 12], 14)).toBeNull();
   });
 });
 
@@ -161,11 +183,56 @@ describe('recurringStatus', () => {
     expect(s2.chargedAfterCancel?.date).toBe('2026-10-02');
   });
 
+  it('a paycheck that takes turns between a Tuesday and a Thursday is expected on the right day', () => {
+    const pay: Recurring = { ...base, name: 'Acme payroll', kind: 'income', frequency: 'biweekly', match: 'acme', amount: 240000, dayOfMonth: undefined };
+    const dates = ['2026-07-07', '2026-07-23', '2026-08-04', '2026-08-20', '2026-09-01', '2026-09-17'];
+    const s = recurringStatus(pay, dates.map((d) => tx(d, 240000, 'Acme')), '2026-09-20', DEFAULT_SETTINGS);
+    // The last one was a Thursday, so the next is the Tuesday 12 days later (not the Thursday 14 days later).
+    expect(s.nextDue).toBe('2026-09-29');
+    expect(occurrences(s.nextDue, '2026-11-15', s.schedule)).toEqual(['2026-09-29', '2026-10-15', '2026-10-27', '2026-11-12']);
+    expect(upcoming([s], '2026-09-20', '2026-10-31').map((i) => i.date)).toEqual(['2026-09-29', '2026-10-15', '2026-10-27']);
+    // A steady every-2-weeks paycheck keeps its plain schedule.
+    const steady = recurringStatus(pay, ['2026-08-07', '2026-08-21', '2026-09-04', '2026-09-18'].map((d) => tx(d, 240000, 'Acme')), '2026-09-20', DEFAULT_SETTINGS);
+    expect(steady.nextDue).toBe('2026-10-02');
+    expect(steady.schedule.alternate).toBeUndefined();
+  });
+
   it('matches Apple charges by amount when split', () => {
     const r: Recurring = { ...base, name: 'iCloud', match: 'apple', matchAmount: -299 };
     expect(matchesRecurring(r, tx('2026-09-05', -299, 'Apple'))).toBe(true);
     expect(matchesRecurring(r, tx('2026-09-05', -1099, 'Apple'))).toBe(false);
     expect(matchesRecurring(r, tx('2026-09-05', 299, 'Apple'))).toBe(false); // refund isn't a charge
+  });
+});
+
+describe('matching', () => {
+  it('matches whole words, not part of another word', () => {
+    expect(containsWords('hbo max', 'max')).toBe(true);
+    expect(containsWords("maxwell's pub", 'max')).toBe(false);
+    expect(containsWords('apple.com/bill', 'apple')).toBe(true);
+    expect(containsWords('applebees grill', 'apple')).toBe(false);
+    expect(containsWords("trader joe's #552", 'trader joe')).toBe(true);
+    expect(containsWords('paypal *spotify', 'paypal *')).toBe(true);
+    const r: Recurring = { id: 'r', name: 'Max', kind: 'subscription', frequency: 'monthly', match: 'max', amount: -1699, status: 'active', createdAt: 0 };
+    expect(matchesRecurring(r, tx('2026-09-03', -1699, 'HBO Max', 'subscriptions', 'HBO MAX 855-442'))).toBe(true);
+    expect(matchesRecurring(r, tx('2026-09-04', -4210, "Maxwell's Pub", 'dining', "MAXWELL'S PUB"))).toBe(false);
+  });
+
+  it('a charge belongs to one item: the closest amount, then the most specific words', () => {
+    const item = (id: string, match: string, matchAmount?: number): Recurring => ({
+      id, name: id, kind: 'subscription', frequency: 'monthly', match, matchAmount, amount: matchAmount ?? -100, status: 'active', createdAt: 0,
+    });
+    const icloud = item('icloud', 'apple', -999);
+    const music = item('music', 'apple', -1099);
+    const anyApple = item('any', 'apple');
+    const charges = [tx('2026-09-01', -999, 'Apple'), tx('2026-09-02', -1099, 'Apple'), tx('2026-09-03', -129900, 'Apple')];
+    const owned = assignCharges([anyApple, icloud, music], charges);
+    expect(owned.get('icloud')!.map((t) => t.amount)).toEqual([-999]);
+    expect(owned.get('music')!.map((t) => t.amount)).toEqual([-1099]);
+    expect(owned.get('any')!.map((t) => t.amount)).toEqual([-129900]);
+    const longer = item('long', 'apple.com/bill');
+    const billed = tx('2026-09-04', -499, 'Apple', 'subscriptions', 'APPLE.COM/BILL 866-712-7753');
+    expect(assignCharges([anyApple, longer], [billed]).get('long')!.length).toBe(1);
   });
 });
 

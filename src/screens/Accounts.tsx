@@ -121,8 +121,8 @@ export function Accounts() {
     const until = goals.reduce((m, g) => (g.targetDate && g.targetDate > m ? g.targetDate : m), today);
     if (!income || until === today) return [];
     let first = income.nextDue;
-    while (first < today) first = nextOnSchedule(first, income.rec);
-    return occurrences(first, until, income.rec, 500);
+    while (first < today) first = nextOnSchedule(first, income.schedule);
+    return occurrences(first, until, income.schedule, 500);
   }, [rec.statuses, goals, today]);
   const progress = useMemo(() => goals.map((g) => goalProgress(book, g, today, paydays)), [goals, book, today, paydays]);
   // A goal reached gets a small celebration, once. (Undefined while loading, [] when there's none yet.)
