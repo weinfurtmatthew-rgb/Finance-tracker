@@ -7,6 +7,7 @@ import { useAsk, type Reply } from '../askModel';
 import { allTags } from '../lib/lines';
 import { addRecent, buildSearchIndex, looksLikeQuestion, searchPlaces, searchTransactions, topHit, type PlaceMatch } from '../lib/search';
 import { useStore } from '../store';
+import { useChargeNames } from '../recurringModel';
 import { addDays, monthKey, todayISO } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { placeKey } from '../lib/detail';
@@ -74,7 +75,14 @@ export function Search(props: { back: { label: string; glyph: GlyphName; go: () 
   const q = query.trim().toLowerCase();
   // Prepared once per change to the data, so typing only scans (see buildSearchIndex).
   const store = useStore();
-  const index = store.derive('searchIndex', [txns, cats], () => buildSearchIndex(txns, (id) => cats.get(id)?.name));
+  const chargeNames = useChargeNames();
+  const index = store.derive('searchIndex', [txns, cats, chargeNames], () =>
+    buildSearchIndex(
+      txns,
+      (id) => cats.get(id)?.name,
+      (id) => chargeNames.get(id),
+    ),
+  );
   const tagList = store.derive('allTags', [txns], () => allTags(txns));
   const results = useMemo(() => {
     if (!q) return null;

@@ -14,6 +14,7 @@ import { SettleSheet } from './Owed';
 import { ActionSheet, BigAmount, CategorySelect, Field, Section, Segmented, Sheet, Toggle } from '../components/ui';
 import { ExplainPanel } from '../components/ExplainPanel';
 import { APP_NAMES, bankLineApp, isAppTransferLine } from '../lib/p2p';
+import { useChargeNames } from '../recurringModel';
 
 /**
  * Keep payment-app details. On an app payment (or a bank line like "APPLE CASH SENT MONEY"), the payee
@@ -47,6 +48,7 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
   const [amount, setAmount] = useState(t ? centsToInput(t.amount) : '');
   const [date, setDate] = useState(t?.date ?? todayISO());
   const [payee, setPayee] = useState(t?.payee ?? '');
+  const shownAs = useChargeNames().get(t?.id ?? '');
   const [accountId, setAccountId] = useState(t?.accountId ?? props.accountId ?? props.defaultAccountId ?? '');
   const [categoryId, setCategoryId] = useState(t?.categoryId ?? UNCATEGORIZED);
   const [notes, setNotes] = useState(t?.notes ?? '');
@@ -173,7 +175,7 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
         </p>
       )}
       <Section>
-        <Field label="Payee">
+        <Field label="Payee" hint={shownAs ? `Shown as “${shownAs}”, from Bills & Subscriptions` : undefined}>
           <input value={payee} placeholder="Who was it?" onInput={(e) => setPayee((e.target as HTMLInputElement).value)} />
         </Field>
         {!parts && !(forSomeone && direction === 'out') && (

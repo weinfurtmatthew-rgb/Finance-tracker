@@ -10,8 +10,14 @@ import { cancelLinkFor } from '../lib/cancelLinks';
 import { dismissSuggestion } from '../lib/recurringActions';
 import { Dotted, Empty, KindIcon, Sheet } from '../components/ui';
 
-async function confirm(s: Suggestion, kind: RecurringKind) {
+/** Charges billed under one company's name for different things, listed by price (Apple). */
+const byPrice = (s: Suggestion) => s.matchAmount != null;
+const isApple = (s: Suggestion) => /^apple\b/.test(s.match);
+
+async function confirm(s: Suggestion, kind: RecurringKind, label = '') {
   const rec = suggestionToRecurring(s, kind, newId());
+  // Named ("Apple Music"): the charges show that name instead of "Apple".
+  if (label.trim()) Object.assign(rec, { name: label.trim(), showName: true });
   // Apple suggestions are named "Apple ($2.99)"; the link still applies.
   if (kind === 'subscription') rec.cancelUrl = cancelLinkFor(s.name, s.match);
   await db.recurring.add(rec);
@@ -20,6 +26,7 @@ async function confirm(s: Suggestion, kind: RecurringKind) {
 function SuggestionCard(props: { s: Suggestion }) {
   const { s } = props;
   const [kind, setKind] = useState<RecurringKind>(s.kind);
+  const [label, setLabel] = useState('');
   return (
     <div class="suggestion">
       <div class="suggestion-top">
@@ -32,6 +39,17 @@ function SuggestionCard(props: { s: Suggestion }) {
         </span>
         <span class={`row-detail ${s.amount > 0 ? 'pos-text' : ''}`}>{formatMoney(s.amount, { sign: s.amount > 0 })}</span>
       </div>
+      {byPrice(s) && (
+        <label class="suggestion-name">
+          <span class="suggestion-name-label">What is it?</span>
+          <input
+            value={label}
+            placeholder={isApple(s) ? 'e.g. iCloud+, Apple Music' : 'e.g. the plan’s name'}
+            aria-label={`What ${s.name} is`}
+            onInput={(e) => setLabel((e.target as HTMLInputElement).value)}
+          />
+        </label>
+      )}
       <div class="suggestion-actions">
         <select class="chip" value={kind} aria-label="Type" onChange={(e) => setKind((e.target as HTMLSelectElement).value as RecurringKind)}>
           {(Object.keys(KINDS) as RecurringKind[])
@@ -44,7 +62,7 @@ function SuggestionCard(props: { s: Suggestion }) {
         <button type="button" class="pill" onClick={() => dismissSuggestion(s.key)}>
           Skip
         </button>
-        <button type="button" class="pill primary" onClick={() => confirm(s, kind)}>
+        <button type="button" class="pill primary" onClick={() => confirm(s, kind, label)}>
           Add
         </button>
       </div>
@@ -72,6 +90,12 @@ export function RecurringReview(props: { onClose: () => void }) {
           <p class="section-footer intro">
             These charges repeat on a regular schedule. Check the type (it decides which totals they count toward), then add or dismiss each one.
           </p>
+          {suggestions.some(isApple) && (
+            <p class="section-footer intro">
+              Apple bills every App Store subscription as “Apple”, so those are listed by price. Your iPhone shows which is which in Settings → your name →
+              Subscriptions; name them here and their charges show that name.
+            </p>
+          )}
           {suggestions.map((s) => (
             <SuggestionCard key={s.key} s={s} />
           ))}

@@ -13,6 +13,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13c',
+    date: 'November 13, 2026',
+    title: 'Better bills and subscriptions',
+    items: [
+      'A paycheck that lands on a Tuesday one time and a Thursday the next is expected on the right day, for bills before payday and the calendar.',
+      'Adding a subscription yourself counts only its own charges: whole words, and only amounts close to its price. The editor shows what it will match as you type.',
+      'Apple bills every App Store subscription as “Apple”. Name each one (Apple Music, iCloud+) when you add it, and its charges show that name.',
+    ],
+  },
+  {
     id: '2026-11-13b',
     date: 'November 13, 2026',
     title: 'Finishing touches',
