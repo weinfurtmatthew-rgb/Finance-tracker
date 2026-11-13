@@ -56,7 +56,7 @@ export function GoalEditor(props: { goal?: Goal; onClose: () => void }) {
       </Section>
       <Section
         title="Saved in"
-        footer="Progress follows this account's balance, so it updates as you import. If several goals share one account, each counts the full balance."
+        footer="Progress follows this account’s balance, so it updates as you import. If several goals share one account, each counts the full balance."
       >
         {accounts.length ? (
           <Field label="Account">
@@ -87,7 +87,7 @@ export function GoalEditor(props: { goal?: Goal; onClose: () => void }) {
       )}
       {confirm && (
         <ActionSheet
-          message={`Delete “${g!.name}”? The linked account isn't affected.`}
+          message={`Delete “${g!.name}”? The linked account isn’t affected.`}
           actions={[
             {
               label: 'Delete Goal',

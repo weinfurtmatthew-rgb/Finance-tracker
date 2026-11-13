@@ -108,7 +108,7 @@ async function load() {
     set({ phase: 'ready', embed: true, progress: undefined });
   } catch (e) {
     const detail = e instanceof Error ? e.message : String(e);
-    set({ phase: 'error', error: `The AI files couldn't be loaded. Check your connection and try again. (${detail.slice(0, 120)})` });
+    set({ phase: 'error', error: `The AI files couldn’t be loaded. Check your connection and try again. (${detail.slice(0, 120)})` });
   }
 }
 

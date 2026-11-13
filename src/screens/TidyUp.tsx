@@ -90,7 +90,7 @@ export function TidyUp(props: { onClose: () => void }) {
       ) : (
         <>
           <p class="section-footer intro">
-            These older transactions were filed by a guess (the bank's “Other”, unknown money coming in as Income, or no category).
+            These older transactions were filed by a guess (the bank’s “Other”, unknown money coming in as Income, or no category).
             {ai.embed
               ? ' The on-device AI filled in the ones it is sure about; tap a suggestion to use it.'
               : ' Turn on on-device AI in Settings for suggestions.'}{' '}

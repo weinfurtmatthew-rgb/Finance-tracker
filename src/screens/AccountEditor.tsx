@@ -390,7 +390,7 @@ function AccountForm(props: Props & { txns: Transaction[]; values: Valuation[] }
       )}
       {confirmDelete && (
         <ActionSheet
-          message={`Delete “${a!.name}” and its ${count} transaction${count === 1 ? '' : 's'}? This can't be undone.`}
+          message={`Delete “${a!.name}” and its ${count} transaction${count === 1 ? '' : 's'}? This can’t be undone.`}
           actions={[{ label: 'Delete Account', destructive: true, onClick: remove }]}
           onCancel={() => setConfirmDelete(false)}
         />

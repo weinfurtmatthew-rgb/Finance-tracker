@@ -183,18 +183,22 @@ function compactMoneyFull(cents: number): string {
 
 /** Horizontal ranked bars (one series, one color); the value sits at the bar's tip. */
 export function RankedBars(props: {
-  items: { key: string; label: ComponentChildren; value: number; note?: string }[];
+  /** `share` is shown after the amount ("$9,900 · 74%"); `note` goes on a line of its own under the bar. */
+  items: { key: string; label: ComponentChildren; value: number; note?: string; share?: string }[];
   onSelect?: (key: string) => void;
 }) {
   const max = Math.max(1, ...props.items.map((i) => i.value));
   return (
-    <div class="ranked">
+    <div class={props.items.some((i) => i.share) ? 'ranked with-share' : 'ranked'}>
       {props.items.map((i) => (
         <button type="button" class="ranked-row" onClick={() => props.onSelect?.(i.key)}>
           <span class="ranked-label">{i.label}</span>
           <span class="ranked-bar">
             <span class="ranked-fill" style={{ width: `${Math.max(1.5, (i.value / max) * 100)}%` }} />
-            <span class="ranked-value">{compactMoneyFull(i.value)}</span>
+            <span class="ranked-value">
+              {compactMoneyFull(i.value)}
+              {i.share && ` · ${i.share}`}
+            </span>
           </span>
           {i.note && <span class="ranked-note">{i.note}</span>}
         </button>

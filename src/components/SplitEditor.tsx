@@ -39,7 +39,7 @@ export function SplitEditor(props: {
         <>
           <span>Split</span>
           <button type="button" class="link" onClick={props.onRemoveSplit}>
-            Don't split
+            Don’t split
           </button>
         </>
       }

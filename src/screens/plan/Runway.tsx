@@ -30,9 +30,9 @@ export function RunwayCalc(props: { data: PlanData; onClose: () => void }) {
           <Progress value={cash / Math.max(1, r.target)} label={`Progress toward ${target} months`} />
           <p class="plan-note">
             {r.gap === 0
-              ? `You've reached your ${target}-month target of ${money(r.target)}.`
+              ? `You’ve reached your ${target}-month target of ${money(r.target)}.`
               : `${money(r.gap)} to go to reach ${target} months (${money(r.target)}).` +
-                (r.monthsToTarget != null ? ` At ${money(saving)} a month, that's about ${duration(r.monthsToTarget)}.` : '')}
+                (r.monthsToTarget != null ? ` At ${money(saving)} a month, that’s about ${duration(r.monthsToTarget)}.` : '')}
           </p>
         </div>
       )}

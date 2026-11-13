@@ -464,7 +464,7 @@ export function answer(q: Query, d: AnswerData): Answer {
       const times = new Set(txns.map((t) => t.id)).size;
       return {
         headline: `${times} time${times === 1 ? '' : 's'}${subject(q, d)} ${when(q.period)}, ${money(Math.max(0, total))} in total.`,
-        detail: times ? `That's ${money(Math.round(total / times))} on average each time.` : undefined,
+        detail: times ? `That’s ${money(Math.round(total / times))} on average each time.` : undefined,
         interpretation,
         filter,
       };
@@ -517,7 +517,7 @@ export function answer(q: Query, d: AnswerData): Answer {
       return {
         headline: subs.length
           ? `You have ${subs.length} subscription${subs.length === 1 ? '' : 's'} costing about ${money(monthly)} a month (${money(monthly * 12)} a year).`
-          : `You aren't tracking any subscriptions yet. Review suggestions in Browse → Bills & Subscriptions.`,
+          : `You aren’t tracking any subscriptions yet. Review suggestions in Browse → Bills & Subscriptions.`,
         items: subs.slice(0, 8).map((s) => ({ label: s.rec.name, value: Math.abs(s.expected), note: FREQUENCIES[s.rec.frequency].label })),
         interpretation,
       };
@@ -527,7 +527,7 @@ export function answer(q: Query, d: AnswerData): Answer {
       const list = q.person ? all.filter((p) => samePerson(p.who, q.person)) : all;
       const total = list.reduce((s, p) => s + p.total, 0);
       if (!list.length)
-        return { headline: q.person ? `${q.person} doesn't owe you anything.` : `Nobody owes you money right now.`, detail: 'Mark a purchase as “Paid for someone else” to track it.', interpretation };
+        return { headline: q.person ? `${q.person} doesn’t owe you anything.` : `Nobody owes you money right now.`, detail: 'Mark a purchase as “Paid for someone else” to track it.', interpretation };
       return {
         headline: q.person ? `${list[0].who} owes you ${money(total)}.` : `${list.length === 1 ? `${list[0].who} owes` : `${list.length} people owe`} you ${money(total)}.`,
         items: q.person ? list[0].items.map((i) => ({ label: i.txn.payee, value: i.amount, note: i.date })) : list.map((p) => ({ label: p.who, value: p.total, note: `${p.items.length} thing${p.items.length === 1 ? '' : 's'}` })),
@@ -555,7 +555,7 @@ export function answer(q: Query, d: AnswerData): Answer {
         const word = c.tier === 'cheap' ? 'cheap' : c.tier === 'acceptable' ? 'acceptable' : 'expensive';
         return {
           headline: `${money(q.amount)} rent is ${word} for you: ${Math.round(c.ofTakeHome * 100)}% of your take-home.`,
-          detail: c.savingsShort > 0 ? `You could save ${money(c.saves)} a month, ${money(c.savingsShort)} short of saving 20%.` : `You'd still save 20% of your pay. Open Plan → Rent calculator for roommates and extras.`,
+          detail: c.savingsShort > 0 ? `You could save ${money(c.saves)} a month, ${money(c.savingsShort)} short of saving 20%.` : `You’d still save 20% of your pay. Open Plan → Rent calculator for roommates and extras.`,
           interpretation: `rent check · ${money(q.amount)}`,
         };
       }
@@ -573,12 +573,12 @@ export function answer(q: Query, d: AnswerData): Answer {
       };
     case 'budget': {
       const list = q.categoryId ? d.budgets.filter((b) => b.categoryId === q.categoryId) : d.budgets;
-      if (!list.length) return { headline: q.categoryId ? `There's no budget for ${d.categories.get(q.categoryId)?.name}.` : `You haven't set up budgets yet.`, interpretation };
+      if (!list.length) return { headline: q.categoryId ? `There’s no budget for ${d.categories.get(q.categoryId)?.name}.` : `You haven’t set up budgets yet.`, interpretation };
       const limit = list.reduce((s, b) => s + b.limit, 0);
       const spent = list.reduce((s, b) => s + b.spent, 0);
       const over = list.filter((b) => b.state === 'over');
       return {
-        headline: spent <= limit ? `You have ${money(limit - spent)} left of ${money(limit)} budgeted this month.` : `You're ${money(spent - limit)} over your ${money(limit)} budget this month.`,
+        headline: spent <= limit ? `You have ${money(limit - spent)} left of ${money(limit)} budgeted this month.` : `You’re ${money(spent - limit)} over your ${money(limit)} budget this month.`,
         detail: over.length ? `Over budget: ${over.map((b) => d.categories.get(b.categoryId)?.name).join(', ')}.` : undefined,
         items: list.map((b) => ({ label: d.categories.get(b.categoryId)?.name ?? b.categoryId, value: b.spent, note: `of ${money(b.limit)}` })),
         interpretation,

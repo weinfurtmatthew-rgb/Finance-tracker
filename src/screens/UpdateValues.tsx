@@ -41,7 +41,7 @@ function Form(props: { book: BalanceBook; onClose: () => void }) {
   return (
     <Sheet title="Update Values" onClose={props.onClose} onSave={save}>
       <p class="section-footer intro">
-        Enter what each is worth today: the total shown on your brokerage's site, or a resale estimate for a vehicle (Kelley Blue Book, Edmunds or Carvana).
+        Enter what each is worth today: the total shown on your brokerage’s site, or a resale estimate for a vehicle (Kelley Blue Book, Edmunds or Carvana).
         Each update adds a point to your net worth history.
       </p>
       {accounts.length === 0 ? (

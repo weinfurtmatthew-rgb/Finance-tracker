@@ -74,8 +74,8 @@ export function factSentences(f: SummaryFacts): string[] {
   if (f.previous > 0) {
     const diff = f.spent - f.previous;
     const dir = diff > 0 ? 'more' : 'less';
-    s.push(`You've spent ${$(f.spent)} ${when}, ${pct(f.spent, f.previous)}% ${dir} than ${f.current ? 'at this point last month' : 'the month before'} (${$(f.previous)}).`);
-  } else s.push(`You've spent ${$(f.spent)} ${when}.`);
+    s.push(`You’ve spent ${$(f.spent)} ${when}, ${pct(f.spent, f.previous)}% ${dir} than ${f.current ? 'at this point last month' : 'the month before'} (${$(f.previous)}).`);
+  } else s.push(`You’ve spent ${$(f.spent)} ${when}.`);
   if (f.topCategory) s.push(`The biggest category is ${f.topCategory.name} at ${$(f.topCategory.amount)}.`);
   if (f.biggestJump && f.biggestJump.name !== f.topCategory?.name) s.push(`${f.biggestJump.name} is up: ${$(f.biggestJump.amount)} vs your usual ${$(f.biggestJump.average)}.`);
   if (f.over.length) s.push(`Over budget: ${f.over.join(', ')}.`);

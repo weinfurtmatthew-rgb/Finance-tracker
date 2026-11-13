@@ -145,7 +145,7 @@ export function RecapPage(props: { onClose: () => void; initialKey?: string }) {
                         </>
                       ),
                       value: t.value,
-                      note: `${Math.round(t.share * 100)}%`,
+                      share: `${Math.round(t.share * 100)}%`,
                     }))}
                   />
                 </Section>

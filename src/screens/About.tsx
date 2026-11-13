@@ -12,18 +12,18 @@ export function PrivacySheet(props: { onClose: () => void }) {
   return (
     <Sheet title="Privacy" onClose={props.onClose} readable>
       <div class="prose">
-        <p class="prose-lead">Your financial data never leaves this phone. There's no account, no server and no tracking.</p>
+        <p class="prose-lead">Your financial data never leaves this phone. There’s no account, no server and no tracking.</p>
 
         <h3>What the app stores</h3>
         <p>
-          The accounts, transactions, categories, budgets and settings you add are kept in this browser's private storage on your phone. Only this app,
+          The accounts, transactions, categories, budgets and settings you add are kept in this browser’s private storage on your phone. Only this app,
           on this phone, can read them.
         </p>
 
         <h3>What it sends</h3>
         <p>
-          Nothing about your money. The app has no server to send it to, and it's built so it can only talk to the website it's loaded from, and
-          to Twelve Data's price service (a security rule blocks every other address). It contacts that website only to:
+          Nothing about your money. The app has no server to send it to, and it’s built so it can only talk to the website it’s loaded from, and
+          to Twelve Data’s price service (a security rule blocks every other address). It contacts that website only to:
         </p>
         <ul>
           <li>load the app itself, and its updates;</li>
@@ -32,7 +32,7 @@ export function PrivacySheet(props: { onClose: () => void }) {
         <p>
           It contacts Twelve Data only if you turn on stock prices in Settings with a key of your own: to get prices of the stocks, ETFs and funds
           you hold, and to look up tickers as you type them. It sends ticker symbols (like VTI) and your key, never amounts, shares or accounts.
-          Twelve Data can see your phone's IP address, as any website can.
+          Twelve Data can see your phone’s IP address, as any website can.
         </p>
         <p>
           The app is hosted on GitHub Pages. Like any website host, GitHub can see that your phone loaded the app (for example its IP address),
@@ -44,7 +44,7 @@ export function PrivacySheet(props: { onClose: () => void }) {
 
         <h3>Bank files and backups</h3>
         <p>
-          Files you import are read on the phone and aren't kept. Backups are files you save where you choose, like iCloud Drive; protect them
+          Files you import are read on the phone and aren’t kept. Backups are files you save where you choose, like iCloud Drive; protect them
           with a password to make them unreadable without it.
         </p>
 

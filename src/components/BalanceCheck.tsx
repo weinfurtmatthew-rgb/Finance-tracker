@@ -72,7 +72,7 @@ export function BalanceCheck(props: { account: Account; intro?: string; onDone?:
         title="Check your balance"
         footer={
           props.intro ??
-          `Open your bank's app or site and type the ${liability ? 'current balance owed' : 'current balance'} shown there. ${
+          `Open your bank’s app or site and type the ${liability ? 'current balance owed' : 'current balance'} shown there. ${
             account.checkedOn ? `Last matched ${formatShortDate(account.checkedOn)}.` : ''
           }`
         }
@@ -113,7 +113,7 @@ function Result(props: { r: Reconciliation; account: Account; onRemoveDuplicates
         {r.neverChecked && (
           <li>
             <b>Starting balance</b>
-            <span class="cause-line">This account's balance was never checked, so its starting balance is probably just missing.</span>
+            <span class="cause-line">This account’s balance was never checked, so its starting balance is probably just missing.</span>
           </li>
         )}
         {r.duplicates.length > 0 && (
@@ -143,7 +143,7 @@ function Result(props: { r: Reconciliation; account: Account; onRemoveDuplicates
         {r.pendingLikely && (
           <li>
             <b>Pending charges</b>
-            <span class="cause-line">Your bank's number includes recent charges that may not be in the file yet. They'll arrive with your next import.</span>
+            <span class="cause-line">Your bank’s number includes recent charges that may not be in the file yet. They’ll arrive with your next import.</span>
           </li>
         )}
       </ul>

@@ -88,7 +88,7 @@ export function RocketRepair(props: { drafts: DraftTransaction[] }) {
         for (const o of plan.openings) await db.accounts.update(o.accountId, { openingBalance: o.openingBalance });
         return plan;
       });
-      nav.toast(`Fixed ${result.fixed} transactions${result.merged ? ` · ${result.merged} merged with your bank's` : ''}`);
+      nav.toast(`Fixed ${result.fixed} transactions${result.merged ? ` · ${result.merged} merged with your bank’s` : ''}`);
     } finally {
       setBusy(false);
     }
@@ -97,7 +97,7 @@ export function RocketRepair(props: { drafts: DraftTransaction[] }) {
   return (
     <Section
       title="Fix your earlier Rocket Money import"
-      footer={`Rocket Money puts every account in one file and writes spending as positive numbers. The earlier import treated it as one plain file${flipped ? ', so spending and income came in swapped' : ''}${wrongPlace ? ' and other accounts’ transactions landed in one account' : ''}. Fixing corrects the signs, moves each row to its account, and merges the ones your bank's own files already brought in. Your categories and notes are kept.`}
+      footer={`Rocket Money puts every account in one file and writes spending as positive numbers. The earlier import treated it as one plain file${flipped ? ', so spending and income came in swapped' : ''}${wrongPlace ? ' and other accounts’ transactions landed in one account' : ''}. Fixing corrects the signs, moves each row to its account, and merges the ones your bank’s own files already brought in. Your categories and notes are kept.`}
     >
       <div class="row">
         <span class="row-main">
@@ -105,7 +105,7 @@ export function RocketRepair(props: { drafts: DraftTransaction[] }) {
             {preview.fixed} transaction{preview.fixed === 1 ? '' : 's'} to fix
           </span>
           <span class="row-subtitle">
-            {[preview.moved && `${preview.moved} to move`, preview.merged && `${preview.merged} already in your bank's files`].filter(Boolean).join(' · ') || 'signs and names'}
+            {[preview.moved && `${preview.moved} to move`, preview.merged && `${preview.merged} already in your bank’s files`].filter(Boolean).join(' · ') || 'signs and names'}
           </span>
         </span>
       </div>

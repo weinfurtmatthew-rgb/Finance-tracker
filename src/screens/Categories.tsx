@@ -96,7 +96,7 @@ export function CategoryEditor(props: { category?: Category; group?: CategoryGro
         </div>
       </Section>
       {!locked && (
-        <Section title="Type" footer="Transfers (like moving money to savings or paying your credit card) don't count as spending or income.">
+        <Section title="Type" footer="Transfers (like moving money to savings or paying your credit card) don’t count as spending or income.">
           <div class="padded-sm">
             <Segmented
               value={group}
@@ -118,7 +118,7 @@ export function CategoryEditor(props: { category?: Category; group?: CategoryGro
         </div>
       </Section>
       {!locked && (
-        <Section footer="Hidden categories don't appear when you pick a category; transactions already in them stay.">
+        <Section footer="Hidden categories don’t appear when you pick a category; transactions already in them stay.">
           <Toggle checked={hidden} onChange={setHidden} label="Hide from pickers" />
         </Section>
       )}
@@ -157,7 +157,7 @@ export function CategoryEditor(props: { category?: Category; group?: CategoryGro
       )}
       {confirm === 'merge' && (
         <ActionSheet
-          message={`Merge “${c!.name}” into “${categories.find((x) => x.id === mergeInto)?.name}”? This can't be undone.`}
+          message={`Merge “${c!.name}” into “${categories.find((x) => x.id === mergeInto)?.name}”? This can’t be undone.`}
           actions={[{ label: 'Merge', destructive: true, onClick: merge }]}
           onCancel={() => setConfirm(null)}
         />

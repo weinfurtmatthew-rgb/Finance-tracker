@@ -62,13 +62,13 @@ export function RentCalc(props: { data: PlanData; onClose: () => void }) {
           value={TIER[check.tier].label}
           sub={
             <>
-              You'd pay {money(check.cost)} a month{shared ? ` (${money(check.rentShare)} rent${extrasNote})` : extrasNote ? ` (rent${extrasNote})` : ''}, {pct(check.ofTakeHome, 0)} of
+              You’d pay {money(check.cost)} a month{shared ? ` (${money(check.rentShare)} rent${extrasNote})` : extrasNote ? ` (rent${extrasNote})` : ''}, {pct(check.ofTakeHome, 0)} of
               take-home.{' '}
               {check.savingsShort > 0
                 ? check.saves > 0
                   ? `You could save ${money(check.saves)} a month, ${money(check.savingsShort)} short of your goal.`
                   : `Your costs would be ${money(-check.leftOver)} more than you take home.`
-                : `You'd still save your ${money(goal)} goal, with ${money(check.leftOver - goal)} to spare.`}
+                : `You’d still save your ${money(goal)} goal, with ${money(check.leftOver - goal)} to spare.`}
             </>
           }
           status={TIER[check.tier].status}
@@ -92,7 +92,7 @@ export function RentCalc(props: { data: PlanData; onClose: () => void }) {
               : shared
                 ? `With ${people} people, a place up to ${money(limits.acceptableRent)} a month${limits.extrasShare ? ' (rent, before extras)' : ''}.`
                 : limits.extrasShare
-                  ? `That's ${money(limits.acceptableRent)} rent + ${money(limits.extrasShare)} extras.`
+                  ? `That’s ${money(limits.acceptableRent)} rent + ${money(limits.extrasShare)} extras.`
                   : 'Type a listing below to check a place.'
           }
         />
@@ -145,7 +145,7 @@ export function RentCalc(props: { data: PlanData; onClose: () => void }) {
           <>
             <MoneyField label="Utilities / mo" value={utilitiesText} set={setUtilities} hint="For the whole place: electric, gas, water, internet" />
             {shared && <Toggle checked={splitUtilities} onChange={setSplitUtilities} label="Split utilities too" />}
-            <MoneyField label="Your extras / mo" value={personalText} set={setPersonal} hint="Renter's insurance, parking, pet rent, fees" />
+            <MoneyField label="Your extras / mo" value={personalText} set={setPersonal} hint="Renter’s insurance, parking, pet rent, fees" />
           </>
         )}
       </Section>
@@ -172,7 +172,7 @@ export function RentCalc(props: { data: PlanData; onClose: () => void }) {
         </p>
       )}
       {check?.landlordOk && check.tier === 'expensive' && (
-        <p class="plan-note">Landlords would approve this, but it's more than your budget comfortably allows.</p>
+        <p class="plan-note">Landlords would approve this, but it’s more than your budget comfortably allows.</p>
       )}
       {d.creditScore != null && (
         <p class="plan-note credit-check">
@@ -186,7 +186,7 @@ export function RentCalc(props: { data: PlanData; onClose: () => void }) {
           label="Other costs / mo"
           value={otherText}
           set={setOther}
-          hint={d.monthlyHousing > 0 ? `Your spending without today's rent (${money(d.monthlyHousing)})` : 'Bills, groceries, everything but rent'}
+          hint={d.monthlyHousing > 0 ? `Your spending without today’s rent (${money(d.monthlyHousing)})` : 'Bills, groceries, everything but rent'}
         />
         <MoneyField label="Save / mo" value={goalText} set={setGoal} hint="Your savings goal; 20% of take-home is a common target" />
       </Section>

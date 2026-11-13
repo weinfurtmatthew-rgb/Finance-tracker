@@ -95,7 +95,7 @@ export function Plan(props: { onClose: () => void }) {
         <Row
           icon={<IconChip name="key" hue="aqua" size="sm" />}
           title="Mortgage calculator"
-          subtitle="A home's monthly cost, with taxes, insurance and PMI, against your budget"
+          subtitle="A home’s monthly cost, with taxes, insurance and PMI, against your budget"
           wrap
           onClick={() => open((close) => <MortgageCalc data={d} onClose={close} />)}
         />
@@ -111,7 +111,7 @@ export function Plan(props: { onClose: () => void }) {
           title="True cost of a habit"
           subtitle={
             d.subscriptionsMonthly > 0
-              ? `Subscriptions: ${money(d.subscriptionsMonthly)}/mo, what's that over 10 years?`
+              ? `Subscriptions: ${money(d.subscriptionsMonthly)}/mo, what’s that over 10 years?`
               : 'What a habit costs over the years'
           }
           wrap

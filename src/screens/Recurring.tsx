@@ -28,7 +28,7 @@ export function AlertCard(props: { alert: Alert }) {
       return [`${r.name} went up`, `${formatMoney(Math.abs(p.from))} → ${formatMoney(Math.abs(p.to))} on ${formatShortDate(p.date)}.`];
     },
     'after-cancel': () => [`${r.name} charged after you cancelled`, `${formatMoney(Math.abs(a.status.chargedAfterCancel!.amount))} on ${formatShortDate(a.status.chargedAfterCancel!.date)}. Check that the cancellation went through.`],
-    'trial-ending': () => [`${r.name} trial ends ${formatShortDate(r.trialEndsOn!)}`, `Then about ${formatMoney(Math.abs(a.status.expected))}. Cancel before then if you don't want it.`],
+    'trial-ending': () => [`${r.name} trial ends ${formatShortDate(r.trialEndsOn!)}`, `Then about ${formatMoney(Math.abs(a.status.expected))}. Cancel before then if you don’t want it.`],
     'trial-ended': () => [`${r.name} trial ended`, 'Did you cancel it or keep it? Tap to update.'],
   }[a.type]();
   return (

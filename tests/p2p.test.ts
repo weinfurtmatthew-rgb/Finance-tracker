@@ -270,7 +270,7 @@ describe('asking about people', async () => {
     const q = parseQuestion('Who owes me money?', ctx)!;
     expect(q.intent).toBe('owed');
     expect(answer(q, data).headline).toBe('Jordan owes you $30.00.');
-    expect(answer(parseQuestion('does Alex owe me anything', ctx)!, data).headline).toBe("Alex Smith doesn't owe you anything.");
+    expect(answer(parseQuestion('does Alex owe me anything', ctx)!, data).headline).toBe('Alex Smith doesn’t owe you anything.');
   });
 
   it('leaves ordinary questions alone', () => {

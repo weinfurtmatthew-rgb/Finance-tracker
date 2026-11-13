@@ -44,5 +44,5 @@ test('OFX files count as checked', async ({ app, page }) => {
   await page.getByRole('button', { name: /Import a Bank File/ }).click();
   await page.locator('.drop input[type=file]').setInputFiles(fixture('citizens.qfx'));
   await page.getByRole('button', { name: /^Import 3/ }).click();
-  await expect(app.sheet().getByText("✓ Balance set from your bank's file.")).toBeVisible();
+  await expect(app.sheet().getByText('✓ Balance set from your bank’s file.')).toBeVisible();
 });

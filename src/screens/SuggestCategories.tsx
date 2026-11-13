@@ -59,11 +59,11 @@ export function SuggestCategories(props: { onClose: () => void }) {
   return (
     <Sheet title="Suggest Categories" onClose={props.onClose} onSave={groups?.length ? apply : undefined} saveLabel={`Apply ${chosen.length}`} saveDisabled={!chosen.length}>
       {error && <p class="error padded">{error}</p>}
-      {!groups && !error && <p class="padded muted">Comparing with the payees you've already categorized…</p>}
+      {!groups && !error && <p class="padded muted">Comparing with the payees you’ve already categorized…</p>}
       {groups && groups.length === 0 && <Empty icon="check" title="Nothing to categorize" />}
       {groups && groups.length > 0 && (
         <>
-          <p class="section-footer intro">“Likely” picks are filled in; for guesses, tap the suggestion to use it. Suggestions come from payees you've already categorized.</p>
+          <p class="section-footer intro">“Likely” picks are filled in; for guesses, tap the suggestion to use it. Suggestions come from payees you’ve already categorized.</p>
           <Section>
             {groups.map((g) => (
               <div class="suggest-row">
