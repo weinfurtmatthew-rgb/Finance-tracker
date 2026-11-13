@@ -4,7 +4,7 @@ import { useState } from 'preact/hooks';
 /** Compact money for axes and tight labels: $950, $1.2K, $12K, $1.4M. */
 export function compactMoney(cents: number): string {
   const d = Math.abs(cents) / 100;
-  const sign = cents < 0 ? '-' : '';
+  const sign = cents < 0 ? '−' : '';
   if (d >= 1_000_000) return `${sign}$${(d / 1_000_000).toFixed(d >= 10_000_000 ? 0 : 1)}M`;
   if (d >= 1000) return `${sign}$${(d / 1000).toFixed(d >= 100_000 ? 0 : 1).replace(/\.0$/, '')}K`;
   return `${sign}$${Math.round(d)}`;

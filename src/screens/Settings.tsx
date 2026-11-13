@@ -128,6 +128,7 @@ function Settings() {
             title="Undo Last Import…"
             subtitle={`${lastImport.label}, ${new Date(lastImport.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`}
             onClick={() => setAsk('undo-import')}
+            wrap
           />
         )}
       </Section>
@@ -203,7 +204,7 @@ function Settings() {
           <a class="row" href={SUPPORT_URL} target="_blank" rel="noopener noreferrer">
             <span class="row-main">
               <span class="row-title">Support Finance Tracker</span>
-              <span class="row-subtitle">Free for everyone. Chip in what you like to keep it updated and running.</span>
+              <span class="row-subtitle wrap">Free for everyone. Chip in what you like to keep it updated and running.</span>
             </span>
             <span class="chevron" aria-hidden="true">
               ›
@@ -214,6 +215,7 @@ function Settings() {
             title="Support Finance Tracker"
             subtitle="Free for everyone. Chip in what you like to keep it updated and running."
             onClick={() => nav.toast('Ways to support are coming soon. Thank you!')}
+            wrap
           />
         )}
       </Section>

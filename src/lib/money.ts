@@ -3,9 +3,12 @@ import type { Cents } from '../types';
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 const usdWhole = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
+/** A minus sign (not a hyphen): it lines up with numerals, as "+" does. */
+export const MINUS = '−';
+
 export function formatMoney(cents: Cents, opts: { whole?: boolean; sign?: boolean } = {}): string {
   const fmt = opts.whole ? usdWhole : usd;
-  const text = fmt.format(cents / 100);
+  const text = fmt.format(cents / 100).replace('-', MINUS);
   return opts.sign && cents > 0 ? `+${text}` : text;
 }
 

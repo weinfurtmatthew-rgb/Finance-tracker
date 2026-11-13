@@ -79,10 +79,14 @@ function grain(): string | null {
   return grainUrl;
 }
 
-export function Ambient(props: { tone: Tone }) {
+/**
+ * With `edge`, the same light again above the page but only along the bottom: what scrolls past the
+ * floating bar fades into the background there, instead of showing sharply around the bar's edges.
+ */
+export function Ambient(props: { tone: Tone; edge?: boolean }) {
   const url = grain();
   return (
-    <div class="ambient" aria-hidden="true">
+    <div class={props.edge ? 'ambient edge' : 'ambient'} aria-hidden="true">
       <div class="ambient-frame">
         {TONES[props.tone].map(([left, top, size, color, strength], i) => (
           <div

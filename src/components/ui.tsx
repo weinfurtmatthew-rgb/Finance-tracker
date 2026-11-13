@@ -145,6 +145,28 @@ export function categoryText(c: Category): string {
   return 'glyph' in categoryLook(c) || !c.emoji ? c.name : `${c.emoji} ${c.name}`;
 }
 
+/**
+ * Parts joined by middle dots that wrap only between parts: a part isn't split across lines (unless it is
+ * longer than a line), and a dot stays at the end of the line it follows instead of starting the next one.
+ * For text that wraps; not for a line that is cut off with an ellipsis.
+ */
+export function Dotted(props: { parts: (ComponentChildren | false | null | undefined)[] }) {
+  const parts = props.parts.filter((p) => p != null && p !== false && p !== '');
+  return (
+    <>
+      {parts.map((p, i) => (
+        <>
+          <span class="nb">
+            {p}
+            {i < parts.length - 1 && '\u00A0·'}
+          </span>
+          {i < parts.length - 1 && ' '}
+        </>
+      ))}
+    </>
+  );
+}
+
 /** The icon for a kind of recurring item (subscription, bill…) that has no category. */
 export function KindIcon(props: { kind: RecurringKind; size?: IconSize }) {
   return <LookIcon look={kindLook(props.kind)} size={props.size} />;

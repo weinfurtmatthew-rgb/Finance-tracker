@@ -1,5 +1,5 @@
 import { useMoneyHealth } from '../healthModel';
-import { Empty } from '../components/ui';
+import { Dotted, Empty } from '../components/ui';
 import type { Pillar } from '../lib/health';
 import { IconChip } from '../components/icons';
 import { HealthRing, PILLAR_LOOK } from '../components/HealthRing';
@@ -31,7 +31,9 @@ export function MoneyHealth() {
           <section class="card lit health-hero" style={{ '--lit': 'color-mix(in oklab, var(--hue-aqua) 14%, transparent)' }}>
             <HealthRing pillars={health.pillars} score={health.score} band={health.band} size={196} stroke={14} />
             <p class="health-meaning">{MEANING[health.band]}</p>
-            <p class="section-footer center">Updated from your monthly averages and balances. 85+ Great · 65–84 Good · 45–64 Fair · under 45 Needs work.</p>
+            <p class="section-footer center">
+              Updated from your monthly averages and balances. <Dotted parts={['85+ Great', '65–84 Good', '45–64 Fair', 'under 45 Needs work.']} />
+            </p>
           </section>
           {[...health.pillars].sort(lowestFirst).map((p) =>
             p.score == null ? (
@@ -44,7 +46,7 @@ export function MoneyHealth() {
                   </span>
                 </div>
                 <p class="pillar-metric">
-                  <strong>Not enough info</strong> · {p.metric}
+                  <Dotted parts={[<strong>Not enough info</strong>, ...p.metric.split(' · ')]} />
                 </p>
                 <p class="pillar-tip">{p.tip}</p>
               </article>
@@ -59,7 +61,7 @@ export function MoneyHealth() {
                   <span class="factor-fill" style={{ width: `${p.score}%`, background: `var(--hue-${PILLAR_LOOK[p.key].hue})` }} />
                 </span>
                 <p class="pillar-metric">
-                  <strong>{p.band}</strong> · {p.metric}
+                  <Dotted parts={[<strong>{p.band}</strong>, ...p.metric.split(' · ')]} />
                 </p>
                 <p class="pillar-tip">{p.tip}</p>
               </article>

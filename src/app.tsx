@@ -190,6 +190,7 @@ export function App() {
   return (
     <NavContext.Provider value={nav}>
       <Ambient tone={tab} />
+      <Ambient tone={tab} edge />
       <main
         class={`screen${intro ? ' intro' : ''}${receded ? ' receded' : ''}`}
         key={tab}

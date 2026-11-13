@@ -13,6 +13,17 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-13',
+    date: 'November 13, 2026',
+    title: 'Smoother edges',
+    items: [
+      'What scrolls under the tab bar fades out softly instead of showing around its edges.',
+      'Amounts use a true minus sign, so −$12.34 lines up with +$12.34.',
+      'Longer lines break evenly, and lines with dots between their parts (like Money Health’s) break between the parts. Plan’s calculator list and bill suggestions show their whole description.',
+      'The welcome screens keep their icon and title in the same place as you go through them.',
+    ],
+  },
+  {
     id: '2026-11-10',
     date: 'November 10, 2026',
     title: 'A tidier look',

@@ -18,7 +18,7 @@ import { accountBalance } from '../lib/balances';
 import { isOutflow } from '../lib/recurring';
 import { billsShown, isBillCategory } from '../lib/spend';
 import { categoryChanges, pace, paceTarget, spendReadiness, todayFacts, todaySummary, type Phrase } from '../lib/today';
-import { Empty, Section } from '../components/ui';
+import { Dotted, Empty, Section } from '../components/ui';
 import { Glyph, IconChip, Icons, type GlyphName, type Hue } from '../components/icons';
 import { TransactionRow } from '../components/TransactionRow';
 import { Gauge, verdictColor } from '../components/Gauge';
@@ -607,13 +607,16 @@ export function Home() {
                 <span class="card-label">{p.left >= 0 ? 'Left to spend' : 'Over by'}</span>
                 <CountUp class={`left-value num ${p.left < 0 ? 'neg-text' : ''}`} value={Math.abs(p.left)} format={whole} />
                 <span class="left-sub">
-                  {p.daysLeft} day{p.daysLeft === 1 ? '' : 's'} left
-                  {p.left > 0 && (
-                    <>
-                      {' '}
-                      · about <strong>{whole(p.left / p.daysLeft)} a day</strong>
-                    </>
-                  )}
+                  <Dotted
+                    parts={[
+                      `${p.daysLeft} day${p.daysLeft === 1 ? '' : 's'} left`,
+                      p.left > 0 && (
+                        <>
+                          about <strong>{whole(p.left / p.daysLeft)} a day</strong>
+                        </>
+                      ),
+                    ]}
+                  />
                 </span>
                 <span class="left-bar" aria-hidden="true">
                   <span class="left-fill" style={{ width: `${Math.min(100, (facts.spent / target.amount) * 100)}%` }} />

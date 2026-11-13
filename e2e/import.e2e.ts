@@ -65,5 +65,5 @@ test('adding a transaction by hand', async ({ app, page }) => {
   await page.getByPlaceholder('Who was it?').fill('Farmers Market');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Transaction added')).toBeVisible();
-  await expect(app.txnRows('Farmers Market')).toContainText('-$12.34');
+  await expect(app.txnRows('Farmers Market')).toContainText('−$12.34');
 });

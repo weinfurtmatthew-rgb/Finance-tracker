@@ -1,6 +1,6 @@
 import type { Readiness } from '../lib/today';
 import { CountUp } from '../components/motion';
-import { Sheet } from '../components/ui';
+import { Dotted, Sheet } from '../components/ui';
 import { Gauge, verdictColor } from '../components/Gauge';
 
 const MEANING: Record<Readiness['verdict'], string> = {
@@ -47,8 +47,8 @@ export function ReadinessSheet(props: { readiness: Readiness; onClose: () => voi
           ))}
         </div>
         <p class="section-footer">
-          Updated every day from your own numbers. 9–10 Go For It · 7–8 On Track · 4–6 Pace Yourself · 0–3 Hold Off. Parts without
-          enough data yet count as middling.
+          Updated every day from your own numbers. <Dotted parts={['9–10 Go For It', '7–8 On Track', '4–6 Pace Yourself', '0–3 Hold Off.']} /> Parts
+          without enough data yet count as middling.
         </p>
       </section>
     </Sheet>
