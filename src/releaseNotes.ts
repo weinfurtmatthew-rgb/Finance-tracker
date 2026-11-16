@@ -13,6 +13,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-16c',
+    date: 'November 16, 2026',
+    title: 'Stock news in your morning summary',
+    items: [
+      'Headlines about the companies you hold, from the last week. Add a free Alpha Vantage key in Settings → Stock News; a headline opens its article.',
+      'With stock prices on, the companies’ own announcements too, from Twelve Data. Only ticker symbols are sent.',
+    ],
+  },
+  {
     id: '2026-11-16b',
     date: 'November 16, 2026',
     title: 'More in your morning summary',

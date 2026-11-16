@@ -40,6 +40,9 @@ import { pace, paceTarget, todayFacts } from '../lib/today';
 import { BENCHMARK, holdingsByTicker, periodResult, periodStart, type Holding } from '../lib/portfolio';
 import { fromHighText, MOOD_LABEL, moodOf, trendOf } from '../lib/market';
 import { byDate, lastChange } from '../lib/credit';
+import { newsDay, newsTickers, pickNews } from '../lib/news';
+import { PRICE_PROBLEMS } from '../lib/twelveData';
+import { useStockNews } from '../newsSync';
 import { Glyph, glyphPaths, IconChip, type GlyphName, type Hue } from '../components/icons';
 import { categoryLook } from '../components/look';
 import { CategoryLabel, Sheet } from '../components/ui';
@@ -58,6 +61,7 @@ import { PortfolioSheet } from './Portfolio';
 import { HoldingSheet } from './Holdings';
 import { CreditSheet } from './Credit';
 import { GoalEditor } from './GoalEditor';
+import { NEWS_PROBLEMS, StockNewsSheet } from './StockNews';
 
 /** The meta key holding the day it last opened by itself. */
 export const MORNING_SEEN = 'morningSeen';
@@ -438,8 +442,84 @@ function ThisMonthPart(props: { today: string; go: (to: Tab | Page) => void }) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Your stocks: what they're worth, the last day and the week, what moved, and the market
+// Your stocks: what they're worth, the last day and the week, what moved, the market, and the news
 // ---------------------------------------------------------------------------------------------
+
+/** Headlines (each opens its article) and the companies' own announcements (each opens to its text). */
+function News(props: { tickers: string[]; today: string }) {
+  const nav = useNav();
+  const news = useStockNews(props.tickers, props.today);
+  if (!props.tickers.length) return null;
+  const now = Date.now();
+  const { headlines, announcements } = pickNews(news.items, now);
+  const any = headlines.length + announcements.length > 0;
+  const problem = news.stopped.headlines
+    ? NEWS_PROBLEMS[news.stopped.headlines]
+    : news.stopped.announcements === 'key' || news.stopped.announcements === 'limit'
+      ? PRICE_PROBLEMS[news.stopped.announcements]
+      : undefined;
+  const from = [headlines.length > 0 && 'headlines from Alpha Vantage', announcements.length > 0 && 'announcements from Twelve Data']
+    .filter(Boolean)
+    .join(', ');
+  const note =
+    problem ??
+    (any
+      ? `${from[0].toUpperCase()}${from.slice(1)}.`
+      : news.loading
+        ? 'Getting the news…'
+        : news.headlinesOn
+          ? 'No news about your stocks in the last week.'
+          : '');
+  return (
+    <>
+      {any && (
+        <>
+          <h3 class="m-sub">News</h3>
+          <div class="group m-news">
+            {headlines.map((n) => (
+              <a key={n.id} class="row m-news-row" href={n.url} target="_blank" rel="noopener noreferrer">
+                <span class="row-main">
+                  <span class="m-news-meta">
+                    {n.ticker} · {n.source ? `${n.source} · ` : ''}
+                    {newsDay(n.time, now)}
+                  </span>
+                  <span class="row-title wrap">{n.title}</span>
+                </span>
+                <span class="chevron" aria-hidden="true">
+                  ›
+                </span>
+              </a>
+            ))}
+            {announcements.map((n) => (
+              <details key={n.id} class="m-announce">
+                <summary class="row m-news-row">
+                  <span class="row-main">
+                    <span class="m-news-meta">
+                      {n.ticker} · From the company · {newsDay(n.time, now)}
+                    </span>
+                    <span class="row-title wrap">{n.title}</span>
+                  </span>
+                </summary>
+                {n.text && <p class="m-news-text">{n.text}</p>}
+              </details>
+            ))}
+          </div>
+        </>
+      )}
+      {(note || !news.headlinesOn) && (
+        <p class="section-footer">
+          {note}
+          {note && !news.headlinesOn && ' '}
+          {!news.headlinesOn && (
+            <button type="button" class="link" onClick={() => nav.present((close) => <StockNewsSheet onClose={close} />)}>
+              Get headlines about your stocks
+            </button>
+          )}
+        </p>
+      )}
+    </>
+  );
+}
 
 function StocksPart(props: { today: string }) {
   const nav = useNav();
@@ -451,12 +531,13 @@ function StocksPart(props: { today: string }) {
     if (!p) return null;
     const week = periodResult(p, periodStart(p, '1w', props.today));
     const day = p.priceDate ? periodResult(p, periodStart(p, '1d', props.today)) : null;
-    const movers = holdingsByTicker(p, addDays(props.today, -7))
+    const holdings = holdingsByTicker(p, addDays(props.today, -7));
+    const movers = holdings
       .filter((h) => h.pct != null && Math.abs(h.pct) >= MOVER_PCT)
       .sort((a, b) => Math.abs(b.pct!) - Math.abs(a.pct!))
       .slice(0, MOVERS);
-    return { week, day, movers };
-  }, [p, props.today]);
+    return { week, day, movers, tickers: newsTickers(holdings, securities) };
+  }, [p, props.today, securities]);
   const market = useMemo(() => trendOf(prices.get(BENCHMARK)), [prices]);
   if (!p || !facts) return null;
   const { week, day, movers } = facts;
@@ -524,6 +605,7 @@ function StocksPart(props: { today: string }) {
           )}
         </div>
       )}
+      <News tickers={facts.tickers} today={props.today} />
     </Part>
   );
 }

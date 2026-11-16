@@ -385,8 +385,10 @@ describe('backups', () => {
     await db.securities.add({ ticker: 'AAPL', name: 'Apple Inc.' });
     await db.priceCache.put(aapl);
     await db.meta.put({ key: 'twelveDataKey', value: 'secret-key' });
+    await db.meta.put({ key: 'alphaVantageKey', value: 'news-secret' });
     const text = await exportBackup(db);
     expect(text).not.toContain('secret-key');
+    expect(text).not.toContain('news-secret');
     const json = JSON.parse(text);
     expect(json.version).toBe(5);
     expect(json.data.trades).toHaveLength(1);

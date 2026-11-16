@@ -4998,6 +4998,52 @@ button.m-todo:active {
 .group.m-after {
   margin-top: 12px;
 }
+/* News: a headline opens its article; an announcement opens to its text (plain text only). */
+.m-news-row {
+  color: inherit;
+  text-decoration: none;
+}
+.m-news-row .row-main {
+  gap: 3px;
+}
+.m-news-meta {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.m-news-row .row-title.wrap {
+  white-space: normal;
+}
+.m-news .row + details::before,
+details.m-announce + .row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  border-top: 0.5px solid var(--separator);
+}
+details.m-announce {
+  position: relative;
+}
+details.m-announce > summary {
+  cursor: pointer;
+  padding-right: 34px;
+}
+details.m-announce > summary::after {
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  margin: -5px 0 0;
+  color: var(--text-3);
+}
+.m-news-text {
+  margin: 0;
+  padding: 0 16px 14px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
 .goal-sub.m-mark {
   color: var(--text);
   font-weight: 600;

@@ -102,6 +102,12 @@ set, payment-app lines it merged, remembered file columns (`src/lib/importUndo.t
   moved 2% or more this week, and where the S&P 500 stands against its high of the last year
 - **Milestones:** each savings goal (and a quarter mark passed this week), net worth at a new high, $100 or more less
   owed on cards and loans than a month ago, and a credit score that moved
+- **Stock news:** the last week's headlines about your 6 biggest stock holdings (not funds), from
+  [Alpha Vantage](https://www.alphavantage.co) with a free key of your own (Settings → Stock News; 25 requests a day,
+  so 1 a company each morning), and the companies' own announcements (press releases) from Twelve Data with the price
+  key. Each company is asked about once a day and what comes back is kept in the browser for the day
+  (`src/newsSync.ts`). Only ticker symbols are sent; the key stays on the phone. Everything is shown as plain text
+  (an announcement's HTML is never put on the page, and no pictures load), and a headline opens its article
 - Everything comes from your imported bank files, so it says when the newest transaction is more than 3 days old,
   with a button to import. It greets you by name if you add one (Settings → Appearance → Your Name)
 - The logic is in `src/lib/morning.ts` (unit-tested); Today's To do list and the summary's share one hook
@@ -474,8 +480,9 @@ changes, and what's worked out from it (bills, spending by month, balances, the 
 index) is computed once and shared until its inputs change.
 
 Stack: Vite, Preact, TypeScript, Dexie (IndexedDB), vite-plugin-pwa (offline service worker), Papa Parse.
-A strict Content-Security-Policy (`connect-src 'self' https://api.twelvedata.com`) prevents the app from sending
-data to any other server; the price service gets ticker symbols only, and only once you add your own key.
+A strict Content-Security-Policy (`connect-src 'self' https://api.twelvedata.com https://www.alphavantage.co`)
+prevents the app from sending data to any other server; the price and news services get ticker symbols only, and only
+once you add your own key.
 
 Every push runs the unit tests, the browser tests and the real-AI smoke test; pushing to `main` then deploys to
 GitHub Pages (see `.github/workflows/deploy.yml`). A failing browser test stops the deploy.
