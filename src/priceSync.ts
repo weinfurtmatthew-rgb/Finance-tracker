@@ -13,7 +13,7 @@ import { db, getMeta } from './db';
 import { useStore } from './store';
 import type { ISODate, Trade } from './types';
 import { addDays, todayISO } from './lib/dates';
-import { fetchDaily, fetchUsage, PriceError, TWELVE_DATA_KEY, type PriceErrorKind } from './lib/twelveData';
+import { fetchDaily, fetchPressReleases, fetchUsage, PriceError, TWELVE_DATA_KEY, type PriceErrorKind } from './lib/twelveData';
 import { historyFrom, historyFromSeries, isFinalBar, mergeRecent, type Bar, type PriceHistory } from './lib/prices';
 import { BENCHMARK } from './lib/portfolio';
 
@@ -275,6 +275,21 @@ export async function pricesFor(ticker: string, date: ISODate): Promise<void> {
     const kind: PriceErrorKind = e instanceof PriceError ? e.kind : 'other';
     if (kind === 'symbol' || kind === 'plan' || kind === 'other') await markMissing(ticker, from, h, kind);
     else if (kind === 'key') refusedKey = key;
+  }
+}
+
+/**
+ * A company's announcements since `from` (1 request, counted and spaced out with the price requests).
+ * Throws a PriceError: 'key' without a working key, 'limit' when today's requests are used up.
+ */
+export async function announcementsSince(ticker: string, from: ISODate): Promise<unknown> {
+  const key = (await getMeta<string>(TWELVE_DATA_KEY))?.trim();
+  if (!key || key === refusedKey) throw new PriceError('key', 'no key');
+  try {
+    return await request(() => fetchPressReleases(ticker, from, key));
+  } catch (e) {
+    if (e instanceof PriceError && e.kind === 'key') refusedKey = key;
+    throw e;
   }
 }
 

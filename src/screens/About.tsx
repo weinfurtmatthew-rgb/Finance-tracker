@@ -23,7 +23,7 @@ export function PrivacySheet(props: { onClose: () => void }) {
         <h3>What it sends</h3>
         <p>
           Nothing about your money. The app has no server to send it to, and it’s built so it can only talk to the website it’s loaded from, and
-          to Twelve Data’s price service (a security rule blocks every other address). It contacts that website only to:
+          to two stock services, Twelve Data and Alpha Vantage (a security rule blocks every other address). It contacts that website only to:
         </p>
         <ul>
           <li>load the app itself, and its updates;</li>
@@ -31,8 +31,13 @@ export function PrivacySheet(props: { onClose: () => void }) {
         </ul>
         <p>
           It contacts Twelve Data only if you turn on stock prices in Settings with a key of your own: to get prices of the stocks, ETFs and funds
-          you hold, and to look up tickers as you type them. It sends ticker symbols (like VTI) and your key, never amounts, shares or accounts.
-          Twelve Data can see your phone’s IP address, as any website can.
+          you hold, to look up tickers as you type them, and for the morning summary, the companies’ announcements. It sends ticker symbols (like
+          VTI) and your key, never amounts, shares or accounts. Twelve Data can see your phone’s IP address, as any website can.
+        </p>
+        <p>
+          It contacts Alpha Vantage only if you turn on stock news in Settings with a key of your own: once a morning, for the last week’s
+          headlines about the companies you hold. It sends the same: ticker symbols and your key. A headline you tap opens the article on its
+          own website, like any link.
         </p>
         <p>
           The app is hosted on GitHub Pages. Like any website host, GitHub can see that your phone loaded the app (for example its IP address),

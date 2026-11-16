@@ -145,4 +145,13 @@ test('the stock sheets are accessible too', async ({ app, page }) => {
   await app.sheet().locator('.sheet-header button').first().click();
   await app.sheet().getByRole('button', { name: 'Set Target' }).click();
   await check('Target Mix');
+  await app.closeSheets();
+  await app.tab('Settings');
+  await app.sheet().locator('.row', { hasText: 'Alpha Vantage' }).click();
+  await check('Stock News');
+  await app.closeSheets();
+  await app.tab('Today');
+  await page.getByRole('button', { name: 'Morning summary' }).click();
+  await expect(app.sheet().getByRole('region', { name: 'Your stocks', exact: true })).toBeVisible();
+  await check('Morning summary with stocks');
 });

@@ -18,6 +18,7 @@ import { CategoriesSheet } from './Categories';
 import { RulesSheet } from './Rules';
 import { AiSettings } from '../components/AiSettings';
 import { StockPricesRow } from './StockPrices';
+import { StockNewsRow } from './StockNews';
 import { DEFAULT_SETTINGS, type PriceAlertRule } from '../lib/recurring';
 import { GREET_NAME } from './Morning';
 import type { AmountMode } from '../types';
@@ -197,12 +198,13 @@ function Settings() {
       </Section>
 
       <StockPricesRow />
+      <StockNewsRow />
 
       <AiSettings />
 
       <Section
         title="Storage"
-        footer="Stored in this browser’s private database on your iPhone. Nothing is uploaded; the app has no server. With stock prices on, only ticker symbols are sent, to Twelve Data."
+        footer="Stored in this browser’s private database on your iPhone. Nothing is uploaded; the app has no server. With stock prices or news on, only ticker symbols are sent, to Twelve Data and Alpha Vantage."
       >
         <Row title="Transactions" detail={txns.length.toLocaleString()} chevron={false} />
         {usage && <Row title="Space Used" detail={usage} chevron={false} />}

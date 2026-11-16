@@ -95,6 +95,11 @@ export async function fetchUsage(key: string): Promise<{ used?: number; limit?: 
   return { used: n(body.daily_usage), limit: n(body.plan_daily_limit) };
 }
 
+/** A company's announcements (press releases) since `from`, up to 5 (1 request). */
+export async function fetchPressReleases(ticker: string, from: ISODate, key: string): Promise<unknown> {
+  return call('/press_releases', { symbol: ticker, start_date: `${from}T00:00:00`, outputsize: 5 }, key);
+}
+
 export interface TickerMatch {
   ticker: string;
   name: string;

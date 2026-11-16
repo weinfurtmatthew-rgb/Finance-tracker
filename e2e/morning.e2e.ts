@@ -1,5 +1,5 @@
 import { expect, fixture, test, type App } from './helpers';
-import { DAYS, mockTwelveData, MOCK_KEY, SPY, type MockTicker } from './prices';
+import { DAYS, mockAlphaVantage, mockTwelveData, MOCK_KEY, MOCK_NEWS_KEY, SPY, type MockArticle, type MockTicker } from './prices';
 
 /** A made-up company whose stock jumped 20% on Sep 23, and 2% more on Sep 28 (the latest close). */
 const NWRX: MockTicker = {
@@ -245,5 +245,161 @@ test.describe('A Tuesday morning with stocks, a goal and a credit score', () => 
     // A stock that moved opens its page.
     await stocks.locator('.row', { hasText: 'NWRX' }).click();
     await expect(page.getByRole('dialog', { name: 'NWRX' })).toBeVisible();
+  });
+});
+
+/** Northwind again, with two announcements of its own (one from before the week). */
+const NWRX_NEWS: MockTicker = {
+  ...NWRX,
+  pressReleases: [
+    {
+      id: 41,
+      datetime: '2026-09-24T12:30:00',
+      title: 'Northwind Robotics reports a <b>record</b> quarter',
+      body: '<p>Revenue rose 18%.</p><script>alert(1)</script>',
+    },
+    { id: 40, datetime: '2026-08-30T12:00:00', title: 'Northwind Robotics names a new chief', body: '<p>An old one.</p>' },
+  ],
+};
+
+const ARTICLES: MockArticle[] = [
+  {
+    title: 'Northwind Robotics wins a warehouse contract',
+    url: 'https://news.example.com/northwind-contract',
+    time: '20260928T150000',
+    source: 'Example Wire',
+    summary: 'A big order.',
+    ticker: 'NWRX',
+    relevance: 0.8,
+  },
+  {
+    title: 'Robot makers rally',
+    url: 'https://news.example.com/robots-rally',
+    time: '20260925T140000',
+    source: 'Example Daily',
+    summary: 'Shares rose.',
+    ticker: 'NWRX',
+    relevance: 0.6,
+  },
+  // Only a mention: not news about it.
+  {
+    title: 'Markets close higher',
+    url: 'https://news.example.com/markets',
+    time: '20260928T210000',
+    source: 'Example Daily',
+    summary: 'A list of movers.',
+    ticker: 'NWRX',
+    relevance: 0.1,
+  },
+];
+
+/** Prices on, and $1,000 of Northwind bought on Jun 1. */
+async function holdNorthwind(app: App) {
+  const { page } = app;
+  await app.tab('Settings');
+  await app.sheet().locator('.row', { hasText: 'Twelve Data' }).click();
+  await app.field('API key').locator('input').fill(MOCK_KEY);
+  await app.sheet().getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('.toast')).toHaveText('Stock prices on');
+  await app.closeSheets();
+  await app.tab('Net Worth');
+  await page
+    .getByRole('button', { name: /^Add (account|Account)$/ })
+    .first()
+    .click();
+  await app.field('Name').locator('input').fill('Brokerage');
+  await app.field('Type').locator('select').selectOption('brokerage');
+  await app.sheet().getByRole('button', { name: 'Save' }).click();
+  await app.closeSheets();
+  await page.locator('.row', { hasText: 'Brokerage' }).first().click();
+  await app.sheet().getByRole('button', { name: 'Add a Stock, ETF or Fund' }).click();
+  await app.field('Ticker').locator('input').fill('NWRX');
+  await app.sheet().locator('.row', { hasText: 'Northwind Robotics' }).click();
+  await app.field('Amount').locator('input').fill('1000');
+  await app.field('Date').locator('input').fill('2026-06-01');
+  await expect(app.sheet()).toContainText('About 20 shares at $50.00');
+  await app.sheet().getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('.toast')).toHaveText('NWRX added');
+  await app.closeSheets();
+}
+
+test.describe('Stock news', () => {
+  test.use({ today: new Date('2026-09-29T08:00:00') });
+
+  test('headlines with your own key, and the company’s announcements, as plain text; only tickers are sent', async ({ app, page }) => {
+    const prices = await mockTwelveData(page, [NWRX_NEWS, SPY]);
+    const news = await mockAlphaVantage(page, ARTICLES);
+    await page.reload();
+    await app.importAll();
+    await holdNorthwind(app);
+
+    // Without a news key: announcements only, and a way to add headlines.
+    await app.tab('Today');
+    await page.getByRole('button', { name: 'Morning summary' }).click();
+    const stocks = app.sheet().getByRole('region', { name: 'Your stocks', exact: true });
+    const announcement = stocks.locator('details.m-announce');
+    await expect(announcement).toHaveCount(1);
+    await expect(announcement.locator('summary')).toContainText('NWRX · From the company · Thursday');
+    await expect(announcement.locator('summary')).toContainText('Northwind Robotics reports a record quarter');
+    await expect(announcement.locator('b, script')).toHaveCount(0);
+    await announcement.locator('summary').click();
+    await expect(announcement.locator('.m-news-text')).toHaveText('Revenue rose 18%.');
+    await expect(stocks).toContainText('Announcements from Twelve Data.');
+    expect(prices.filter((r) => r.startsWith('/press_releases'))).toEqual([
+      '/press_releases?symbol=NWRX&start_date=2026-09-22T00%3A00%3A00&outputsize=5&apikey=test-key',
+    ]);
+
+    // Add a key in Settings → Stock News, from the summary's link.
+    await stocks.getByRole('button', { name: 'Get headlines about your stocks' }).click();
+    await expect(app.sheet().getByRole('link', { name: /Claim a key at alphavantage\.co/ })).toHaveAttribute(
+      'href',
+      'https://www.alphavantage.co/support/#api-key',
+    );
+    await app.field('API key').locator('input').fill(MOCK_NEWS_KEY);
+    await app.sheet().getByRole('button', { name: 'Save' }).click();
+    await expect(page.locator('.toast')).toHaveText('Stock news on');
+    await app.sheet().locator('.sheet-header button').first().click();
+
+    // Headlines about it (not a passing mention), newest first; each opens its article elsewhere.
+    const headlines = stocks.locator('a.m-news-row');
+    await expect(headlines).toHaveCount(2);
+    await expect(headlines.nth(0)).toContainText('NWRX · Example Wire · Yesterday');
+    await expect(headlines.nth(0)).toContainText('Northwind Robotics wins a warehouse contract');
+    await expect(headlines.nth(0)).toHaveAttribute('href', 'https://news.example.com/northwind-contract');
+    await expect(headlines.nth(0)).toHaveAttribute('target', '_blank');
+    await expect(headlines.nth(0)).toHaveAttribute('rel', 'noopener noreferrer');
+    await expect(stocks).not.toContainText('Markets close higher');
+    await expect(stocks).toContainText('Headlines from Alpha Vantage, announcements from Twelve Data.');
+    await expect(stocks.locator('img')).toHaveCount(0);
+    // Only the ticker and the key, once.
+    expect(news).toEqual([`function=NEWS_SENTIMENT&tickers=NWRX&time_from=20260922T0000&sort=LATEST&limit=50&apikey=${MOCK_NEWS_KEY}`]);
+
+    // Asked once a day: opening it again doesn't ask again.
+    await app.closeSheets();
+    await page.getByRole('button', { name: 'Morning summary' }).click();
+    await expect(app.sheet().locator('a.m-news-row')).toHaveCount(2);
+    expect(news).toHaveLength(1);
+    expect(prices.filter((r) => r.startsWith('/press_releases'))).toHaveLength(1);
+  });
+
+  test('a key it won’t take, or the day’s limit, says so', async ({ app, page }) => {
+    await mockTwelveData(page, [NWRX, SPY]);
+    await mockAlphaVantage(page, ARTICLES, { limitReached: true });
+    await page.reload();
+    await app.importAll();
+    await holdNorthwind(app);
+    await app.tab('Settings');
+    await app.sheet().locator('.row', { hasText: 'Alpha Vantage' }).click();
+    await app.field('API key').locator('input').fill(MOCK_NEWS_KEY);
+    await app.sheet().getByRole('button', { name: 'Save' }).click();
+    await app.closeSheets();
+    await app.tab('Today');
+    await page.getByRole('button', { name: 'Morning summary' }).click();
+    await expect(app.sheet().getByRole('region', { name: 'Your stocks', exact: true })).toContainText(
+      'Alpha Vantage’s free requests for today are used up. Headlines come back tomorrow.',
+    );
+    await app.closeSheets();
+    await app.tab('Settings');
+    await expect(app.sheet().locator('.row', { hasText: 'Alpha Vantage' })).toContainText('free requests for today are used up');
   });
 });
