@@ -6,7 +6,7 @@ export const BACKUP_VERSION = 5;
 /** Settings that stay on this device and are never written to a backup file (a key is a password). */
 const LOCAL_ONLY_META = new Set(['passcode', 'whatsNewSeen', 'twelveDataKey' /* TWELVE_DATA_KEY */]);
 /** Saved locally but not worth carrying in a backup (a restore clears them along with the rest). */
-const NOT_BACKED_UP = new Set([...LOCAL_ONLY_META, 'importUndo' /* IMPORT_UNDO_KEY */, 'morningSeen' /* MORNING_SEEN */]);
+const NOT_BACKED_UP = new Set([...LOCAL_ONLY_META, 'importUndo' /* IMPORT_UNDO_KEY */, 'morningSeen' /* MORNING_SEEN */, 'morningLooked' /* MORNING_LOOKED */]);
 
 export async function exportBackup(db: FinanceDB): Promise<string> {
   const [accounts, transactions, categories, rules, csvMappings, meta, recurring, budgets, valuations, goals, trades, securities] = await Promise.all([

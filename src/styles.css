@@ -4738,6 +4738,9 @@ html.app-hidden *::after {
   padding: 14px 16px;
   text-align: left;
 }
+.card.m-grid.single {
+  grid-template-columns: 1fr;
+}
 .m-stat:nth-child(n + 3) {
   border-top: 0.5px solid var(--separator);
 }
@@ -4935,4 +4938,67 @@ button.m-todo:active {
   display: inline-flex;
   width: auto;
   padding-inline: 28px;
+}
+
+/* Monday's last week: the total, then where it went as a burst of circles (the list under it has the numbers). */
+.card.m-lastweek {
+  gap: 2px;
+  padding: 16px 16px 12px;
+  margin-bottom: 12px;
+}
+.m-big {
+  font-family: var(--rounded);
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.m-big-sub {
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--text-2);
+}
+.m-burst {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 14px;
+  overflow: visible;
+}
+/* A ring of the card's color keeps overlapping circles apart. */
+.m-bubble {
+  stroke: var(--surface);
+  stroke-width: 3;
+}
+.m-bubble-glyph {
+  fill: none;
+  color: #fff;
+  stroke: #fff;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.m-bubble-text,
+.m-bubble-emoji {
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.m-bubble-text {
+  fill: #fff;
+  font-family: var(--rounded);
+  font-weight: 700;
+}
+/* Lines whose words wrap rather than being cut off (what's worth a look says it all). */
+.m-line .row-title.wrap {
+  white-space: normal;
+}
+.m-line .chevron {
+  align-self: center;
+}
+.group.m-after {
+  margin-top: 12px;
+}
+.goal-sub.m-mark {
+  color: var(--text);
+  font-weight: 600;
 }
