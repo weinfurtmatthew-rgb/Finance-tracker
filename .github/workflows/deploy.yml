@@ -12,6 +12,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # On Linux, onnxruntime-node (the AI smoke test's runtime) downloads its GPU libraries from NuGet as
+  # it installs. The tests never use a GPU (the CPU runtime comes in the package), and that download
+  # times out now and then, failing npm ci before any test runs.
+  ONNXRUNTIME_NODE_INSTALL: skip
+
 jobs:
   build:
     runs-on: ubuntu-latest
