@@ -74,6 +74,13 @@ test('the sheets opened from Browse are accessible too', async ({ app, page }) =
     expect(await overflow(page), `${card}: sideways overflow`).toEqual([]);
   }
   await app.closeSheets();
+  await app.tab('Today');
+  await page.getByRole('button', { name: 'Morning summary' }).click();
+  await expect(app.sheet().getByRole('heading', { name: /Good afternoon/ })).toBeVisible();
+  await page.waitForTimeout(400);
+  expect(await problems(page), 'Morning summary').toEqual([]);
+  expect(await overflow(page), 'Morning summary: sideways overflow').toEqual([]);
+  await app.closeSheets();
   await app.openPlan();
   await app.sheet().locator('.row', { hasText: 'Mortgage calculator' }).click();
   await app.field('Home price').locator('input').fill('450000');

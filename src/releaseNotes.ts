@@ -13,6 +13,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-16',
+    date: 'November 16, 2026',
+    title: 'Your morning summary',
+    items: [
+      'The first time you open the app each morning, a summary opens: where you stand, what to do, what changed in the last 7 days and what’s coming in the next 7.',
+      'Open it any time from the sun button on Today. Add your name in Settings → Appearance and it greets you by it.',
+    ],
+  },
+  {
     id: '2026-11-13c',
     date: 'November 13, 2026',
     title: 'Better bills and subscriptions',

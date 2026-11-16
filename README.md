@@ -79,6 +79,22 @@ set, payment-app lines it merged, remembered file columns (`src/lib/importUndo.t
   scans the main screens and sheets in the browser tests, along with a check that nothing scrolls sideways
 - Fast to open: Import, Plan and Settings load the first time you open them (they're still saved for offline use)
 
+### Morning summary
+
+- Opens by itself the first time you open the app on a morning (4 a.m. to noon), once a day, and any time from the
+  **sun button** on Today. There's no server, so it can't arrive as a notification; it's there when you open the app
+- **Where you stand:** net worth and its change this week, cash (checking & savings), what's on your cards, and
+  Money Health, in a grid. Each opens where it comes from
+- **To do:** the top of Today's list as a stack of colored cards; each opens what it's about
+- **The last 7 days:** net worth up or down, the accounts that moved most, money that came in, what you spent next to
+  a usual week (the 8 weeks before), and the biggest purchases
+- **The next 7 days:** a strip of the week with a dot where a bill is due or money comes in, the bills and paychecks
+  themselves (and any not seen yet), and whether checking covers what's due before payday
+- Everything comes from your imported bank files, so it says when the newest transaction is more than 3 days old,
+  with a button to import. It greets you by name if you add one (Settings → Appearance → Your Name)
+- The logic is in `src/lib/morning.ts` (unit-tested); Today's To do list and the summary's share one hook
+  (`src/todoModel.tsx`)
+
 ### Today
 
 - **Your day in money:** a few plain sentences: how the month is pacing, which category is running hot (or
