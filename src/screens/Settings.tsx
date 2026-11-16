@@ -19,6 +19,7 @@ import { RulesSheet } from './Rules';
 import { AiSettings } from '../components/AiSettings';
 import { StockPricesRow } from './StockPrices';
 import { DEFAULT_SETTINGS, type PriceAlertRule } from '../lib/recurring';
+import { GREET_NAME } from './Morning';
 import type { AmountMode } from '../types';
 
 const AUTO_LOCK = [
@@ -52,6 +53,8 @@ function Settings() {
   const dismissedCount = useMeta<string[]>('dismissedRecurring')?.length ?? 0;
   const backupEvery = useMeta<number>('backupEveryDays') ?? DEFAULT_BACKUP_EVERY_DAYS;
   const accent = useMeta<Accent>('accent') ?? 'blue';
+  const savedName = useMeta<string>(GREET_NAME);
+  const [name, setName] = useState<string | null>(null);
   const lastImport = useMeta<ImportRecord[]>(IMPORT_UNDO_KEY)?.[0];
   const [ask, setAsk] = useState<null | 'remove-passcode' | 'erase' | 'autolock' | 'amount-mode' | 'reminder' | 'backup-every' | 'accent' | 'undo-import' | { restore: string; summary: BackupSummary }>(null);
   const [usage, setUsage] = useState<string>();
@@ -152,6 +155,17 @@ function Settings() {
           detail={ACCENTS.find((a) => a.id === accent)?.label}
           onClick={() => setAsk('accent')}
         />
+      </Section>
+      <Section footer="Used only to greet you in the morning summary.">
+        <Field label="Your Name">
+          <input
+            value={name ?? savedName ?? ''}
+            placeholder="Optional"
+            autocomplete="given-name"
+            onInput={(e) => setName((e.target as HTMLInputElement).value)}
+            onBlur={() => name != null && void (name.trim() ? setMeta(GREET_NAME, name.trim()) : deleteMeta(GREET_NAME))}
+          />
+        </Field>
       </Section>
 
       <Section title="Bills & Subscriptions">

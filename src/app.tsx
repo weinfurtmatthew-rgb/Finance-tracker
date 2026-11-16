@@ -25,6 +25,9 @@ import { IntroContext } from './components/motion';
 import { applyAccent, type Accent } from './lib/appearance';
 import { Celebration } from './components/Celebration';
 import { usePriceUpdates } from './priceSync';
+import { MORNING_SEEN, MorningSheet } from './screens/Morning';
+import { opensNow } from './lib/morning';
+import { toISODate } from './lib/dates';
 
 const TABS: { id: Tab; label: string; glyph: GlyphName }[] = [
   { id: 'home', label: 'Today', glyph: 'today' },
@@ -149,18 +152,55 @@ export function App() {
     celebrate: (title, sub) => setParty({ id: nextId.current++, title, sub }),
   };
 
+  // The morning summary opens by itself the first time the app opens on a morning, or comes back to the
+  // front on one (an app left open overnight). Never during the intro.
+  const morningChecking = useRef(false);
+  const showMorning = async () => {
+    if (morningChecking.current) return;
+    morningChecking.current = true;
+    try {
+      const now = new Date();
+      const today = toISODate(now);
+      const [seen, count] = await Promise.all([getMeta<string>(MORNING_SEEN), db.transactions.count()]);
+      if (!opensNow({ hour: now.getHours(), today, seen, hasData: count > 0 })) return;
+      await setMeta(MORNING_SEEN, today);
+      nav.present((close) => <MorningSheet onClose={close} />);
+    } finally {
+      morningChecking.current = false;
+    }
+  };
+
   // What's new, once, after an update brings release notes you haven't seen. Someone just starting out
-  // has nothing to compare with, so they're marked as seen without showing.
+  // has nothing to compare with, so they're marked as seen without showing. When it shows, the morning
+  // summary waits for the next open instead of piling on.
   const whatsNewChecked = useRef(false);
+  const launchChecked = useRef(false);
   useEffect(() => {
     if (!lockState || locked !== false || whatsNewChecked.current) return;
     whatsNewChecked.current = true;
     void (async () => {
       const seen = await getMeta<string>('whatsNewSeen');
-      if (seen === RELEASES[0].id) return;
-      await setMeta('whatsNewSeen', RELEASES[0].id);
-      if (!lockState.needsIntro) nav.present((close) => <WhatsNewSheet releases={unseenReleases(seen)} onClose={close} />);
+      launchChecked.current = true;
+      if (seen !== RELEASES[0].id) {
+        await setMeta('whatsNewSeen', RELEASES[0].id);
+        if (!lockState.needsIntro) {
+          nav.present((close) => <WhatsNewSheet releases={unseenReleases(seen)} onClose={close} />);
+          return;
+        }
+      }
+      if (!lockState.needsIntro) await showMorning();
     })();
+  }, [lockState, locked]);
+
+  // Later: back in front (or unlocked) on a new morning.
+  useEffect(() => {
+    if (!lockState || locked !== false || lockState.needsIntro) return;
+    if (launchChecked.current) void showMorning();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && launchChecked.current) void showMorning();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [lockState, locked]);
 
   if (!lockState || locked === null) return <div class="splash" />;
