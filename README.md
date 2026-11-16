@@ -90,6 +90,18 @@ set, payment-app lines it merged, remembered file columns (`src/lib/importUndo.t
   a usual week (the 8 weeks before), and the biggest purchases
 - **The next 7 days:** a strip of the week with a dot where a bill is due or money comes in, the bills and paychecks
   themselves (and any not seen yet), and whether checking covers what's due before payday
+- **Mondays, last week:** what you spent Monday to Sunday next to a usual week, where it went by category as a burst
+  of circles (each one's area is its share; the list under it has the numbers), and the places most of it went
+- **Worth a look:** charges from the last 7 days that stand out, the likeliest mistakes first: the same charge twice
+  a day apart, a fee (late, overdraft, foreign transaction…), a charge at least twice what that place usually costs,
+  and a first visit of $100 or more. Bill alerts (a price went up, a charge after cancelling, a trial ending) are
+  here too. One you've opened doesn't come back on later mornings
+- **This month:** spending so far against an even pace for your budgets (or a usual month), and any budget that's
+  over, close to it, or headed over
+- **Your stocks:** what your investments are worth and their change this week, the last day's close, holdings that
+  moved 2% or more this week, and where the S&P 500 stands against its high of the last year
+- **Milestones:** each savings goal (and a quarter mark passed this week), net worth at a new high, $100 or more less
+  owed on cards and loans than a month ago, and a credit score that moved
 - Everything comes from your imported bank files, so it says when the newest transaction is more than 3 days old,
   with a button to import. It greets you by name if you add one (Settings → Appearance → Your Name)
 - The logic is in `src/lib/morning.ts` (unit-tested); Today's To do list and the summary's share one hook

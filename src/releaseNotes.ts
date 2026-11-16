@@ -13,6 +13,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-16b',
+    date: 'November 16, 2026',
+    title: 'More in your morning summary',
+    items: [
+      'On Mondays, where last week’s money went: by category, as a burst of circles and a list, and the places most of it went.',
+      'Worth a look: a charge that might be a double charge, a fee, something far above what a place usually costs, or a first visit of $100 or more.',
+      'How this month’s spending is pacing, your stocks (with what moved this week and where the market stands), and your goals and milestones.',
+    ],
+  },
+  {
     id: '2026-11-16',
     date: 'November 16, 2026',
     title: 'Your morning summary',

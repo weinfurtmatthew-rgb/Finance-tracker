@@ -210,6 +210,9 @@ export type GlyphName = keyof typeof SHAPES;
 
 export const isGlyph = (name: string): name is GlyphName => Object.hasOwn(SHAPES, name);
 
+/** A glyph's strokes on their own (a 24-unit square), to draw inside another SVG. */
+export const glyphPaths = (name: GlyphName) => SHAPES[name]();
+
 export function Glyph(props: { name: GlyphName; class?: string }) {
   return (
     <svg

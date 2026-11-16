@@ -17,12 +17,10 @@ import { RecurringDetail } from './RecurringDetail';
 
 type View = 'upcoming' | 'calendar' | 'all';
 
-export function AlertCard(props: { alert: Alert }) {
-  const nav = useNav();
-  const { alert: a } = props;
+/** What a bill alert says: a title and a line under it. */
+export function alertText(a: Alert): [string, string] {
   const r = a.status.rec;
-  const open = () => nav.present((close) => <RecurringDetail id={r.id} onClose={close} />);
-  const text = {
+  return {
     price: () => {
       const p = a.status.priceChange!;
       return [`${r.name} went up`, `${formatMoney(Math.abs(p.from))} → ${formatMoney(Math.abs(p.to))} on ${formatShortDate(p.date)}.`];
@@ -30,7 +28,14 @@ export function AlertCard(props: { alert: Alert }) {
     'after-cancel': () => [`${r.name} charged after you cancelled`, `${formatMoney(Math.abs(a.status.chargedAfterCancel!.amount))} on ${formatShortDate(a.status.chargedAfterCancel!.date)}. Check that the cancellation went through.`],
     'trial-ending': () => [`${r.name} trial ends ${formatShortDate(r.trialEndsOn!)}`, `Then about ${formatMoney(Math.abs(a.status.expected))}. Cancel before then if you don’t want it.`],
     'trial-ended': () => [`${r.name} trial ended`, 'Did you cancel it or keep it? Tap to update.'],
-  }[a.type]();
+  }[a.type]() as [string, string];
+}
+
+export function AlertCard(props: { alert: Alert }) {
+  const nav = useNav();
+  const { alert: a } = props;
+  const open = () => nav.present((close) => <RecurringDetail id={a.status.rec.id} onClose={close} />);
+  const text = alertText(a);
   return (
     <div class={`callout ${a.type === 'after-cancel' ? 'danger' : 'warn'}`}>
       <button type="button" class="callout-body" onClick={open}>
