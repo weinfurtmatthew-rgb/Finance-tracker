@@ -20,6 +20,8 @@ export interface DraftTransaction {
 export interface SourceAccount {
   /** Stable key for grouping rows: institution + name + number. */
   key: string;
+  /** The same account in the next file from there: institution + its full number (or its name, without one). */
+  ref?: string;
   /** "Citizens · Checking ••4821". */
   label: string;
   name: string;

@@ -26,11 +26,21 @@ Download a file from your bank's **website** and import it (Activity → ⬇︎ 
 | Citizens | OFX / QFX | Includes your balance; CSV also works with the column mapper |
 | Discover | CSV (or QFX) | Purchases are positive in Discover's CSV. Detected and flipped automatically |
 | Capital One | CSV | Card (Debit/Credit columns) and 360 (Transaction Type column) formats detected. ~90 days per download |
-| Fidelity | CSV | Header row found below Fidelity's blank lines; buys/sells filed as Investments |
-| Rocket Money | Export CSV | All your accounts in one file: pick one at a time ("Import next"). Signs flipped to the bank convention; Rocket Money's store names and categories used. A Rocket Money file imported earlier as a plain CSV gets a one-tap repair (right signs, right accounts, merged with your bank's own files) |
+| Fidelity | CSV | Activity & Orders → download. Header row found below Fidelity's blank lines; buys/sells filed as Investments. With all your accounts in one file, each goes to its own account (see below) |
+| Rocket Money | Export CSV | All your accounts in one file, each to its own account (see below). Signs flipped to the bank convention; Rocket Money's store names and categories used |
 | Venmo | Statement CSV | venmo.com → Statements → Download CSV, monthly. Sets the Venmo balance |
 | Cash App | Activity CSV | cash.app → Activity / Statements → Export CSV |
 | Apple Cash | (no export) | Card-funded payments show in your bank's file; use People → Log a Payment for the rest |
+
+**Files with several accounts** (Fidelity's activity download for all accounts, Rocket Money's export, or any CSV with an
+Account or Account Number column, like Monarch's or Empower's) are split by account (`src/lib/sourceAccounts.ts`). The
+review lists each account in the file with where it goes: an app account (matched by the last 4 digits of its number, or its
+name), a new account named and typed from the file (Fidelity's "Individual - TOD" as Investment, "ROTH IRA" as Roth IRA,
+"Cash Management" as Checking), or nowhere. One tap imports them all, and the next file from there goes to the same places
+(remembered by account number). A file that was imported before with every account in one (as Fidelity and Rocket Money files
+were before the app read their account columns) is put right by the same import: those rows move to their accounts, with
+signs fixed for Rocket Money and copies of what a bank's own file brought in merged, so nothing counts twice. A positions
+file opened here (what you hold, not activity) points to the investment account's Import Positions instead.
 
 Any other bank's CSV works through the column mapper, which is remembered per file layout. Re-importing an overlapping date range
 skips transactions you already have, even from a different kind of file (a CSV month, then the same month as a QFX statement):

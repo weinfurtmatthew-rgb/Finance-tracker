@@ -1,0 +1,17 @@
+
+
+Run Date,Account,Account Number,Action,Symbol,Description,Type,Exchange Quantity,Exchange Currency,Quantity,Currency,Price,Exchange Rate,Commission,Fees,Accrued Interest,Amount,Cash Balance,Settlement Date
+09/26/2026,"Cash Management (Individual)","Z98765432","DEBIT CARD PURCHASE WHOLEFDS MKT 10234 BOSTON MA",,"No Description",Cash,0,,0,USD,,0,,,,-64.18,3120.40,
+09/25/2026,"Cash Management (Individual)","Z98765432","DIRECT DEPOSIT ACME CORP PAYROLL",,"No Description",Cash,0,,0,USD,,0,,,,2400.00,3184.58,
+09/25/2026,"Individual - TOD","Z12345678","YOU BOUGHT VANGUARD INDEX FDS VANGUARD TOTAL STK MKT ETF (VTI) (Cash)",VTI,"VANGUARD INDEX FDS VANGUARD TOTAL STK MKT ETF",Cash,0,,2,USD,275.10,0,,,,-550.20,1234.56,09/26/2026
+09/24/2026,"ROTH IRA","238123456","YOU BOUGHT FIDELITY ZERO TOTAL MARKET INDEX FUND (FZROX) (Cash)",FZROX,"FIDELITY ZERO TOTAL MARKET INDEX FUND",Cash,0,,20,USD,20.15,0,,,,-403.00,97.00,09/25/2026
+09/23/2026,"Cash Management (Individual)","Z98765432","DEBIT CARD PURCHASE SHELL OIL 57442 BOSTON MA",,"No Description",Cash,0,,0,USD,,0,,,,-41.20,784.58,
+09/22/2026,"Individual - TOD","Z12345678","DIVIDEND RECEIVED VANGUARD INDEX FDS VANGUARD TOTAL STK MKT ETF (VTI) (Cash)",VTI,"VANGUARD INDEX FDS VANGUARD TOTAL STK MKT ETF",Cash,0,,0,USD,,0,,,,18.44,1784.76,
+09/20/2026,"Cash Management (Individual)","Z98765432","BILL PAYMENT EVERSOURCE",,"No Description",Cash,0,,0,USD,,0,,,,-120.33,825.78,
+09/15/2026,"Individual - TOD","Z12345678","Electronic Funds Transfer Received (Cash)",,"No Description",Cash,0,,0,USD,,0,,,,1000.00,1766.32,
+09/10/2026,"ROTH IRA","238123456","PARTIAL CONTRIBUTION (Cash)",,"No Description",Cash,0,,0,USD,,0,,,,500.00,500.00,
+
+
+"The data and information in this spreadsheet is provided to you solely for your use and is not for distribution. The spreadsheet is provided for informational purposes only, and is not intended to provide advice, nor should it be construed as an offer to sell, a solicitation of an offer to buy or a recommendation for any security or insurance product by Fidelity or any third party."
+"Brokerage services are provided by Fidelity Brokerage Services LLC (FBS), 900 Salem Street, Smithfield, RI 02917. Custody and other services provided by National Financial Services LLC (NFS), Member NYSE, SIPC. Both are Fidelity Investments companies."
+"Date downloaded 09/29/2026 10:41 am"

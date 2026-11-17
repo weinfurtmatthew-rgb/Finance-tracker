@@ -188,8 +188,11 @@ export interface CsvMapping {
   accountId?: string;
   /** A clean store name column (Rocket Money's "Custom Name", then "Name"). */
   payee?: number[];
-  /** Columns naming the account each row is from, for files with several accounts (Rocket Money). */
-  sourceAccount?: { institution: number | null; name: number | null; number: number | null; type: number | null };
+  /**
+   * Columns naming the account each row is from, for files with several accounts (Rocket Money, Fidelity).
+   * `bank` names the institution for a whole file that doesn't have a column for it.
+   */
+  sourceAccount?: { institution: number | null; name: number | null; number: number | null; type: number | null; bank?: string };
 }
 
 export interface MetaEntry {

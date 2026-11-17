@@ -13,6 +13,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-17',
+    date: 'November 17, 2026',
+    title: 'Every account in a Fidelity file, in its own place',
+    items: [
+      'Fidelity’s activity download for all your accounts now splits by account: the import review lists each one and where it goes, matched by its number, as a new account, or not at all.',
+      'One tap imports them all, and the next file goes to the same places. Rocket Money exports and other files with an account column work the same way.',
+      'If a file like this went into one account before, importing it again moves each transaction to its own account, so nothing counts twice.',
+    ],
+  },
+  {
     id: '2026-11-16c',
     date: 'November 16, 2026',
     title: 'Stock news in your morning summary',

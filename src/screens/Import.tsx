@@ -2,13 +2,14 @@ import { useMemo, useState } from 'preact/hooks';
 import { Glyph } from '../components/icons';
 import { useStore } from '../store';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, newId } from '../db';
+import { db, getMeta, newId } from '../db';
 import { useNav } from '../nav';
 import type { Account, AccountType, CsvMapping, Transaction, TransactionSource } from '../types';
 import { findAlreadyImported, idsOf } from '../lib/dedupe';
 import type { PreparedTransaction } from '../lib/importer';
 import type { DraftTransaction } from '../lib/draft';
-import { csvToDrafts, detectFormat, headerSignature, readCsv, type CsvTable } from '../lib/csv';
+import { csvToDrafts, detectFormat, headerSignature, looksLikeTransactions, readCsv, type CsvTable } from '../lib/csv';
+import { readPositions } from '../lib/positions';
 import { looksLikeOfx, parseOfx, type OfxStatement } from '../lib/ofx';
 import { APP_NAMES, appImportIds, linkWaitingPayments, placeAppTransactions, readPaymentApp, type AppFile } from '../lib/p2p';
 import { PaybackList, usePaymentAppNudges, WhatWasThis } from './People';
@@ -18,7 +19,8 @@ import { aiState } from '../ai/client';
 import { automaticPicks } from '../ai/suggest';
 import { ReviewAiPicks } from './ReviewAiPicks';
 import { RocketRepair } from '../components/RocketRepair';
-import { accountFor, accountTypeFor, rocketGroups, type RocketGroup } from '../lib/rocketmoney';
+import { findEarlierImport, planRepair } from '../lib/rocketmoney';
+import { groupBySource, IMPORT_ROUTES, newAccountFor, routeFor, SKIP, tidyName } from '../lib/sourceAccounts';
 import { BalanceCheck } from '../components/BalanceCheck';
 import { isValued } from '../lib/networth';
 import { openingBalanceFor } from '../lib/balances';
@@ -51,6 +53,19 @@ interface AppState {
 type Parsed = (CsvState | OfxState | AppState) & { fileName: string };
 
 const NEW = '__new__';
+
+/** Where an account in a file with several goes: an app account, a new one (named and typed here), or nowhere (SKIP). */
+interface Route {
+  to: string;
+  name: string;
+  type: AccountType;
+  institution: string;
+}
+
+/** A row in the preview, and for a file with several accounts, which one in the file it's from. */
+type Shown = PreparedTransaction & { group?: string };
+
+const listed = (items: string[]) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`);
 
 /** The open account that already has most of these transactions (at least 3), if any. */
 async function accountWithMostMatches(accounts: Account[], drafts: DraftTransaction[]): Promise<string | undefined> {
@@ -96,11 +111,22 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
   const [newType, setNewType] = useState<AccountType>('checking');
   const [newInstitution, setNewInstitution] = useState('');
   const [useBalance, setUseBalance] = useState(true);
-  // Rocket Money files hold several accounts: the one being imported, and the ones done this time.
-  const [group, setGroup] = useState<string>();
-  const [doneGroups, setDoneGroups] = useState<string[]>([]);
+  // Files with several accounts (Fidelity, Rocket Money…): where each one goes.
+  const [routes, setRoutes] = useState<Record<string, Route>>({});
   const [busy, setBusy] = useState<false | 'import' | 'ai'>(false);
-  const [done, setDone] = useState<{ added: number; skipped: number; account: Account; balanceSet: boolean; uncategorized: number; byAi: number; merged: number; waiting: number }>();
+  const [done, setDone] = useState<{
+    added: number;
+    skipped: number;
+    account: Account;
+    balanceSet: boolean;
+    uncategorized: number;
+    byAi: number;
+    merged: number;
+    waiting: number;
+    /** A file with several accounts: how many went into each, and what was put right from an earlier import of it. */
+    into?: { account: Account; added: number }[];
+    fixed?: { fixed: number; moved: number; merged: number };
+  }>();
   // What you've categorized yourself teaches new imports: same payee, same category.
   const allTxns = useStore().raw.transactions;
   const nudges = usePaymentAppNudges();
@@ -149,37 +175,44 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
       } else {
         const table = readCsv(text);
         if (table.headerIndex < 0) throw new Error('This doesn’t look like a transactions file.');
+        // A brokerage's positions file (what you hold) has symbols and shares too, but no dates.
+        if (!looksLikeTransactions(table) && readPositions(text))
+          throw new Error('This is a positions file: what you hold, not your activity. To bring it in, open the investment account in Net Worth and choose Import Positions.');
         const found = await db.csvMappings.get(headerSignature(table.headers));
         const detected = detectFormat(table, known.find((a) => a.id === (nextAccount ?? found?.accountId))?.type);
         // A Rocket Money file is always read as one (a layout saved from a plain import of it was wrong).
         const rocket = detected.format === 'Rocket Money';
         const saved = rocket ? undefined : found;
-        setParsed({
-          kind: 'csv',
-          table,
-          format: detected.format,
-          note: detected.note,
-          mapping: saved ?? detected.mapping,
-          saved: !!saved,
-          fileName: file.name,
-        });
-        if (rocket) {
-          const groups = rocketGroups(csvToDrafts(table, detected.mapping).drafts);
-          const g = (props.accountId && groups.find((x) => accountFor(x.account, known)?.id === props.accountId)) || groups[0];
-          if (g) {
-            setGroup(g.account.key);
-            setDoneGroups([]);
-            await suggestAccount(g, known, props.accountId);
-            return;
-          }
+        // A layout saved before the app read the account column still splits the file by account.
+        const mapping = saved ? { ...saved, sourceAccount: saved.sourceAccount ?? detected.mapping.sourceAccount } : detected.mapping;
+        setParsed({ kind: 'csv', table, format: detected.format, note: detected.note, mapping, saved: !!saved, fileName: file.name });
+        const fallback = guessAccountType(detected.format);
+        const groups = groupBySource(csvToDrafts(table, mapping).drafts);
+        const remembered = (await getMeta<Record<string, string>>(IMPORT_ROUTES)) ?? {};
+        if (groups.length > 1) {
+          // Several accounts: each goes where it went last time, or to the app account with its number or name.
+          const next: Record<string, Route> = {};
+          for (const g of groups) next[g.account.key] = { to: routeFor(g.account, known, remembered) ?? NEW, ...newAccountFor(g.account, fallback) };
+          setRoutes(next);
+          return;
+        }
+        setRoutes({});
+        const inst = guessInstitution(detected.format, file.name);
+        setNewType(fallback);
+        setNewInstitution(inst);
+        setNewName(`${inst || 'New'} ${typeName(fallback)}`.trim());
+        const only = groups[0];
+        if (only) {
+          // One account named in the file: the app account it goes to, or a new one named after it.
+          const to = routeFor(only.account, known, remembered);
+          if (to && to !== SKIP) nextAccount ??= to;
+          const fresh = newAccountFor(only.account, fallback);
+          setNewType(fresh.type);
+          setNewInstitution(fresh.institution);
+          setNewName(fresh.name);
         }
         nextAccount ??= saved?.accountId && known.some((a) => a.id === saved.accountId) ? saved.accountId : undefined;
-        nextAccount ??= await accountWithMostMatches(known, csvToDrafts(table, saved ?? detected.mapping).drafts);
-        const inst = guessInstitution(detected.format, file.name);
-        const type = guessAccountType(detected.format);
-        setNewType(type);
-        setNewInstitution(inst);
-        setNewName(`${inst || 'New'} ${typeName(type)}`.trim());
+        nextAccount ??= await accountWithMostMatches(known, csvToDrafts(table, mapping).drafts);
       }
       setAccountId(nextAccount ?? NEW);
     } catch (e) {
@@ -187,36 +220,76 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
     }
   };
 
-  /** Point the import at the app account for a Rocket Money account (or a new one named after it). */
-  const suggestAccount = async (g: RocketGroup, known: Account[], preferred?: string) => {
-    const id = preferred ?? accountFor(g.account, known)?.id ?? (await accountWithMostMatches(known, g.drafts));
-    setNewType(accountTypeFor(g.account));
-    setNewInstitution(g.account.institution ?? '');
-    setNewName(g.account.name);
-    setAccountId(id ?? NEW);
-  };
-
   const statement = parsed?.kind === 'ofx' ? parsed.statements[parsed.index] : undefined;
   const csvDrafts = useMemo(() => (parsed?.kind === 'csv' ? csvToDrafts(parsed.table, parsed.mapping) : undefined), [parsed]);
-  const groups = useMemo(() => rocketGroups(csvDrafts?.drafts ?? []), [csvDrafts]);
-  const currentGroup = groups.find((g) => g.account.key === group);
+  const groups = useMemo(() => groupBySource(csvDrafts?.drafts ?? []), [csvDrafts]);
+  const multi = groups.length > 1;
   const fileBalance = statement?.balance ?? (parsed?.kind === 'app' ? parsed.file.balance : undefined);
   const accountType = accountId === NEW ? newType : accounts?.find((a) => a.id === accountId)?.type;
   const read = useMemo((): { drafts: DraftTransaction[]; skipped: number } => {
     if (!parsed) return { drafts: [], skipped: 0 };
     if (parsed.kind === 'ofx') return { drafts: parsed.statements[parsed.index].transactions, skipped: 0 };
     if (parsed.kind === 'app') return { drafts: parsed.file.drafts, skipped: parsed.file.skipped };
-    if (currentGroup) return { drafts: currentGroup.drafts, skipped: csvDrafts!.skipped };
     return csvDrafts!;
-  }, [parsed, csvDrafts, currentGroup]);
+  }, [parsed, csvDrafts]);
 
-  const prepared = useMemo(
+  // Rows of this file that came in before as one plain file (every account in one): importing moves them
+  // to the accounts chosen below (and fixes their signs, for Rocket Money). Ones already in place stay.
+  const earlierAll = useMemo(() => (multi && accounts && allTxns ? findEarlierImport(csvDrafts!.drafts, accounts, allTxns) : []), [multi, csvDrafts, accounts, allTxns]);
+  // Where each account in the file goes, leaving out the names typed for new ones: typing a name
+  // doesn't need the preview worked out again (a file can have thousands of rows).
+  const routeKey = groups
+    .map((g) => {
+      const r = routes[g.account.key];
+      return r ? `${r.to}:${r.to === NEW ? r.type : ''}` : '';
+    })
+    .join('|');
+  const earlier = useMemo(
     () =>
-      existing && rules
+      earlierAll.filter((e) => {
+        const key = csvDrafts?.drafts[e.row].sourceAccount?.key;
+        const r = key ? routes[key] : undefined;
+        return !!r && r.to !== SKIP && (e.flipped || r.to !== e.txn.accountId);
+      }),
+    [earlierAll, routeKey, csvDrafts],
+  );
+  const single = useMemo(
+    () =>
+      !multi && existing && rules
         ? skipLikely(prepareImport(accountId, read.drafts, existing.ids, rules, { history, creditAccount: accountType === 'credit', existing: existing.txns }), includeLikely)
         : [],
-    [read, existing, rules, accountId, history, accountType, includeLikely],
+    [multi, read, existing, rules, accountId, history, accountType, includeLikely],
   );
+  // Several accounts: each one's rows against the account it goes to (less the ones that only move).
+  const routed = useMemo(() => {
+    if (!multi || !rules || !allTxns || !csvDrafts) return [];
+    const appIds = appImportIds(allTxns);
+    const moving = new Set(earlier.map((e) => csvDrafts.drafts[e.row]));
+    return groups.map((g) => {
+      const r = routes[g.account.key];
+      if (!r || r.to === SKIP) return { g, items: [] as Shown[] };
+      const mine = r.to === NEW ? [] : allTxns.filter((t) => t.accountId === r.to);
+      const type = r.to === NEW ? r.type : accounts?.find((a) => a.id === r.to)?.type;
+      const items = skipLikely(
+        prepareImport(
+          r.to === NEW ? `${NEW}:${g.account.key}` : r.to,
+          g.drafts.filter((d) => !moving.has(d)),
+          new Set([...mine.flatMap(idsOf), ...appIds]),
+          rules,
+          { history, creditAccount: type === 'credit', existing: mine },
+        ),
+        includeLikely,
+      ).map((p): Shown => ({ ...p, group: g.account.key }));
+      return { g, items };
+    });
+  }, [multi, groups, routeKey, rules, allTxns, accounts, history, includeLikely, csvDrafts, earlier]);
+  const prepared: Shown[] = multi ? routed.flatMap((x) => x.items) : single;
+  /** Which account in the file a preview row is from: its last 4 digits, as in the list above, or its name. */
+  const fromLabel = (key: string) => {
+    const a = groups.find((g) => g.account.key === key)?.account;
+    return !a ? '' : a.last4 ? `••${a.last4}` : tidyName(a.name);
+  };
+  const missingName = multi && groups.some((g) => routes[g.account.key]?.to === NEW && !routes[g.account.key].name.trim());
   const fresh = prepared.filter((p) => !p.duplicate);
   const dupes = prepared.length - fresh.length;
   const likely = prepared.filter((p) => p.likely);
@@ -230,16 +303,16 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
       const source: TransactionSource = parsed.kind === 'ofx' ? 'ofx' : 'csv';
       // A copy of what the import can touch, so it can be undone.
       const before = await takeSnapshot();
-      const result = await db.transaction('rw', [db.accounts, db.transactions, db.csvMappings], async () => {
+      const result = await db.transaction('rw', [db.accounts, db.transactions, db.csvMappings, db.meta], async () => {
         let account = accountId === NEW ? undefined : await db.accounts.get(accountId);
         // Remember the account number from a QFX/OFX file, so the next one finds this account directly.
-        const fileLast4 = statement?.accountNumber?.replace(/\D/g, '').slice(-4) ?? currentGroup?.account.last4;
+        const fileLast4 = statement?.accountNumber?.replace(/\D/g, '').slice(-4) ?? groups[0]?.account.last4;
         if (account && fileLast4 && !account.last4) {
           account.last4 = fileLast4;
           await db.accounts.update(account.id, { last4: fileLast4 });
         }
         if (!account) {
-          const last4 = statement?.accountNumber?.replace(/\D/g, '').slice(-4) ?? currentGroup?.account.last4;
+          const last4 = statement?.accountNumber?.replace(/\D/g, '').slice(-4) ?? groups[0]?.account.last4;
           account = {
             id: newId(),
             name: newName.trim() || 'New account',
@@ -290,6 +363,12 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
           balanceSet = true;
         }
         if (parsed.kind === 'csv') await db.csvMappings.put({ ...parsed.mapping, accountId: account.id });
+        // The account named in the file goes here next time too.
+        const named = groups[0]?.account;
+        if (named) {
+          const routes = (await getMeta<Record<string, string>>(IMPORT_ROUTES)) ?? {};
+          await db.meta.put({ key: IMPORT_ROUTES, value: { ...routes, [named.ref ?? named.key]: account.id } });
+        }
         const added = kept.filter((r) => r.p2p?.role !== 'funding').length;
         return { added, skipped: items.length - fresh.length, account, balanceSet, rows: kept, merged, waiting };
       });
@@ -308,7 +387,6 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
       await recordImport(before, `${result.added} transaction${result.added === 1 ? '' : 's'} into ${result.account.name}`);
       const saved = await db.transactions.bulkGet(result.rows.map((r) => r.id));
       const uncategorized = saved.filter((t) => t?.categoryId === 'uncategorized').length;
-      if (group) setDoneGroups((d) => [...d, group]);
       setDone({ added: result.added, skipped: result.skipped, account: result.account, balanceSet: result.balanceSet, uncategorized, byAi, merged: result.merged, waiting: result.waiting });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -317,17 +395,177 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
     }
   };
 
-  const nextGroup = groups.find((g) => g.account.key !== group && !doneGroups.includes(g.account.key));
+  /**
+   * A file with several accounts: each one into the account it goes to (made now for a new one). Rows that
+   * came in before as one plain file move to their accounts first (signs fixed for Rocket Money), so
+   * nothing is added twice. Where each one went is remembered for the next file.
+   */
+  const commitMulti = async () => {
+    if (!parsed || parsed.kind !== 'csv' || !rules || !csvDrafts) return;
+    setBusy('import');
+    try {
+      const drafts = csvDrafts.drafts;
+      const before = await takeSnapshot();
+      const result = await db.transaction('rw', [db.accounts, db.transactions, db.csvMappings, db.meta], async () => {
+        const known = await db.accounts.toArray();
+        const remembered = { ...((await getMeta<Record<string, string>>(IMPORT_ROUTES)) ?? {}) };
+        const target = new Map<string, Account>();
+        for (const g of groups) {
+          const r = routes[g.account.key];
+          const ref = g.account.ref ?? g.account.key;
+          if (!r) continue;
+          if (r.to === SKIP) {
+            remembered[ref] = SKIP;
+            continue;
+          }
+          let account = r.to === NEW ? undefined : known.find((a) => a.id === r.to);
+          if (account && g.account.last4 && !account.last4) {
+            account = { ...account, last4: g.account.last4 };
+            await db.accounts.update(account.id, { last4: g.account.last4 });
+          }
+          if (!account) {
+            account = {
+              id: newId(),
+              name: r.name.trim() || tidyName(g.account.name),
+              type: r.type,
+              institution: r.institution.trim(),
+              last4: g.account.last4,
+              openingBalance: 0,
+              archived: false,
+              createdAt: Date.now(),
+            };
+            await db.accounts.add(account);
+            known.push(account);
+          }
+          target.set(g.account.key, account);
+          remembered[ref] = account.id;
+        }
+        let all = await db.transactions.toArray();
+        let fixed = { fixed: 0, moved: 0, merged: 0 };
+        const found = findEarlierImport(drafts, known, all);
+        if (found.length) {
+          const plan = planRepair({
+            drafts,
+            earlier: found,
+            target: new Map([...target].map(([key, a]) => [key, a.id])),
+            accounts: known,
+            txns: all,
+            rules,
+            history: payeeHistory(all),
+          });
+          for (const u of plan.update) await db.transactions.update(u.id, u.changes);
+          for (const m of plan.merge) await db.transactions.update(m.id, m.changes);
+          await db.transactions.bulkDelete(plan.remove);
+          for (const o of plan.openings) await db.accounts.update(o.accountId, { openingBalance: o.openingBalance });
+          fixed = { fixed: plan.fixed, moved: plan.moved, merged: plan.merged };
+          all = await db.transactions.toArray();
+        }
+        const added: Transaction[] = [];
+        const into = new Map<string, { account: Account; added: number }>();
+        let skipped = 0;
+        for (const g of groups) {
+          const account = target.get(g.account.key);
+          if (!account) continue;
+          const existing = [...all, ...added].filter((t) => t.accountId === account.id);
+          const ids = new Set([...existing.flatMap(idsOf), ...appImportIds([...all, ...added])]);
+          const items = skipLikely(prepareImport(account.id, g.drafts, ids, rules, { history, creditAccount: account.type === 'credit', existing }), includeLikely);
+          // The same purchases from a different file format: remember this format's ids on them.
+          const matched = new Map<string, string[]>();
+          for (const p of items) if (p.likely && p.duplicate) matched.set(p.likely.id, [...(matched.get(p.likely.id) ?? []), p.importId]);
+          for (const [id, extra] of matched) {
+            const t = existing.find((x) => x.id === id);
+            if (t) await db.transactions.update(id, { altImportIds: [...new Set([...(t.altImportIds ?? []), ...extra])] });
+          }
+          const fresh = toTransactions(account, items, 'csv', newId);
+          await db.transactions.bulkAdd(fresh);
+          added.push(...fresh);
+          skipped += items.length - fresh.length;
+          into.set(account.id, { account, added: (into.get(account.id)?.added ?? 0) + fresh.length });
+        }
+        // App payments that were waiting for their bank line merge into it now, as with any bank file.
+        const linked = linkWaitingPayments(await db.transactions.toArray(), known);
+        for (const u of linked.update) await db.transactions.update(u.id, u.changes);
+        await db.transactions.bulkDelete(linked.remove);
+        const removed = new Set(linked.remove);
+        await db.meta.put({ key: IMPORT_ROUTES, value: remembered });
+        await db.csvMappings.put({ ...parsed.mapping, accountId: undefined });
+        return {
+          into: [...into.values()],
+          // The rows just put right read as already imported now; they weren't skipped.
+          skipped: Math.max(0, skipped - fixed.fixed),
+          fixed,
+          rows: added.filter((r) => !removed.has(r.id)),
+          merged: linked.update.filter((u) => u.changes.p2p).length,
+        };
+      });
+      let byAi = 0;
+      if (aiState().embed && categories && result.rows.length) {
+        setBusy('ai');
+        try {
+          const picks = await automaticPicks(new Set(result.rows.map((r) => r.id)), await db.transactions.toArray(), categories);
+          await db.transactions.bulkUpdate(picks.map((p) => ({ key: p.id, changes: { categoryId: p.categoryId, categorySource: 'ai' as const } })));
+          byAi = picks.length;
+        } catch {
+          // The import itself worked; AI is a bonus.
+        }
+      }
+      const n = result.rows.length;
+      await recordImport(before, `${n} transaction${n === 1 ? '' : 's'} into ${result.into.length} account${result.into.length === 1 ? '' : 's'}`);
+      const saved = await db.transactions.bulkGet(result.rows.map((r) => r.id));
+      setDone({
+        added: n,
+        skipped: result.skipped,
+        account: result.into[0].account,
+        into: result.into,
+        fixed: result.fixed,
+        balanceSet: false,
+        uncategorized: saved.filter((t) => t?.categoryId === 'uncategorized').length,
+        byAi,
+        merged: result.merged,
+        waiting: 0,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   if (done) {
     const { uncategorized, byAi, merged, waiting } = done;
+    const f = done.fixed;
+    // What putting an earlier import of this file right did.
+    const fixes = [
+      f?.moved ? `${f.moved} moved to ${f.moved === 1 ? 'its account' : 'their accounts'}` : '',
+      f?.merged ? `${f.merged} matched your bank’s own files, so ${f.merged === 1 ? 'it’s' : 'they’re'} counted once` : '',
+    ]
+      .filter(Boolean)
+      .join(', and ');
+    const onlyFixed = !done.added && !!f?.fixed;
     return (
       <Sheet title="Import" onClose={props.onClose}>
-        <Empty icon="check" title={`Imported ${done.added} transaction${done.added === 1 ? '' : 's'}`}>
+        <Empty
+          icon="check"
+          title={onlyFixed ? `Fixed ${f!.fixed} transaction${f!.fixed === 1 ? '' : 's'}` : `Imported ${done.added} transaction${done.added === 1 ? '' : 's'}`}
+        >
           <p>
-            Into <b>{done.account.name}</b>.{done.skipped > 0 && ` ${done.skipped} already-imported transaction${done.skipped === 1 ? ' was' : 's were'} skipped.`}
+            {done.into ? (
+              done.into.some((x) => x.added) && `Into ${listed(done.into.filter((x) => x.added).map((x) => `${x.account.name} (${x.added})`))}.`
+            ) : (
+              <>
+                Into <b>{done.account.name}</b>.
+              </>
+            )}
+            {onlyFixed && fixes && `${fixes}.`}
+            {done.skipped > 0 && ` ${done.skipped} already-imported transaction${done.skipped === 1 ? ' was' : 's were'} skipped.`}
             {uncategorized > 0 && ` ${uncategorized} need a category.`}
           </p>
+          {!onlyFixed && !!f?.fixed && (
+            <p class="merge-note">
+              <Glyph name="check" /> From an earlier import of this file, {f.fixed} transaction{f.fixed === 1 ? ' was' : 's were'} put right
+              {fixes ? `: ${fixes}` : ''}.
+            </p>
+          )}
           {merged > 0 && (
             <p class="merge-note">
               <Glyph name="check" /> {merged} payment{merged === 1 ? '' : 's'} paid from your bank {merged === 1 ? 'was' : 'were'} matched to the bank’s own line{merged === 1 ? '' : 's'}, so {merged === 1 ? 'it isn’t' : 'they aren’t'} counted twice.
@@ -354,20 +592,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
                 What Were These? ({nudges.unexplained.length})
               </button>
             )}
-            {nextGroup && (
-              <button
-                type="button"
-                class="button primary"
-                onClick={async () => {
-                  setGroup(nextGroup.account.key);
-                  await suggestAccount(nextGroup, await db.accounts.toArray());
-                  setDone(undefined);
-                }}
-              >
-                Import Next: {nextGroup.account.name}
-              </button>
-            )}
-            <button type="button" class={`button ${byAi > 0 || nextGroup ? '' : 'primary'}`} onClick={() => nav.showActivity({ accountId: done.account.id })}>
+            <button type="button" class={`button ${byAi > 0 ? '' : 'primary'}`} onClick={() => nav.showActivity(done.into ? {} : { accountId: done.account.id })}>
               View Transactions
             </button>
             <button type="button" class="button" onClick={props.onClose}>
@@ -387,7 +612,9 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
           </div>
         </Empty>
         <PaybackList paybacks={nudges.paybacks} />
-        {done.balanceSet ? (
+        {done.into ? (
+          <p class="section-footer intro">For an accurate net worth, check each account’s balance on its page in Net Worth.</p>
+        ) : done.balanceSet ? (
           <p class="section-footer intro">✓ Balance set from {parsed?.kind === 'app' ? `${APP_NAMES[parsed.file.app]}'s statement` : 'your bank’s file'}.</p>
         ) : (
           !isValued(done.account) && (
@@ -446,7 +673,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
           </details>
           <details class="help">
             <summary>Fidelity</summary>
-            <p>Sign in at fidelity.com, open <b>Activity &amp; Orders</b>, pick a date range and use the download icon to get a CSV. Buys and sells are filed under Investments, and dividends count as income. Update the account’s balance by hand for an accurate net worth.</p>
+            <p>Sign in at fidelity.com, open <b>Activity &amp; Orders</b>, pick a date range and use the download icon to get a CSV. With all your accounts in one file, the review lists each one and you choose where it goes; the app remembers for next time. Buys and sells are filed under Investments, and dividends count as income. Update each account’s balance by hand for an accurate net worth.</p>
           </details>
         </Section>
       </Sheet>
@@ -473,9 +700,9 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
     <Sheet
       title="Review Import"
       onClose={props.onClose}
-      onSave={commit}
-      saveLabel={busy === 'ai' ? 'Categorizing…' : busy ? 'Importing…' : `Import ${fresh.length}`}
-      saveDisabled={!!busy || fresh.length === 0 || (accountId === NEW && !newName.trim())}
+      onSave={multi ? commitMulti : commit}
+      saveLabel={busy === 'ai' ? 'Categorizing…' : busy ? 'Importing…' : multi && earlier.length && !fresh.length ? `Fix ${earlier.length}` : `Import ${fresh.length}`}
+      saveDisabled={!!busy || (fresh.length === 0 && !(multi && earlier.length)) || (multi ? missingName : accountId === NEW && !newName.trim())}
     >
       <Section
         title="File"
@@ -496,7 +723,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
               {parsed.kind === 'app'
                 ? `${APP_NAMES[parsed.file.app]} ${parsed.file.app === 'venmo' ? 'statement' : 'activity'}`
                 : parsed.kind === 'csv'
-                  ? `${parsed.format}${parsed.saved ? ' · saved layout' : ''}`
+                  ? `${parsed.format}${multi ? ` · ${groups.length} accounts` : ''}${parsed.saved ? ' · saved layout' : ''}`
                   : statement?.kind === 'credit'
                     ? 'OFX · credit card'
                     : `OFX · ${statement?.bankAccountType?.toLowerCase() ?? 'bank'} account`}
@@ -520,61 +747,110 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
         )}
       </Section>
 
-      {groups.length > 0 && csvDrafts && <RocketRepair drafts={csvDrafts.drafts} />}
+      {groups.length === 1 && csvDrafts && <RocketRepair drafts={csvDrafts.drafts} />}
 
-      {groups.length > 1 && (
-        <Section title="Rocket Money account" footer={`This file has ${groups.length} accounts. Import them one at a time, each into its own account.`}>
-          <Field label="From">
-            <select
-              value={group}
-              onChange={async (e) => {
-                const key = (e.target as HTMLSelectElement).value;
-                setGroup(key);
-                const g = groups.find((x) => x.account.key === key);
-                if (g) await suggestAccount(g, await db.accounts.toArray());
-              }}
-            >
-              {groups.map((g) => (
-                <option value={g.account.key}>
-                  {g.account.label} ({g.drafts.length}){doneGroups.includes(g.account.key) ? ' ✓' : ''}
-                </option>
-              ))}
-            </select>
-          </Field>
+      {multi && (
+        <Section
+          title="Accounts in this file"
+          footer={`${
+            earlier.length
+              ? `${earlier.length} of these transaction${earlier.length === 1 ? ' was' : 's were'} imported before with every account in one${
+                  earlier.some((e) => e.flipped) ? ', and spending and income swapped' : ''
+                }: importing moves each to the account chosen here and keeps your categories and notes. `
+              : ''
+          }Each account’s transactions go where you choose, and the next file from there goes to the same places.`}
+        >
+          {groups.map((g) => {
+            const r = routes[g.account.key];
+            if (!r) return null;
+            const set = (patch: Partial<Route>) => setRoutes((all) => ({ ...all, [g.account.key]: { ...all[g.account.key], ...patch } }));
+            const label = `${tidyName(g.account.name)}${g.account.last4 ? ` ••${g.account.last4}` : ''}`;
+            const n = g.drafts.length;
+            const fresh = routed.find((x) => x.g === g)?.items.filter((p) => !p.duplicate).length ?? 0;
+            // Rows imported before with every account in one: moving here, or put right where they are.
+            const mine = earlier.filter((e) => csvDrafts?.drafts[e.row].sourceAccount?.key === g.account.key);
+            const moving = mine.filter((e) => e.txn.accountId !== r.to).length;
+            const fixing = mine.length - moving;
+            const count =
+              r.to === SKIP
+                ? `${n} transaction${n === 1 ? '' : 's'}, not imported`
+                : fresh || moving || fixing
+                  ? [`${n} transaction${n === 1 ? '' : 's'}`, fresh && `${fresh} new`, moving && `${moving} to move here`, fixing && `${fixing} to fix`]
+                      .filter(Boolean)
+                      .join(' · ')
+                  : `${n} transaction${n === 1 ? '' : 's'}, all imported already`;
+            return (
+              <>
+                {/* The account in the file on top, the account its rows go into below: both fit at phone width. */}
+                <label class="field route">
+                  <span class="route-from">
+                    {label}
+                    <span class="field-hint">{count}</span>
+                  </span>
+                  <span class="field-label">Into</span>
+                  <span class="field-control">
+                    <select value={r.to} aria-label={`Account for ${label}`} onChange={(e) => set({ to: (e.target as HTMLSelectElement).value })}>
+                      {accountList.map((a) => (
+                        <option value={a.id}>{a.name}</option>
+                      ))}
+                      <option value={NEW}>＋ New account…</option>
+                      <option value={SKIP}>Don’t import</option>
+                    </select>
+                  </span>
+                </label>
+                {r.to === NEW && (
+                  <div class="route-new" role="group" aria-label={`New account for ${label}`}>
+                    <Field label="Name">
+                      <input value={r.name} onInput={(e) => set({ name: (e.target as HTMLInputElement).value })} />
+                    </Field>
+                    <Field label="Type">
+                      <select value={r.type} onChange={(e) => set({ type: (e.target as HTMLSelectElement).value as AccountType })}>
+                        {ACCOUNT_TYPES.map((t) => (
+                          <option value={t.value}>{t.label}</option>
+                        ))}
+                      </select>
+                    </Field>
+                  </div>
+                )}
+              </>
+            );
+          })}
         </Section>
       )}
 
-      <Section title="Import into">
-        <Field label="Account">
-          <select value={accountId} onChange={(e) => setAccountId((e.target as HTMLSelectElement).value)}>
-            {accountList.map((a) => (
-              <option value={a.id}>{a.name}</option>
-            ))}
-            <option value={NEW}>＋ New account…</option>
-          </select>
-        </Field>
-        {accountId === NEW && (
-          <>
-            <Field label="Name">
-              <input value={newName} onInput={(e) => setNewName((e.target as HTMLInputElement).value)} />
-            </Field>
-            <Field label="Type">
-              <select value={newType} onChange={(e) => setNewType((e.target as HTMLSelectElement).value as AccountType)}>
-                {ACCOUNT_TYPES.map((t) => (
-                  <option value={t.value}>{t.label}</option>
-                ))}
-              </select>
-            </Field>
-          </>
-        )}
-        {fileBalance && (
-          <Toggle
-            checked={useBalance}
-            onChange={setUseBalance}
-            label={`Set balance to ${formatMoney(fileBalance.amount)} (as of ${formatDay(fileBalance.asOf)})`}
-          />
-        )}
-      </Section>
+      {!multi && (
+        <Section title="Import into">
+          <Field label="Account">
+            <select value={accountId} onChange={(e) => setAccountId((e.target as HTMLSelectElement).value)}>
+              {accountList.map((a) => (
+                <option value={a.id}>{a.name}</option>
+              ))}
+              <option value={NEW}>＋ New account…</option>
+            </select>
+          </Field>
+          {accountId === NEW && (
+            <>
+              <Field label="Name">
+                <input value={newName} onInput={(e) => setNewName((e.target as HTMLInputElement).value)} />
+              </Field>
+              <Field label="Type">
+                <select value={newType} onChange={(e) => setNewType((e.target as HTMLSelectElement).value as AccountType)}>
+                  {ACCOUNT_TYPES.map((t) => (
+                    <option value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+              </Field>
+            </>
+          )}
+          {fileBalance && (
+            <Toggle
+              checked={useBalance}
+              onChange={setUseBalance}
+              label={`Set balance to ${formatMoney(fileBalance.amount)} (as of ${formatDay(fileBalance.asOf)})`}
+            />
+          )}
+        </Section>
+      )}
 
       {m && (
         <Section title="Columns" footer="Purchases should show as negative amounts in the preview below. If they’re positive, turn on Flip signs.">
@@ -620,7 +896,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
 
       {likely.length > 0 && (
         <Section
-          title={`Already in ${accounts?.find((a) => a.id === accountId)?.name ?? 'this account'}`}
+          title={`Already in ${multi ? 'your accounts' : (accounts?.find((a) => a.id === accountId)?.name ?? 'this account')}`}
           footer="Same amount and store within a few days of a transaction you imported from a different file (for example a CSV before, a QFX now). They’re skipped so nothing counts twice."
         >
           <details class="help likely-list">
@@ -665,6 +941,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
               <span class="row-main">
                 <span class="row-title">{p.payee}</span>
                 <span class="row-subtitle">
+                  {p.group ? `${fromLabel(p.group)} · ` : ''}
                   {formatDay(p.draft.date)} · {cats.get(p.categoryId)?.name}
                   {p.draft.p2p?.note ? ` · “${p.draft.p2p.note}”` : ''}
                   {p.draft.p2p?.fundedFrom ? ` · from ${p.draft.p2p.fundedFrom}` : ''}
