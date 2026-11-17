@@ -61,6 +61,12 @@ test('every main screen has accessible names and roles, and fits the phone @smok
   await check('About');
   await app.sheet().getByRole('button', { name: 'Privacy' }).click();
   await check('Privacy');
+  // A file with several accounts: where each one goes, with a new account's name and type.
+  await app.closeSheets();
+  await app.openImport();
+  await page.locator('.drop input[type=file]').setInputFiles(fixture('fidelity-activity.csv'));
+  await expect(app.sheet().locator('.section', { hasText: 'Accounts in this file' })).toBeVisible();
+  await check('Import review with several accounts');
 });
 
 test('the sheets opened from Browse are accessible too', async ({ app, page }) => {

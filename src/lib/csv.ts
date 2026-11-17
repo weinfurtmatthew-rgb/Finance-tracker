@@ -1,6 +1,7 @@
 import Papa from 'papaparse';
 import type { AccountType, CsvMapping } from '../types';
 import type { DraftTransaction, SourceAccount } from './draft';
+import { splitAccountNumber } from './sourceAccounts';
 import { parseBankDate } from './dates';
 import { parseAmount } from './money';
 
@@ -129,15 +130,33 @@ export function detectFormat(table: CsvTable, accountType?: AccountType): CsvDet
     };
   }
   if (has('run date') && has('action')) {
+    // With "All accounts" picked, every account is in the one file: an Account column (its name, with
+    // the number at the end in older files) and in newer ones an Account Number column.
+    const name = col(table.headers, ['account', 'account name']);
+    const number = col(table.headers, ['account number']);
     return {
       format: 'Fidelity',
-      mapping: { ...base, date: col(table.headers, ['run date'])!, description: col(table.headers, ['action'])!, amount: col(table.headers, ['amount ($)', 'amount']), debit: null, credit: null, category: null },
+      mapping: {
+        ...base,
+        date: col(table.headers, ['run date'])!,
+        description: col(table.headers, ['action'])!,
+        amount: col(table.headers, ['amount ($)', 'amount']),
+        debit: null,
+        credit: null,
+        category: null,
+        ...(name != null || number != null ? { sourceAccount: { institution: null, name, number, type: null, bank: 'Fidelity' } } : {}),
+      },
       note: 'Buys, sells and reinvestments are filed under Investments so they don’t count as spending.',
     };
   }
 
   // Generic file: prefer a single signed amount column; otherwise use debit/credit columns.
   const mapping = { ...base };
+  // A column saying which account each row is from (a file covering several accounts).
+  const accountName = col(table.headers, ['account', 'account name']);
+  const accountNumber = col(table.headers, ['account number', 'account #', 'account no.', 'account no']);
+  if (accountName != null || accountNumber != null)
+    mapping.sourceAccount = { institution: col(table.headers, ['institution', 'institution name', 'bank']), name: accountName, number: accountNumber, type: col(table.headers, ['account type']) };
   if (mapping.amount != null) {
     mapping.debit = null;
     mapping.credit = null;
@@ -205,12 +224,17 @@ export function csvToDrafts(table: CsvTable, m: CsvMapping): CsvReadResult {
 
 function sourceAccountOf(r: string[], c: NonNullable<CsvMapping['sourceAccount']>): SourceAccount {
   const cell = (i: number | null) => (i != null ? (r[i] ?? '').trim() : '');
-  const institution = cell(c.institution);
-  const name = cell(c.name) || 'Account';
-  const last4 = cell(c.number).replace(/\D/g, '').slice(-4) || undefined;
+  const institution = cell(c.institution) || c.bank || '';
+  let name = cell(c.name);
+  let number = cell(c.number);
+  // "Individual - TOD Z12345678": the number at the end of the name.
+  if (!number && name) ({ name, number } = splitAccountNumber(name));
+  name ||= 'Account';
+  const last4 = number.replace(/\D/g, '').slice(-4) || undefined;
   const type = cell(c.type) || undefined;
   return {
     key: `${institution}|${name}|${last4 ?? ''}`.toLowerCase(),
+    ref: `${institution}|${number.replace(/[^a-z0-9]/gi, '') || name}`.toLowerCase(),
     label: [institution, `${name}${last4 ? ` ••${last4}` : ''}`].filter(Boolean).join(' · '),
     name,
     institution: institution || undefined,
@@ -218,3 +242,9 @@ function sourceAccountOf(r: string[], c: NonNullable<CsvMapping['sourceAccount']
     type,
   };
 }
+
+/** A file whose header has a date and an amount: transactions (a positions file has neither). */
+export const looksLikeTransactions = (table: CsvTable) => {
+  const cells = table.headers.map(norm);
+  return cells.some((c) => DATE.includes(c)) && cells.some((c) => AMOUNT.includes(c) || DEBIT.includes(c) || CREDIT.includes(c));
+};

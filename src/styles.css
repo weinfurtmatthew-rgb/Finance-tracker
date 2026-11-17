@@ -524,6 +524,36 @@ label.row:active,
   flex: none;
   max-width: 62%;
 }
+/* An account in a file with several: its name and rows on top, the account they go into below. */
+.route {
+  row-gap: 2px;
+  padding-top: 10px;
+}
+.route-from {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.route > .field-label {
+  color: var(--text-2);
+}
+/* A new account's name and type, under the account in the file it's for. */
+.route-new {
+  position: relative;
+  margin-left: 16px;
+  border-left: 2px solid color-mix(in oklab, var(--tint) 40%, transparent);
+}
+.field + .route-new::before,
+.route-new + .field::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  border-top: 0.5px solid var(--separator);
+}
+
 .field-control {
   flex: 1;
   min-width: 0;

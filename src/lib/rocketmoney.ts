@@ -7,53 +7,14 @@
  * those earlier rows again (from the same file) and puts them right: correct sign, the right account,
  * Rocket Money's names and categories, then merges any that are already there from a bank file.
  */
-import type { Account, AccountType, Cents, Rule, Transaction } from '../types';
-import type { DraftTransaction, SourceAccount } from './draft';
+import type { Account, Cents, Rule, Transaction } from '../types';
+import type { DraftTransaction } from './draft';
 import { importIds } from './importer';
 import { categorize, type PayeeHistory } from './categorize';
 import { cleanPayee } from './payee';
 import { findAlreadyImported, mergeCopy } from './dedupe';
 
-export interface RocketGroup {
-  account: SourceAccount;
-  drafts: DraftTransaction[];
-}
-
-/** The file's rows grouped by the account they're from, largest first. */
-export function rocketGroups(drafts: DraftTransaction[]): RocketGroup[] {
-  const m = new Map<string, RocketGroup>();
-  for (const d of drafts) {
-    if (!d.sourceAccount) continue;
-    const g = m.get(d.sourceAccount.key) ?? { account: d.sourceAccount, drafts: [] };
-    g.drafts.push(d);
-    m.set(d.sourceAccount.key, g);
-  }
-  return [...m.values()].sort((a, b) => b.drafts.length - a.drafts.length);
-}
-
-/** An account type from Rocket Money's "Account Type" text. */
-export function accountTypeFor(a: SourceAccount): AccountType {
-  const t = `${a.type ?? ''} ${a.name}`.toLowerCase();
-  if (/\bcds?\b|certificate/.test(t)) return 'cd';
-  if (/\broth\b/.test(t) && /\bira\b/.test(t)) return 'roth-ira';
-  if (/\b40[13]\s*\(?[kb]\b|\btsp\b|thrift savings/.test(t)) return /\broth\b/.test(t) ? 'roth-401k' : '401k';
-  if (/\bira\b|rollover/.test(t)) return 'ira';
-  if (/credit/.test(t)) return 'credit';
-  if (/saving|money market/.test(t)) return 'savings';
-  if (/invest|brokerage|401|ira|retire/.test(t)) return 'brokerage';
-  if (/loan|mortgage/.test(t)) return 'loan';
-  return 'checking';
-}
-
-/** An app account for a Rocket Money account: same last 4 digits, or the same name. */
-export function accountFor(a: SourceAccount, accounts: Account[]): Account | undefined {
-  const open = accounts.filter((x) => !x.archived);
-  return (
-    (a.last4 ? open.find((x) => x.last4 === a.last4) : undefined) ??
-    open.find((x) => x.name.trim().toLowerCase() === a.name.trim().toLowerCase()) ??
-    open.find((x) => !!a.institution && x.name.toLowerCase() === `${a.institution} ${a.name}`.toLowerCase())
-  );
-}
+export { accountFor, accountTypeFor, groupBySource as rocketGroups, type SourceGroup as RocketGroup } from './sourceAccounts';
 
 export interface EarlierRow {
   txn: Transaction;
