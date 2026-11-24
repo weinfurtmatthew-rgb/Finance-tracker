@@ -15,6 +15,8 @@ export interface DraftTransaction {
   sourceAccount?: SourceAccount;
   /** Payment-app details (Venmo, Cash App). */
   p2p?: DraftP2P;
+  /** A brokerage line's stock and shares, from the file's Symbol and Quantity columns. */
+  security?: { ticker: string; shares?: number };
 }
 
 export interface SourceAccount {

@@ -107,7 +107,7 @@ export function detectFormat(table: CsvTable, accountType?: AccountType): CsvDet
     return {
       format: 'Rocket Money',
       mapping,
-      note: 'Rocket Money lists every account in one file: pick which one to import. Its store names and categories are used.',
+      note: 'Rocket Money lists every account in one file: each one goes where you choose below. Its store names and categories are used.',
     };
   }
   if (has('trans. date') && has('post date') && has('amount')) {
@@ -144,6 +144,9 @@ export function detectFormat(table: CsvTable, accountType?: AccountType): CsvDet
         debit: null,
         credit: null,
         category: null,
+        // What each line bought or sold, and how many shares (see lib/bankTrades.ts).
+        symbol: col(table.headers, ['symbol']),
+        quantity: col(table.headers, ['quantity']),
         ...(name != null || number != null ? { sourceAccount: { institution: null, name, number, type: null, bank: 'Fidelity' } } : {}),
       },
       note: 'Buys, sells and reinvestments are filed under Investments so they don’t count as spending.',
@@ -157,6 +160,12 @@ export function detectFormat(table: CsvTable, accountType?: AccountType): CsvDet
   const accountNumber = col(table.headers, ['account number', 'account #', 'account no.', 'account no']);
   if (accountName != null || accountNumber != null)
     mapping.sourceAccount = { institution: col(table.headers, ['institution', 'institution name', 'bank']), name: accountName, number: accountNumber, type: col(table.headers, ['account type']) };
+  // A brokerage's activity: which stock each line bought or sold, and how many shares.
+  const symbol = col(table.headers, ['symbol', 'ticker', 'instrument']);
+  if (symbol != null) {
+    mapping.symbol = symbol;
+    mapping.quantity = col(table.headers, ['quantity', 'shares', 'qty']);
+  }
   if (mapping.amount != null) {
     mapping.debit = null;
     mapping.credit = null;
@@ -217,7 +226,17 @@ export function csvToDrafts(table: CsvTable, m: CsvMapping): CsvReadResult {
     const description = (r[m.description] ?? '').replace(/\s+$/, '').trim() || '(no description)';
     const bankCategory = m.category != null ? r[m.category]?.trim() || undefined : undefined;
     const payeeHint = (m.payee ?? []).map((i) => (r[i] ?? '').trim()).find(Boolean);
-    drafts.push({ date, amount, description, bankCategory, ...(payeeHint ? { payeeHint } : {}), ...(m.sourceAccount ? { sourceAccount: sourceAccountOf(r, m.sourceAccount) } : {}) });
+    const symbol = m.symbol != null ? (r[m.symbol] ?? '').trim() : '';
+    const shares = m.quantity != null ? Math.abs(Number((r[m.quantity] ?? '').replace(/[,$\s]/g, ''))) : NaN;
+    drafts.push({
+      date,
+      amount,
+      description,
+      bankCategory,
+      ...(payeeHint ? { payeeHint } : {}),
+      ...(m.sourceAccount ? { sourceAccount: sourceAccountOf(r, m.sourceAccount) } : {}),
+      ...(symbol ? { security: { ticker: symbol, ...(shares > 0 ? { shares } : {}) } } : {}),
+    });
   }
   return { drafts, skipped };
 }

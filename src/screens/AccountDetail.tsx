@@ -20,6 +20,7 @@ import { CdMaturitySheet } from './CdMaturity';
 import { IraSection } from './Ira';
 import { K401Section } from './K401';
 import { HoldingsSection, holdingsSummary } from './Holdings';
+import { BankLinesSection } from './BankLines';
 import { canHoldStocks } from '../lib/holdings';
 
 /** An account up close: its balance over time, when it was last checked, and recent activity. */
@@ -140,6 +141,7 @@ export function AccountDetail(props: { account: Account; onClose: () => void }) 
         )}
       </div>
       {canHoldStocks(a) && <HoldingsSection account={a} />}
+      {canHoldStocks(a) && <BankLinesSection account={a} />}
       {isIra(a) && <IraSection account={a} />}
       {is401k(a) && <K401Section account={a} />}
       {recent.length > 0 && !isIra(a) && (

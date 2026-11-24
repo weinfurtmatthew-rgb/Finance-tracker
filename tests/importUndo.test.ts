@@ -67,6 +67,19 @@ describe('undo an import', () => {
     expect(await db.transactions.get('typed')).toBeDefined();
   });
 
+  it('takes the purchases read from the lines it added out of the holdings, but not ones typed in', async () => {
+    await db.meta.delete(IMPORT_UNDO_KEY);
+    const trade = { accountId: 'brk', ticker: 'FXAIX', date: '2026-09-01', kind: 'buy' as const, amount: 10_000, createdAt: 0 };
+    await db.trades.add({ ...trade, id: 'typed', source: 'manual' });
+    const before = await takeSnapshot();
+    await db.transactions.add(tx('bought', -10_000, { accountId: 'brk', description: 'YOU BOUGHT FIDELITY 500 INDEX FUND (FXAIX) (Cash)' }));
+    await db.trades.add({ ...trade, id: 'from-line', source: 'import', txnId: 'bought' });
+    await recordImport(before, '1 transaction into Fidelity');
+    await undoLastImport();
+    expect(await db.trades.get('from-line')).toBeUndefined();
+    expect(await db.trades.get('typed')).toBeDefined();
+  });
+
   it("doesn't record an import that changed nothing", async () => {
     await db.meta.delete(IMPORT_UNDO_KEY);
     await recordImport(await takeSnapshot(), 'nothing');

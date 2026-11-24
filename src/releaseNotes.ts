@@ -13,6 +13,16 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-24',
+    date: 'November 24, 2026',
+    title: 'Periodic investments in your portfolio',
+    items: [
+      'Purchases in an investment account’s activity file (“YOU BOUGHT … FIDELITY 500 INDEX FUND (FXAIX)”) now go into its holdings, with the shares when the file has them. Each import adds the new ones on its own.',
+      'Ones you imported before wait on the account’s page under From your bank files: one tap adds them. Anything up to your last positions file is counted in it already.',
+      'Those lines say what they bought now: “Bought FXAIX” instead of a name cut off before the fund.',
+    ],
+  },
+  {
     id: '2026-11-17',
     date: 'November 17, 2026',
     title: 'Every account in a Fidelity file, in its own place',

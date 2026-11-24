@@ -5,6 +5,7 @@ import { cleanPayee } from './payee';
 import { APP_NAMES, appFallback, personFromBankLine } from './p2p';
 import { UNCATEGORIZED } from './categories';
 import { findAlreadyImported } from './dedupe';
+import { readLine } from './bankTrades';
 
 export interface PreparedTransaction {
   draft: DraftTransaction;
@@ -77,6 +78,13 @@ export function prepareImport(
   });
 }
 
+/** A brokerage line's stock and shares from the file, when the line is a purchase or sale (lib/bankTrades.ts). */
+function securityOf(d: DraftTransaction): Transaction['security'] {
+  if (!d.security) return undefined;
+  const ticker = readLine(d.description, d.amount, d.security.ticker)?.ticker;
+  return ticker ? { ticker, ...(d.security.shares ? { shares: d.security.shares } : {}) } : undefined;
+}
+
 export function toTransactions(
   account: Pick<Account, 'id'>,
   items: PreparedTransaction[],
@@ -86,19 +94,23 @@ export function toTransactions(
   const now = Date.now();
   return items
     .filter((p) => !p.duplicate)
-    .map((p) => ({
-      id: newId(),
-      accountId: account.id,
-      date: p.draft.date,
-      amount: p.draft.amount,
-      description: p.draft.description,
-      payee: p.payee,
-      categoryId: p.categoryId,
-      categorySource: p.categorySource,
-      notes: p.draft.p2p?.note ?? '',
-      source,
-      importId: p.importId,
-      ...(p.draft.p2p ? { p2p: { app: p.draft.p2p.app, person: p.draft.p2p.person, note: p.draft.p2p.note, kind: p.draft.p2p.kind, fundedFrom: p.draft.p2p.fundedFrom } } : {}),
-      createdAt: now,
-    }));
+    .map((p) => {
+      const security = securityOf(p.draft);
+      return {
+        id: newId(),
+        accountId: account.id,
+        date: p.draft.date,
+        amount: p.draft.amount,
+        description: p.draft.description,
+        payee: p.payee,
+        categoryId: p.categoryId,
+        categorySource: p.categorySource,
+        notes: p.draft.p2p?.note ?? '',
+        source,
+        importId: p.importId,
+        ...(p.draft.p2p ? { p2p: { app: p.draft.p2p.app, person: p.draft.p2p.person, note: p.draft.p2p.note, kind: p.draft.p2p.kind, fundedFrom: p.draft.p2p.fundedFrom } } : {}),
+        ...(security ? { security } : {}),
+        createdAt: now,
+      };
+    });
 }
