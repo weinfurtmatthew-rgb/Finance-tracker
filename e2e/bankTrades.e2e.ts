@@ -149,3 +149,31 @@ test('a purchase that doesn’t say its stock: picked once, the same for lines l
   await expect(section(app, /^Holdings/).locator('.holding-row', { hasText: 'SCHB' })).toContainText('$100');
   await expect(fromBank).toHaveCount(0);
 });
+
+test('a stock bought and sold the same day isn’t held, though the file lists the sale first', async ({ app, page }) => {
+  await addAccount(app, 'Fidelity Brokerage', '5678');
+  await openAccount(app, 'Fidelity Brokerage');
+  await app.sheet().getByLabel('Import positions from your brokerage').setInputFiles(fixture('fidelity-positions.csv'));
+  await app.field('As of').locator('input').fill('2026-09-10');
+  await app.sheet().getByRole('button', { name: 'Import' }).click();
+  await expect(page.locator('.toast')).toHaveText('Imported 3 positions');
+  await app.closeSheets();
+
+  // Newest first, as Fidelity lists them: the afternoon's sale above the morning's purchase.
+  const csv = [
+    'Run Date,Account,Account Number,Action,Symbol,Description,Type,Quantity,Price,Amount,Settlement Date',
+    '09/18/2026,"Individual - TOD","Z12345678","YOU SOLD NVIDIA CORP (NVDA) (Cash)",NVDA,"NVIDIA CORP",Cash,-2,180.00,360.00,09/19/2026',
+    '09/18/2026,"Individual - TOD","Z12345678","YOU BOUGHT NVIDIA CORP (NVDA) (Cash)",NVDA,"NVIDIA CORP",Cash,2,175.00,-350.00,09/19/2026',
+  ].join('\n');
+  await app.openImport();
+  await page.locator('.drop input[type=file]').setInputFiles({ name: 'Accounts_History.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  await page.getByRole('button', { name: 'Import 2', exact: true }).click();
+  await expect(app.sheet()).toContainText('2 trades of NVDA also went into Fidelity Brokerage’s holdings.');
+  await app.closeSheets();
+
+  await openAccount(app, 'Fidelity Brokerage');
+  const holdings = section(app, /^Holdings/);
+  await expect(holdings.locator('.holding-row', { hasText: 'NVDA' })).toHaveCount(0);
+  await expect(holdings.locator('.row', { hasText: 'NVDA' })).toContainText('sold · +$10.00 gain');
+  await expect(section(app, /^From your bank files$/)).toHaveCount(0);
+});

@@ -155,41 +155,54 @@ export function accountLines(account: Account, txns: Transaction[], trades: Trad
   const free = own.filter((t) => !(t.txnId && ids.has(t.txnId)) && !(t.source === 'import' && !t.txnId));
   const held = [...new Set(own.map((t) => t.ticker))];
   const counted = positionsDay(account, own);
-  const out: Line[] = [];
-  // Shares to sell from: the holdings' own buys, and the lines' before it.
-  const boughtBy = (ticker: string, date: ISODate) =>
-    own.some((t) => t.ticker === ticker && t.kind === 'buy' && t.date <= date) ||
-    out.some((l) => l.ticker === ticker && l.kind === 'buy' && l.txn.date <= date);
+  // The lines that are trades, with their stock where it's known.
+  const found: Line[] = [];
   for (const txn of mine) {
     const r = readLine(txn.description, txn.amount, txn.security?.ticker);
     if (!r) continue;
     const ticker = r.ticker ?? heldTickerIn(txn.description, held) ?? picked[lineKey(txn.description)];
     // "Buy" and "sold" alone could be anything: only with a stock named is it surely a trade.
     if (!ticker && !r.plain) continue;
-    const line: Line = {
+    found.push({
       txn,
       kind: r.kind,
       ...(ticker ? { ticker } : {}),
       ...(r.name ? { name: r.name } : {}),
       ...(txn.security?.shares ? { shares: txn.security.shares } : {}),
       state: 'missing',
-    };
+    });
+  }
+  // On one day, purchases before sales. A file doesn't say which came first that day (Fidelity's lists
+  // the newest first), and buying first is right either way, since a sale takes the oldest shares; a sale
+  // first would find nothing to sell when the shares were bought that morning.
+  const rank = (l: Line) => (l.kind === 'buy' ? 0 : 1);
+  found.sort((a, b) => (a.txn.date < b.txn.date ? -1 : a.txn.date > b.txn.date ? 1 : rank(a) - rank(b)));
+  // Shares to sell from: the holdings' own buys, and the lines' up to that day.
+  const boughtBy = (ticker: string, date: ISODate) =>
+    own.some((t) => t.ticker === ticker && t.kind === 'buy' && t.date <= date) ||
+    found.some((l) => l.ticker === ticker && l.kind === 'buy' && l.txn.date <= date);
+  const out: Line[] = [];
+  for (const line of found) {
+    const { txn } = line;
     const trade = linked.get(txn.id);
     if (trade) out.push({ ...line, state: 'added', trade });
     else if (txn.noTrade) out.push({ ...line, state: 'kept-out' });
     else if (counted && txn.date <= counted) out.push({ ...line, state: 'counted' });
     else {
       const cents = Math.abs(txn.amount);
-      const i = ticker
+      const i = line.ticker
         ? free.findIndex(
             (t) =>
-              t.ticker === ticker && t.kind === r.kind && Math.abs(diffDays(t.date, txn.date)) <= 5 && Math.abs(t.amount - cents) <= Math.max(100, cents / 100),
+              t.ticker === line.ticker &&
+              t.kind === line.kind &&
+              Math.abs(diffDays(t.date, txn.date)) <= 5 &&
+              Math.abs(t.amount - cents) <= Math.max(100, cents / 100),
           )
         : -1;
       if (i >= 0) {
         out.push({ ...line, state: 'matched', trade: free[i] });
         free.splice(i, 1);
-      } else if (r.kind === 'sell' && ticker && !boughtBy(ticker, txn.date)) {
+      } else if (line.kind === 'sell' && line.ticker && !boughtBy(line.ticker, txn.date)) {
         // A sale of shares from before the holdings start: there's nothing to take them from.
         continue;
       } else out.push(line);

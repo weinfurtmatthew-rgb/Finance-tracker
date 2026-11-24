@@ -214,7 +214,9 @@ value follows their prices (`src/lib/holdings.ts`).
   from the file's Symbol column, the ticker in parentheses, a ticker the account holds named in the line, or one you
   pick once for lines like it. Reinvested dividends, money market funds (the cash), options and bonds aren't trades
   here. Lines up to a positions file's day are counted in it already, and a purchase you typed in yourself counts as
-  its line's. Once an account has holdings, each import adds its new ones (the Done screen says so); purchases
+  its line's. On one day, purchases go in before sales: a file doesn't say which came first (Fidelity lists the newest
+  first), and since a sale takes the oldest shares that's right either way, so a stock bought and sold the same day
+  isn't left held. Once an account has holdings, each import adds its new ones (the Done screen says so); purchases
   imported before, or into an account without holdings yet, wait under **From your bank files** on its page, and a
   line's page shows how it stands. Undoing the import, deleting the line or the trade takes it out (a deleted trade's
   line isn't offered again). These lines are named for what they did: "Bought FXAIX", "Sold VTI", "Dividend from VTI"
