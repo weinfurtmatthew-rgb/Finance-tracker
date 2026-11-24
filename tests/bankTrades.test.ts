@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { accountLines, importedTrades, lineKey, missingLines, readLine, tickersText, tradeFor, tradesText, type Line } from '../src/lib/bankTrades';
 import { cleanPayee, merchantName } from '../src/lib/payee';
+import { buildPosition } from '../src/lib/holdings';
 import type { Account, Trade, Transaction } from '../src/types';
 
 const FXAIX = 'YOU BOUGHT PROSPECTUS UNDER SEPARATE COVER FIDELITY 500 INDEX FUND (FXAIX) (Cash)';
@@ -270,5 +271,37 @@ describe('trades from lines', () => {
 describe('lines you typed in yourself', () => {
   it('aren’t read as trades (they aren’t from a bank file)', () => {
     expect(accountLines(account(), [txn('2026-09-07', -10000, FXAIX, { source: 'manual' })], [])).toEqual([]);
+  });
+});
+
+describe('a purchase and a sale on the same day', () => {
+  const sold = () => txn('2026-09-18', 36000, 'YOU SOLD NVIDIA CORP (NVDA) (Cash)', { security: { ticker: 'NVDA', shares: 2 } });
+  const bought = () => txn('2026-09-18', -35000, 'YOU BOUGHT NVIDIA CORP (NVDA) (Cash)', { security: { ticker: 'NVDA', shares: 2 } });
+  const position = (trades: Trade[]) => buildPosition({ accountId: 'brk', ticker: 'NVDA', trades, reinvest: true });
+
+  it('the sale sells what was bought, whichever the file lists first', () => {
+    // Fidelity's file lists the newest first: that day's sale above the purchase.
+    for (const lines of [
+      [sold(), bought()],
+      [bought(), sold()],
+    ]) {
+      const found = accountLines(account(), lines, []);
+      expect(states(found)).toEqual(['2026-09-18 buy NVDA missing', '2026-09-18 sell NVDA missing']);
+      const p = position(found.map((l, i) => tradeFor(l as Line & { ticker: string }, `x${i}`, i)));
+      expect(p.shares).toBe(0);
+      expect(p.realized).toBe(1000);
+    }
+  });
+
+  it('in the holdings too, when the sale went in first', () => {
+    const [s, b] = [sold(), bought()];
+    const trades = [
+      { ...trade({ ticker: 'NVDA', date: '2026-09-18', kind: 'sell', amount: 36000, shares: 2, cash: true, source: 'import', txnId: s.id }), createdAt: 1 },
+      { ...trade({ ticker: 'NVDA', date: '2026-09-18', kind: 'buy', amount: 35000, shares: 2, source: 'import', txnId: b.id }), createdAt: 2 },
+    ];
+    expect(position(trades).shares).toBe(0);
+    // Trades you typed in still go in the order you added them.
+    const typed = trades.map((t) => ({ ...t, txnId: undefined, source: 'manual' as const }));
+    expect(position(typed).oversold).toBe(true);
   });
 });

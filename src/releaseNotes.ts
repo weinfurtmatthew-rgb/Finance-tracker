@@ -13,6 +13,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-24b',
+    date: 'November 24, 2026',
+    title: 'A stock bought and sold the same day',
+    items: [
+      'When a file lists a sale above that day’s purchase (Fidelity lists the newest first), the sale now sells what was bought, instead of being left out with the stock still showing as held.',
+      'A sale left out before is waiting on the account’s page under From your bank files: tap Add to put it in.',
+    ],
+  },
+  {
     id: '2026-11-24',
     date: 'November 24, 2026',
     title: 'Periodic investments in your portfolio',

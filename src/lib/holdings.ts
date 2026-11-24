@@ -129,9 +129,14 @@ const EPS = 1e-9;
 /** Worked out from the amount, a sale of this much of a holding or more is a sale of all of it (prices move during a day). */
 const NEARLY_ALL = 0.98;
 
-/** Oldest first; on one day, in the order they were added (a buy before a sale added at the same moment). */
+/**
+ * Oldest first. On one day, purchases read from bank file lines come first: the file doesn't say which
+ * came first that day, and buying first is right either way, since a sale takes the oldest shares. The
+ * rest go in the order they were added (a buy before a sale added at the same moment).
+ */
+const dayRank = (t: Trade) => (t.txnId && t.kind === 'buy' ? 0 : 1);
 const byDate = (a: Trade, b: Trade) =>
-  a.date < b.date ? -1 : a.date > b.date ? 1 : a.createdAt - b.createdAt || (a.kind === b.kind ? 0 : a.kind === 'buy' ? -1 : 1);
+  a.date < b.date ? -1 : a.date > b.date ? 1 : dayRank(a) - dayRank(b) || a.createdAt - b.createdAt || (a.kind === b.kind ? 0 : a.kind === 'buy' ? -1 : 1);
 
 /** A day's close (or the last before it; the first one, before the history starts), in today's shares. */
 function closeFor(h: PriceHistory, date?: ISODate): number {
