@@ -92,7 +92,9 @@ export function ImportPositionsSheet(props: { account: Account; file: PositionsF
       await db.trades.bulkAdd(trades.map((c, i) => ({ ...c.trade!, id: newId(), createdAt: now + i })));
       for (const r of rows)
         if (!securities.has(r.ticker) && !(await db.securities.get(r.ticker))) await db.securities.put({ ticker: r.ticker, name: r.name || r.ticker });
-      if (cash != null) await db.accounts.update(a.id, { cash: { amount: cash, date: asOf } });
+      // Its bank file lines up to that day are counted in these positions (lib/bankTrades.ts).
+      const positionsOn = a.positionsOn && a.positionsOn > asOf ? a.positionsOn : asOf;
+      await db.accounts.update(a.id, { positionsOn, ...(cash != null ? { cash: { amount: cash, date: asOf } } : {}) });
     });
     nav.toast(`Imported ${rows.length} position${rows.length === 1 ? '' : 's'}`);
     props.onClose();

@@ -18,6 +18,8 @@ import { CountUp } from '../components/motion';
 import { StockPricesSheet } from './StockPrices';
 import { pricesFor } from '../priceSync';
 import { ImportPositionsRow } from './ImportPositions';
+import { keepOutLines } from '../lineTrades';
+import { LINE_TICKERS, lineKey, type Line } from '../lib/bankTrades';
 import { KINDS, SECTORS, isStock, kindOf, sectorOf } from '../lib/mix';
 import { isTaxable, lotsOf, netGain, realizedIn, termText, type Term } from '../lib/taxes';
 import { trendOf } from '../lib/market';
@@ -186,7 +188,11 @@ export function HoldingSheet(props: { account: Account; ticker: string; onClose:
   const note = valuedNote(p, h, hasKey);
   const tone = p.gain > 0 ? 'pos-text' : p.gain < 0 ? 'neg-text' : '';
   const remove = async () => {
-    await db.trades.bulkDelete(p.trades.map((t) => t.id));
+    await db.transaction('rw', db.trades, db.transactions, async () => {
+      await db.trades.bulkDelete(p.trades.map((t) => t.id));
+      // Its bank file lines stay out of the holdings, rather than being offered again.
+      await keepOutLines(p.trades);
+    });
     nav.toast(`${p.ticker} deleted`);
     props.onClose();
   };
@@ -251,7 +257,9 @@ export function HoldingSheet(props: { account: Account; ticker: string; onClose:
         {[...p.trades].reverse().map((t) => (
           <Row
             title={`${t.kind === 'buy' ? 'Bought' : 'Sold'} ${formatMoney(t.amount)}`}
-            subtitle={[formatDate(t.date), tradeDetail(t, p, h), t.cash && (t.kind === 'buy' ? 'from cash' : 'kept as cash')].filter(Boolean).join(' · ')}
+            subtitle={[formatDate(t.date), tradeDetail(t, p, h), t.cash && (t.kind === 'buy' ? 'from cash' : 'kept as cash'), t.txnId && 'from your file']
+              .filter(Boolean)
+              .join(' · ')}
             onClick={() => nav.present((close) => <TradeSheet account={a} ticker={p.ticker} trade={t} onClose={close} />)}
           />
         ))}
@@ -427,8 +435,11 @@ function ManualPrice(props: { ticker: string; security?: Security }) {
   );
 }
 
-/** Adding (or changing) a purchase or a sale. */
-export function TradeSheet(props: { account: Account; ticker?: string; kind?: Trade['kind']; trade?: Trade; onClose: () => void }) {
+/**
+ * Adding (or changing) a purchase or a sale. From a bank file line (`line`), it starts as that line's
+ * trade; for one that doesn't say its stock, the stock you pick is remembered for lines like it.
+ */
+export function TradeSheet(props: { account: Account; ticker?: string; kind?: Trade['kind']; trade?: Trade; line?: Line; onClose: () => void }) {
   const nav = useNav();
   const a = props.account;
   const t = props.trade;
@@ -437,18 +448,20 @@ export function TradeSheet(props: { account: Account; ticker?: string; kind?: Tr
   const prices = usePrices();
   const securities = useSecurities();
   const hasKey = !!useMeta<string>(TWELVE_DATA_KEY);
-  const [ticker, setTicker] = useState(props.ticker ?? t?.ticker ?? '');
+  const line = props.line;
+  const pickedFor = useMeta<Record<string, string>>(LINE_TICKERS);
+  const [ticker, setTicker] = useState(props.ticker ?? t?.ticker ?? line?.ticker ?? '');
   const [picked, setPicked] = useState<TickerMatch | null>(null);
   const [name, setName] = useState('');
-  const [kind, setKind] = useState<Trade['kind']>(t?.kind ?? props.kind ?? 'buy');
-  const [amount, setAmount] = useState(t ? (t.amount / 100).toFixed(2) : '');
+  const [kind, setKind] = useState<Trade['kind']>(t?.kind ?? props.kind ?? line?.kind ?? 'buy');
+  const [amount, setAmount] = useState(t ? (t.amount / 100).toFixed(2) : line ? (Math.abs(line.txn.amount) / 100).toFixed(2) : '');
   // An imported buy: its cost basis, when that isn't the amount.
   const [basisText, setBasisText] = useState(t?.basis != null ? (t.basis / 100).toFixed(2) : '');
-  const [date, setDate] = useState(t?.date ?? today);
-  const [knowShares, setKnowShares] = useState(t?.shares != null);
-  const [sharesText, setSharesText] = useState(t?.shares != null ? String(t.shares) : '');
+  const [date, setDate] = useState(t?.date ?? line?.txn.date ?? today);
+  const [knowShares, setKnowShares] = useState(t?.shares != null || !!line?.shares);
+  const [sharesText, setSharesText] = useState(t?.shares != null ? String(t.shares) : line?.shares ? String(line.shares) : '');
   const [all, setAll] = useState(!!t?.all);
-  const [cash, setCash] = useState(t ? !!t.cash : (props.kind ?? 'buy') === 'sell');
+  const [cash, setCash] = useState(t ? !!t.cash : (props.kind ?? line?.kind ?? 'buy') === 'sell');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const symbol = normalizeTicker(ticker);
   const fixedTicker = !!(props.ticker ?? t);
@@ -542,11 +555,17 @@ export function TradeSheet(props: { account: Account; ticker?: string; kind?: Tr
       ...(knowShares && shares! > 0 && !(kind === 'sell' && all) ? { shares } : {}),
       ...(kind === 'sell' && all ? { all: true } : {}),
       ...(cash ? { cash: true } : {}),
-      source: t?.source ?? 'manual',
+      ...(t?.txnId || line ? { txnId: t?.txnId ?? line!.txn.id } : {}),
+      source: t?.source ?? (line ? 'import' : 'manual'),
       createdAt: t?.createdAt ?? Date.now(),
     };
-    await db.transaction('rw', db.trades, db.securities, async () => {
+    await db.transaction('rw', [db.trades, db.securities, db.transactions, db.meta], async () => {
       await db.trades.put(record);
+      if (line) {
+        // A line you'd kept out is in now; lines like one that doesn't say its stock are this one too.
+        if (line.txn.noTrade) await db.transactions.update(line.txn.id, { noTrade: undefined });
+        if (!line.ticker) await db.meta.put({ key: LINE_TICKERS, value: { ...pickedFor, [lineKey(line.txn.description)]: symbol } });
+      }
       if (!known) {
         await db.securities.put({
           ticker: symbol,
@@ -559,18 +578,42 @@ export function TradeSheet(props: { account: Account; ticker?: string; kind?: Tr
     props.onClose();
   };
   const remove = async () => {
-    await db.trades.delete(t!.id);
+    await db.transaction('rw', db.trades, db.transactions, async () => {
+      await db.trades.delete(t!.id);
+      await keepOutLines([t!]);
+    });
     nav.toast('Trade deleted');
     props.onClose();
   };
 
   return (
     <Sheet
-      title={t ? 'Edit Trade' : kind === 'buy' ? (props.ticker ? `Buy ${props.ticker}` : 'Add Holding') : `Sell ${symbol}`}
+      title={
+        t
+          ? 'Edit Trade'
+          : line
+            ? kind === 'buy'
+              ? 'Add Purchase'
+              : 'Add Sale'
+            : kind === 'buy'
+              ? props.ticker
+                ? `Buy ${props.ticker}`
+                : 'Add Holding'
+              : `Sell ${symbol}`
+      }
       onClose={props.onClose}
       onSave={save}
       saveDisabled={!valid}
     >
+      {line && (
+        <Section title="From your bank file" footer={line.ticker ? undefined : 'Lines like this one will be the stock you pick here too.'}>
+          <div class="row">
+            <span class="row-main">
+              <span class="row-title mono">{line.txn.description}</span>
+            </span>
+          </div>
+        </Section>
+      )}
       {!fixedTicker && (
         <Section
           footer={

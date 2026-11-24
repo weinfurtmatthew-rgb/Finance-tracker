@@ -29,6 +29,7 @@ import { formatMoney } from '../lib/money';
 import { CategoryIcon, Empty, Field, Money, Section, Sheet, Toggle } from '../components/ui';
 import { ACCOUNT_TYPES, typeName } from './AccountEditor';
 import { recordImport, takeSnapshot, undoLastImport } from '../lib/importUndo';
+import { moveLineTrades, tradesForImport } from '../lineTrades';
 
 interface CsvState {
   kind: 'csv';
@@ -126,6 +127,8 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
     /** A file with several accounts: how many went into each, and what was put right from an earlier import of it. */
     into?: { account: Account; added: number }[];
     fixed?: { fixed: number; moved: number; merged: number };
+    /** Purchases and sales in the lines it brought in: what went into holdings, and what waits (lib/bankTrades.ts). */
+    trades?: { added?: string; waiting?: string };
   }>();
   // What you've categorized yourself teaches new imports: same payee, same category.
   const allTxns = useStore().raw.transactions;
@@ -184,7 +187,15 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
         const rocket = detected.format === 'Rocket Money';
         const saved = rocket ? undefined : found;
         // A layout saved before the app read the account column still splits the file by account.
-        const mapping = saved ? { ...saved, sourceAccount: saved.sourceAccount ?? detected.mapping.sourceAccount } : detected.mapping;
+        // A layout saved before the app read these columns gets them from the file.
+        const mapping = saved
+          ? {
+              ...saved,
+              sourceAccount: saved.sourceAccount ?? detected.mapping.sourceAccount,
+              symbol: saved.symbol ?? detected.mapping.symbol,
+              quantity: saved.quantity ?? detected.mapping.quantity,
+            }
+          : detected.mapping;
         setParsed({ kind: 'csv', table, format: detected.format, note: detected.note, mapping, saved: !!saved, fileName: file.name });
         const fallback = guessAccountType(detected.format);
         const groups = groupBySource(csvToDrafts(table, mapping).drafts);
@@ -303,7 +314,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
       const source: TransactionSource = parsed.kind === 'ofx' ? 'ofx' : 'csv';
       // A copy of what the import can touch, so it can be undone.
       const before = await takeSnapshot();
-      const result = await db.transaction('rw', [db.accounts, db.transactions, db.csvMappings, db.meta], async () => {
+      const result = await db.transaction('rw', [db.accounts, db.transactions, db.csvMappings, db.meta, db.trades, db.securities], async () => {
         let account = accountId === NEW ? undefined : await db.accounts.get(accountId);
         // Remember the account number from a QFX/OFX file, so the next one finds this account directly.
         const fileLast4 = statement?.accountNumber?.replace(/\D/g, '').slice(-4) ?? groups[0]?.account.last4;
@@ -351,6 +362,8 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
         await db.transactions.bulkDelete(linked.remove);
         const removed = new Set(linked.remove);
         const kept = rows.filter((r) => !removed.has(r.id));
+        // An investment account's purchases and sales go into its holdings too.
+        const trades = await tradesForImport(new Set(kept.map((r) => r.id)));
         const merged = placed.update.filter((u) => u.changes.p2p).length + linked.update.filter((u) => u.changes.p2p).length;
         const waiting = kept.filter((r) => r.p2p?.role === 'payment').length;
         let balanceSet = false;
@@ -370,7 +383,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
           await db.meta.put({ key: IMPORT_ROUTES, value: { ...routes, [named.ref ?? named.key]: account.id } });
         }
         const added = kept.filter((r) => r.p2p?.role !== 'funding').length;
-        return { added, skipped: items.length - fresh.length, account, balanceSet, rows: kept, merged, waiting };
+        return { added, skipped: items.length - fresh.length, account, balanceSet, rows: kept, merged, waiting, trades: trades.notes };
       });
       // On-device AI: confidently categorize what the rules and keywords couldn't, marked for review.
       let byAi = 0;
@@ -387,7 +400,17 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
       await recordImport(before, `${result.added} transaction${result.added === 1 ? '' : 's'} into ${result.account.name}`);
       const saved = await db.transactions.bulkGet(result.rows.map((r) => r.id));
       const uncategorized = saved.filter((t) => t?.categoryId === 'uncategorized').length;
-      setDone({ added: result.added, skipped: result.skipped, account: result.account, balanceSet: result.balanceSet, uncategorized, byAi, merged: result.merged, waiting: result.waiting });
+      setDone({
+        added: result.added,
+        skipped: result.skipped,
+        account: result.account,
+        balanceSet: result.balanceSet,
+        uncategorized,
+        byAi,
+        merged: result.merged,
+        waiting: result.waiting,
+        trades: result.trades,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -406,7 +429,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
     try {
       const drafts = csvDrafts.drafts;
       const before = await takeSnapshot();
-      const result = await db.transaction('rw', [db.accounts, db.transactions, db.csvMappings, db.meta], async () => {
+      const result = await db.transaction('rw', [db.accounts, db.transactions, db.csvMappings, db.meta, db.trades, db.securities], async () => {
         const known = await db.accounts.toArray();
         const remembered = { ...((await getMeta<Record<string, string>>(IMPORT_ROUTES)) ?? {}) };
         const target = new Map<string, Account>();
@@ -454,6 +477,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
             history: payeeHistory(all),
           });
           for (const u of plan.update) await db.transactions.update(u.id, u.changes);
+          await moveLineTrades(plan.update);
           for (const m of plan.merge) await db.transactions.update(m.id, m.changes);
           await db.transactions.bulkDelete(plan.remove);
           for (const o of plan.openings) await db.accounts.update(o.accountId, { openingBalance: o.openingBalance });
@@ -487,6 +511,9 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
         for (const u of linked.update) await db.transactions.update(u.id, u.changes);
         await db.transactions.bulkDelete(linked.remove);
         const removed = new Set(linked.remove);
+        const kept = added.filter((r) => !removed.has(r.id));
+        // Investment accounts' purchases and sales go into their holdings too.
+        const trades = await tradesForImport(new Set(kept.map((r) => r.id)));
         await db.meta.put({ key: IMPORT_ROUTES, value: remembered });
         await db.csvMappings.put({ ...parsed.mapping, accountId: undefined });
         return {
@@ -494,8 +521,9 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
           // The rows just put right read as already imported now; they weren't skipped.
           skipped: Math.max(0, skipped - fixed.fixed),
           fixed,
-          rows: added.filter((r) => !removed.has(r.id)),
+          rows: kept,
           merged: linked.update.filter((u) => u.changes.p2p).length,
+          trades: trades.notes,
         };
       });
       let byAi = 0;
@@ -523,6 +551,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
         byAi,
         merged: result.merged,
         waiting: 0,
+        trades: result.trades,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -576,6 +605,12 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
               {waiting} payment{waiting === 1 ? '' : 's'} paid from your bank will be matched when you import that bank’s file.
             </p>
           )}
+          {done.trades?.added && (
+            <p class="merge-note">
+              <Glyph name="check" /> {done.trades.added}
+            </p>
+          )}
+          {done.trades?.waiting && <p>{done.trades.waiting}</p>}
           {byAi > 0 && (
             <p>
               <Glyph name="spark" /> On-device AI categorized {byAi} more. They’re marked so you can check them.

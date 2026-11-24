@@ -207,6 +207,17 @@ value follows their prices (`src/lib/holdings.ts`).
   from it. Importing again later buys or sells the differences, and can sell what's no longer in the file. A file
   with several accounts picks this one by its last 4 digits; options and bonds by CUSIP are left out. An imported
   purchase shows its cost basis when you edit it
+- **Purchases from your bank files** (`src/lib/bankTrades.ts`): a line in an investment account's activity file that
+  bought or sold a stock, ETF or fund ("YOU BOUGHT PROSPECTUS UNDER SEPARATE COVER FIDELITY 500 INDEX FUND (FXAIX)
+  (Cash)", a periodic investment) goes into its holdings: on its day, for what it cost, with the shares when the
+  file's Quantity column says, as money put into the account (a sale's money stays in it as cash). The stock comes
+  from the file's Symbol column, the ticker in parentheses, a ticker the account holds named in the line, or one you
+  pick once for lines like it. Reinvested dividends, money market funds (the cash), options and bonds aren't trades
+  here. Lines up to a positions file's day are counted in it already, and a purchase you typed in yourself counts as
+  its line's. Once an account has holdings, each import adds its new ones (the Done screen says so); purchases
+  imported before, or into an account without holdings yet, wait under **From your bank files** on its page, and a
+  line's page shows how it stands. Undoing the import, deleting the line or the trade takes it out (a deleted trade's
+  line isn't offered again). These lines are named for what they did: "Bought FXAIX", "Sold VTI", "Dividend from VTI"
 - From its first trade, an account with holdings is worth its holdings and cash in Net Worth and its history; values
   you typed in before that still count for the days before
 - **Browse → Portfolio** (`src/lib/portfolio.ts`): everything in your investment accounts together, with how it did

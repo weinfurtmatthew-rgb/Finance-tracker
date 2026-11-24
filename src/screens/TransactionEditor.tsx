@@ -15,6 +15,8 @@ import { ActionSheet, BigAmount, CategorySelect, Field, Section, Segmented, Shee
 import { ExplainPanel } from '../components/ExplainPanel';
 import { APP_NAMES, bankLineApp, isAppTransferLine } from '../lib/p2p';
 import { useChargeNames } from '../recurringModel';
+import { LineTradeSection } from './BankLines';
+import { moveLineTrades } from '../lineTrades';
 
 /**
  * Keep payment-app details. On an app payment (or a bank line like "APPLE CASH SENT MONEY"), the payee
@@ -114,6 +116,9 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
       // An IRA contribution stays one, for the same tax year (see lib/ira.ts).
       ...(t?.contributionYear != null ? { contributionYear: t.contributionYear } : {}),
       ...(t?.contributionFrom ? { contributionFrom: t.contributionFrom } : {}),
+      // A brokerage line's stock and shares, and whether it's kept out of the holdings (lib/bankTrades.ts).
+      ...(t?.security ? { security: t.security } : {}),
+      ...(t?.noTrade ? { noTrade: true } : {}),
       createdAt: t?.createdAt ?? Date.now(),
       ...(splits ? { splits } : {}),
       ...(tags.length ? { tags } : {}),
@@ -122,6 +127,8 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
     };
     if (!record.categorySource) delete record.categorySource;
     await db.transactions.put(record);
+    // A purchase read from this line into holdings moves with it.
+    if (t) await moveLineTrades([{ id: t.id, changes: { ...(t.accountId !== accountId ? { accountId } : {}), ...(t.date !== date ? { date } : {}), ...(t.amount !== signed ? { amount: signed } : {}) } }]);
     if (!t) await setMeta('lastManualAccount', accountId);
     if (changed && alsoOthers && others.length) {
       await db.transactions.bulkUpdate(others.map((x) => ({ key: x.id, changes: { categoryId, categorySource: 'user' as const } })));
@@ -134,6 +141,9 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
     // A payment waiting for its bank line goes together with the money in from the bank.
     const ref = t!.p2p?.ref;
     if (ref) await db.transactions.bulkDelete(props.txns.filter((x) => x.p2p?.ref === ref).map((x) => x.id));
+    // A purchase or sale read from it into the account's holdings goes with it.
+    const trades = await db.trades.where('accountId').equals(t!.accountId).toArray();
+    await db.trades.bulkDelete(trades.filter((x) => x.txnId === t!.id).map((x) => x.id));
     await db.transactions.delete(t!.id);
     nav.toast('Transaction deleted');
     props.onClose();
@@ -253,6 +263,7 @@ function TransactionForm(props: Props & { accounts: Account[]; categories: Categ
           />
         </Section>
       )}
+      {t && t.source !== 'manual' && <LineTradeSection txn={t} />}
       {t && t.source !== 'manual' && (
         <Section title="From your bank" footer={`Imported from a ${t.source.toUpperCase()} file.`}>
           <div class="row">

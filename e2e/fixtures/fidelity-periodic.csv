@@ -1,0 +1,17 @@
+
+
+Run Date,Account,Account Number,Action,Symbol,Description,Type,Exchange Quantity,Exchange Currency,Quantity,Currency,Price,Exchange Rate,Commission,Fees,Accrued Interest,Amount,Cash Balance,Settlement Date
+09/28/2026,"Individual - TOD","Z12345678","YOU BOUGHT PROSPECTUS UNDER SEPARATE COVER FIDELITY 500 INDEX FUND (FXAIX) (Cash)",FXAIX,"FIDELITY 500 INDEX FUND",Cash,0,,0.512,USD,195.31,0,,,,-100.00,1234.56,09/29/2026
+09/28/2026,"Individual - TOD","Z12345678","Electronic Funds Transfer Received (Cash)",,"No Description",Cash,0,,0,USD,,0,,,,100.00,1334.56,
+09/22/2026,"Individual - TOD","Z12345678","REINVESTMENT FIDELITY 500 INDEX FUND (FXAIX) (Cash)",FXAIX,"FIDELITY 500 INDEX FUND",Cash,0,,0.064,USD,192.40,0,,,,-12.31,1234.56,
+09/22/2026,"Individual - TOD","Z12345678","DIVIDEND RECEIVED FIDELITY 500 INDEX FUND (FXAIX) (Cash)",FXAIX,"FIDELITY 500 INDEX FUND",Cash,0,,0,USD,,0,,,,12.31,1246.87,
+09/21/2026,"Individual - TOD","Z12345678","YOU BOUGHT PROSPECTUS UNDER SEPARATE COVER FIDELITY 500 INDEX FUND (FXAIX) (Cash)",FXAIX,"FIDELITY 500 INDEX FUND",Cash,0,,0.521,USD,191.94,0,,,,-100.00,1234.56,09/22/2026
+09/21/2026,"Individual - TOD","Z12345678","Electronic Funds Transfer Received (Cash)",,"No Description",Cash,0,,0,USD,,0,,,,100.00,1334.56,
+09/14/2026,"Individual - TOD","Z12345678","YOU BOUGHT PROSPECTUS UNDER SEPARATE COVER FIDELITY 500 INDEX FUND (FXAIX) (Cash)",FXAIX,"FIDELITY 500 INDEX FUND",Cash,0,,0.518,USD,193.05,0,,,,-100.00,1234.56,09/15/2026
+09/14/2026,"Individual - TOD","Z12345678","Electronic Funds Transfer Received (Cash)",,"No Description",Cash,0,,0,USD,,0,,,,100.00,1334.56,
+09/08/2026,"Individual - TOD","Z12345678","YOU BOUGHT PROSPECTUS UNDER SEPARATE COVER FIDELITY 500 INDEX FUND (FXAIX) (Cash)",FXAIX,"FIDELITY 500 INDEX FUND",Cash,0,,0.525,USD,190.48,0,,,,-100.00,1234.56,09/09/2026
+09/08/2026,"Individual - TOD","Z12345678","Electronic Funds Transfer Received (Cash)",,"No Description",Cash,0,,0,USD,,0,,,,100.00,1334.56,
+
+
+"The data and information in this spreadsheet is provided to you solely for your use and is not for distribution. The spreadsheet is provided for informational purposes only, and is not intended to provide advice, nor should it be construed as an offer to sell, a solicitation of an offer to buy or a recommendation for any security or insurance product by Fidelity or any third party."
+"Date downloaded 09/29/2026 10:41 am"

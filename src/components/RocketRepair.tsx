@@ -7,6 +7,7 @@ import type { DraftTransaction } from '../lib/draft';
 import { payeeHistory } from '../lib/categorize';
 import { accountFor, accountTypeFor, findEarlierImport, planRepair, rocketGroups } from '../lib/rocketmoney';
 import { Field, Section } from './ui';
+import { moveLineTrades } from '../lineTrades';
 
 const NEW = '__new__';
 
@@ -56,7 +57,7 @@ export function RocketRepair(props: { drafts: DraftTransaction[] }) {
   const fix = async () => {
     setBusy(true);
     try {
-      const result = await db.transaction('rw', db.accounts, db.transactions, async () => {
+      const result = await db.transaction('rw', [db.accounts, db.transactions, db.trades], async () => {
         const known = await db.accounts.toArray();
         const map = new Map<string, string>();
         for (const g of involved) {
@@ -83,6 +84,7 @@ export function RocketRepair(props: { drafts: DraftTransaction[] }) {
         const all = await db.transactions.toArray();
         const plan = planRepair({ drafts: props.drafts, earlier: findEarlierImport(props.drafts, known, all), target: map, accounts: known, txns: all, rules, history: payeeHistory(all) });
         for (const u of plan.update) await db.transactions.update(u.id, u.changes);
+        await moveLineTrades(plan.update);
         for (const m of plan.merge) await db.transactions.update(m.id, m.changes);
         await db.transactions.bulkDelete(plan.remove);
         for (const o of plan.openings) await db.accounts.update(o.accountId, { openingBalance: o.openingBalance });

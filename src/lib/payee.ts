@@ -36,6 +36,27 @@ const ALIASES: [RegExp, string][] = [
   [/\bt-mobile\b/i, 'T-Mobile'],
 ];
 
+// A brokerage's lines, by what they did and the ticker in parentheses: "YOU BOUGHT PROSPECTUS UNDER
+// SEPARATE COVER FIDELITY 500 INDEX FUND (FXAIX) (Cash)" is "Bought FXAIX", where the store-name rules
+// would keep only its first words.
+const BROKERAGE: [RegExp, (ticker: string) => string][] = [
+  [/^YOU BOUGHT\b/, (t) => `Bought ${t}`],
+  [/^YOU SOLD\b/, (t) => `Sold ${t}`],
+  [/^REINVESTMENT\b/, (t) => `Reinvested in ${t}`],
+  [/^DIVIDEND RECEIVED\b/, (t) => `Dividend from ${t}`],
+];
+
+function brokeragePayee(raw: string): string | null {
+  const s = raw.toUpperCase().replace(/\s+/g, ' ').trim();
+  const verb = BROKERAGE.find(([re]) => re.test(s));
+  if (!verb) return null;
+  for (const m of raw.matchAll(/\(([A-Z][A-Z0-9]{0,5}(?:[./][A-Z]{1,2})?)\)/g)) {
+    if (['CASH', 'MARGIN', 'SHORT'].includes(m[1])) continue;
+    return verb[1](m[1]) + (/\b(OPENING|CLOSING) TRANSACTION\b/.test(s) ? ' option' : '');
+  }
+  return null;
+}
+
 function titleCase(s: string): string {
   return s
     .toLowerCase()
@@ -44,6 +65,11 @@ function titleCase(s: string): string {
 }
 
 export function cleanPayee(raw: string): string {
+  return brokeragePayee(raw) ?? merchantName(raw);
+}
+
+/** The store-name rules alone (what `cleanPayee` gave brokerage lines before it read them). */
+export function merchantName(raw: string): string {
   let s = raw.replace(/\s+$/, '');
   if (!s.trim()) return '';
   for (const [re, name] of ALIASES) if (re.test(s)) return name;

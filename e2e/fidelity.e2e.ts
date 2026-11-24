@@ -58,7 +58,7 @@ test('a Fidelity file with every account goes into the right ones, and next time
   await app.tab('Activity');
   await expect(app.txnRows(/Wholefds/i)).toContainText('Fidelity Cash Management');
   await expect(app.txnRows('Acme Corp')).toContainText('Fidelity Cash Management');
-  await expect(app.txnRows(/vanguard/i).first()).toContainText('Fidelity Brokerage');
+  await expect(app.txnRows('Bought VTI')).toContainText('Fidelity Brokerage');
 
   // The same file again: every account where it went, and nothing new.
   await chooseFile(app, FILE);
@@ -99,9 +99,9 @@ test('a Fidelity file imported before with every account in one is put right', a
   await expect(app.txnRows(/Wholefds/i)).toHaveCount(1);
   await expect(app.txnRows(/Wholefds/i)).toContainText('Fidelity Cash Management (Individual)');
   await expect(app.txnRows('Acme Corp')).toHaveCount(1);
-  await expect(app.txnRows(/fidelity zero/i)).toHaveCount(1);
-  await expect(app.txnRows(/fidelity zero/i)).toContainText('Fidelity Roth IRA');
-  await expect(app.txnRows(/you bought vanguard/i)).toHaveCount(1);
+  await expect(app.txnRows('Bought FZROX')).toHaveCount(1);
+  await expect(app.txnRows('Bought FZROX')).toContainText('Fidelity Roth IRA');
+  await expect(app.txnRows('Bought VTI')).toHaveCount(1);
 });
 
 test('a positions file opened in Import says where it goes', async ({ app, page }) => {

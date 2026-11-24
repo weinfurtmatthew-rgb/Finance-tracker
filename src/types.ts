@@ -83,6 +83,11 @@ export interface Account {
   cashDividends?: string[];
   /** A hidden account that still counts in net worth history before this day (a CD you cashed out). */
   closedOn?: ISODate;
+  /**
+   * Investment accounts: the day of the last positions file imported into it (Import Positions). Its
+   * bank file lines up to then are counted in those positions already (see lib/bankTrades.ts).
+   */
+  positionsOn?: ISODate;
   /** Last day the balance was confirmed to match the bank's. */
   checkedOn?: ISODate;
   /** When that confirmation was made (ms), to know which imports it already counted. */
@@ -144,6 +149,10 @@ export interface Transaction {
   contributionYear?: number;
   /** That contribution's bank line (money leaving checking), when it was spotted in a bank file. */
   contributionFrom?: string;
+  /** What a brokerage line bought or sold, from the file's Symbol and Quantity columns (lib/bankTrades.ts). */
+  security?: { ticker: string; shares?: number };
+  /** A purchase or sale in it that you've kept out of the account's holdings. */
+  noTrade?: boolean;
   createdAt: number;
 }
 
@@ -188,6 +197,9 @@ export interface CsvMapping {
   accountId?: string;
   /** A clean store name column (Rocket Money's "Custom Name", then "Name"). */
   payee?: number[];
+  /** A brokerage's Symbol and Quantity columns: what each line bought or sold, and how many shares. */
+  symbol?: number | null;
+  quantity?: number | null;
   /**
    * Columns naming the account each row is from, for files with several accounts (Rocket Money, Fidelity).
    * `bank` names the institution for a whole file that doesn't have a column for it.
@@ -282,6 +294,11 @@ export interface Trade {
   shares?: number;
   /** A sale of every share held then. */
   all?: boolean;
+  /**
+   * The bank file line it was read from ("YOU BOUGHT … (FXAIX)", see lib/bankTrades.ts): deleting that
+   * line, or undoing its import, takes this with it.
+   */
+  txnId?: string;
   /** Paid for with the account's cash (a buy), or the money stayed in it as cash (a sale). */
   cash?: boolean;
   source: 'manual' | 'import';
