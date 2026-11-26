@@ -29,7 +29,7 @@ import { formatMoney } from '../lib/money';
 import { CategoryIcon, Empty, Field, Money, Section, Sheet, Toggle } from '../components/ui';
 import { ACCOUNT_TYPES, typeName } from './AccountEditor';
 import { recordImport, takeSnapshot, undoLastImport } from '../lib/importUndo';
-import { moveLineTrades, tradesForImport } from '../lineTrades';
+import { moveLineTrades, tradesForImport, type ImportNotes } from '../lineTrades';
 
 interface CsvState {
   kind: 'csv';
@@ -128,7 +128,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
     into?: { account: Account; added: number }[];
     fixed?: { fixed: number; moved: number; merged: number };
     /** Purchases and sales in the lines it brought in: what went into holdings, and what waits (lib/bankTrades.ts). */
-    trades?: { added?: string; waiting?: string };
+    trades?: ImportNotes;
   }>();
   // What you've categorized yourself teaches new imports: same payee, same category.
   const allTxns = useStore().raw.transactions;
@@ -611,6 +611,7 @@ export function ImportFlow(props: { onClose: () => void; accountId?: string }) {
             </p>
           )}
           {done.trades?.waiting && <p>{done.trades.waiting}</p>}
+          {done.trades?.unheld && <p>{done.trades.unheld}</p>}
           {byAi > 0 && (
             <p>
               <Glyph name="spark" /> On-device AI categorized {byAi} more. They’re marked so you can check them.

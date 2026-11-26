@@ -18,7 +18,7 @@ import { CountUp } from '../components/motion';
 import { StockPricesSheet } from './StockPrices';
 import { pricesFor } from '../priceSync';
 import { ImportPositionsRow } from './ImportPositions';
-import { keepOutLines } from '../lineTrades';
+import { addLineTrades, keepOutLines } from '../lineTrades';
 import { LINE_TICKERS, lineKey, type Line } from '../lib/bankTrades';
 import { KINDS, SECTORS, isStock, kindOf, sectorOf } from '../lib/mix';
 import { isTaxable, lotsOf, netGain, realizedIn, termText, type Term } from '../lib/taxes';
@@ -437,9 +437,19 @@ function ManualPrice(props: { ticker: string; security?: Security }) {
 
 /**
  * Adding (or changing) a purchase or a sale. From a bank file line (`line`), it starts as that line's
- * trade; for one that doesn't say its stock, the stock you pick is remembered for lines like it.
+ * trade; for one that doesn't say its stock, the stock you pick is remembered for lines like it. For
+ * sales of shares bought before your files start (`forSales`), it's the purchase of those shares, and the
+ * sales go in after it.
  */
-export function TradeSheet(props: { account: Account; ticker?: string; kind?: Trade['kind']; trade?: Trade; line?: Line; onClose: () => void }) {
+export function TradeSheet(props: {
+  account: Account;
+  ticker?: string;
+  kind?: Trade['kind'];
+  trade?: Trade;
+  line?: Line;
+  forSales?: (Line & { ticker: string })[];
+  onClose: () => void;
+}) {
   const nav = useNav();
   const a = props.account;
   const t = props.trade;
@@ -449,6 +459,10 @@ export function TradeSheet(props: { account: Account; ticker?: string; kind?: Tr
   const securities = useSecurities();
   const hasKey = !!useMeta<string>(TWELVE_DATA_KEY);
   const line = props.line;
+  const forSales = props.forSales?.length ? props.forSales : undefined;
+  // The shares those sales sold, when the file says for all of them.
+  const soldShares = forSales?.every((l) => l.shares) ? Math.round(forSales.reduce((n, l) => n + l.shares!, 0) * 1e6) / 1e6 : undefined;
+  const firstSale = forSales?.map((l) => l.txn.date).sort()[0];
   const pickedFor = useMeta<Record<string, string>>(LINE_TICKERS);
   const [ticker, setTicker] = useState(props.ticker ?? t?.ticker ?? line?.ticker ?? '');
   const [picked, setPicked] = useState<TickerMatch | null>(null);
@@ -457,9 +471,12 @@ export function TradeSheet(props: { account: Account; ticker?: string; kind?: Tr
   const [amount, setAmount] = useState(t ? (t.amount / 100).toFixed(2) : line ? (Math.abs(line.txn.amount) / 100).toFixed(2) : '');
   // An imported buy: its cost basis, when that isn't the amount.
   const [basisText, setBasisText] = useState(t?.basis != null ? (t.basis / 100).toFixed(2) : '');
-  const [date, setDate] = useState(t?.date ?? line?.txn.date ?? today);
-  const [knowShares, setKnowShares] = useState(t?.shares != null || !!line?.shares);
-  const [sharesText, setSharesText] = useState(t?.shares != null ? String(t.shares) : line?.shares ? String(line.shares) : '');
+  // For earlier shares' sales, the day they were bought is yours to say.
+  const [date, setDate] = useState(t?.date ?? line?.txn.date ?? (forSales ? '' : today));
+  const [knowShares, setKnowShares] = useState(t?.shares != null || !!line?.shares || soldShares != null);
+  const [sharesText, setSharesText] = useState(
+    t?.shares != null ? String(t.shares) : line?.shares ? String(line.shares) : soldShares != null ? String(soldShares) : '',
+  );
   const [all, setAll] = useState(!!t?.all);
   const [cash, setCash] = useState(t ? !!t.cash : (props.kind ?? line?.kind ?? 'buy') === 'sell');
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -477,7 +494,15 @@ export function TradeSheet(props: { account: Account; ticker?: string; kind?: Tr
   const hasBasis = t?.basis != null && kind === 'buy';
   const basis = hasBasis ? parseUserAmount(basisText) : null;
   const valid =
-    !!symbol && cents > 0 && !!date && date <= today && sharesOk && (!hasBasis || (basis != null && basis >= 0)) && (kind === 'buy' || !!position || !!t);
+    !!symbol &&
+    cents > 0 &&
+    !!date &&
+    date <= today &&
+    sharesOk &&
+    (!hasBasis || (basis != null && basis >= 0)) &&
+    (kind === 'buy' || !!position || !!t) &&
+    // Bought by the first of the sales it's for.
+    (!firstSale || date <= firstSale);
 
   // Matches for what's typed, from the price service (no key needed, nothing else sent).
   const [matches, setMatches] = useState<TickerMatch[]>([]);
@@ -569,12 +594,22 @@ export function TradeSheet(props: { account: Account; ticker?: string; kind?: Tr
       if (!known) {
         await db.securities.put({
           ticker: symbol,
-          name: name.trim() || picked?.name || symbol,
+          name: name.trim() || picked?.name || forSales?.find((l) => l.name)?.name || symbol,
           ...(picked?.type ? { type: picked.type } : {}),
         });
       }
+      // The sales of these shares have something to sell from now.
+      if (forSales) await addLineTrades(forSales);
     });
-    nav.toast(t ? 'Trade saved' : kind === 'buy' ? `${symbol} added` : `Sale of ${symbol} added`);
+    nav.toast(
+      t
+        ? 'Trade saved'
+        : forSales
+          ? `${symbol} purchase added, with its sale${forSales.length === 1 ? '' : 's'}`
+          : kind === 'buy'
+            ? `${symbol} added`
+            : `Sale of ${symbol} added`,
+    );
     props.onClose();
   };
   const remove = async () => {
@@ -591,20 +626,39 @@ export function TradeSheet(props: { account: Account; ticker?: string; kind?: Tr
       title={
         t
           ? 'Edit Trade'
-          : line
-            ? kind === 'buy'
-              ? 'Add Purchase'
-              : 'Add Sale'
-            : kind === 'buy'
-              ? props.ticker
-                ? `Buy ${props.ticker}`
-                : 'Add Holding'
-              : `Sell ${symbol}`
+          : forSales
+            ? 'Add Purchase'
+            : line
+              ? kind === 'buy'
+                ? 'Add Purchase'
+                : 'Add Sale'
+              : kind === 'buy'
+                ? props.ticker
+                  ? `Buy ${props.ticker}`
+                  : 'Add Holding'
+                : `Sell ${symbol}`
       }
       onClose={props.onClose}
       onSave={save}
       saveDisabled={!valid}
     >
+      {forSales && (
+        <Section
+          title={forSales.length === 1 ? 'For this sale' : 'For these sales'}
+          footer={`Its shares were bought before your files start. Add when you bought them and what they cost in all (your brokerage’s realized gain or loss page shows both), and ${
+            forSales.length === 1 ? 'the sale goes' : 'the sales go'
+          } in with ${forSales.length === 1 ? 'its' : 'their'} gain.`}
+        >
+          {forSales.map((l) => (
+            <Row
+              title={l.txn.payee}
+              subtitle={[formatDate(l.txn.date), l.shares && `${formatShares(l.shares)} share${l.shares === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}
+              detail={formatMoney(Math.abs(l.txn.amount))}
+              chevron={false}
+            />
+          ))}
+        </Section>
+      )}
       {line && (
         <Section title="From your bank file" footer={line.ticker ? undefined : 'Lines like this one will be the stock you pick here too.'}>
           <div class="row">

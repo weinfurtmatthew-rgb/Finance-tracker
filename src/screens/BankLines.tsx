@@ -33,8 +33,12 @@ export function BankLinesSection(props: { account: Account }) {
   const nav = useNav();
   const a = props.account;
   const tracked = useTrades().some((t) => t.accountId === a.id);
-  const lines = useLines(a).filter((l) => l.state === 'missing');
-  if (!lines.length) return null;
+  const all = useLines(a);
+  const lines = all.filter((l) => l.state === 'missing');
+  // Sales of shares bought before your files start, by stock: they go in once that purchase is added.
+  const unheld = new Map<string, (Line & { ticker: string })[]>();
+  for (const l of all) if (l.state === 'unheld' && l.ticker) unheld.set(l.ticker, [...(unheld.get(l.ticker) ?? []), l as Line & { ticker: string }]);
+  if (!lines.length && !unheld.size) return null;
   const known = lines.filter((l): l is Line & { ticker: string } => !!l.ticker);
   // Lines that don't say their stock, alike ones together: pick it for one and the rest follow.
   const unknown = new Map<string, Line[]>();
@@ -54,13 +58,18 @@ export function BankLinesSection(props: { account: Account }) {
     <Section
       title="From your bank files"
       footer={[
-        `Each goes in on its day for what it cost${known.some((l) => l.shares) ? ', with the shares your file gives' : ''}, as money put into this account${
-          buys ? '' : ' (a sale’s money stays in it as cash)'
-        }.`,
-        tracked
-          ? 'New ones in your imports go in on their own.'
-          : 'This account’s value then comes from its holdings: if it holds more than these, import a positions file first, and only the ones after its day are added. From then on, new ones in your imports go in on their own.',
-      ].join(' ')}
+        lines.length > 0 &&
+          `Each goes in on its day for what it cost${known.some((l) => l.shares) ? ', with the shares your file gives' : ''}, as money put into this account${
+            buys ? '' : ' (a sale’s money stays in it as cash)'
+          }.`,
+        lines.length > 0 &&
+          (tracked
+            ? 'New ones in your imports go in on their own.'
+            : 'This account’s value then comes from its holdings: if it holds more than these, import a positions file first, and only the ones after its day are added. From then on, new ones in your imports go in on their own.'),
+        unheld.size > 0 && 'A sale of shares bought before your files start goes in, with its gain, once you add when you bought them.',
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       {known.length > 0 && (
         <>
@@ -90,6 +99,15 @@ export function BankLinesSection(props: { account: Account }) {
           onClick={() => nav.present((close) => <TradeSheet account={a} line={g[0]} onClose={close} />)}
         />
       ))}
+      {[...unheld.values()].map((g) => (
+        <Row
+          title={cap(tradesText(g))}
+          subtitle={`${g.length === 1 ? 'Its' : 'Their'} shares were bought before your files start`}
+          wrap
+          detail="Add"
+          onClick={() => nav.present((close) => <TradeSheet account={a} ticker={g[0].ticker} kind="buy" forSales={g} onClose={close} />)}
+        />
+      ))}
     </Section>
   );
 }
@@ -99,7 +117,8 @@ export function LineTradeSection(props: { txn: Transaction }) {
   const nav = useNav();
   const account = useAccounts().find((x) => x.id === props.txn.accountId);
   const trades = useTrades();
-  const l = useLines(account).find((x) => x.txn.id === props.txn.id);
+  const lines = useLines(account);
+  const l = lines.find((x) => x.txn.id === props.txn.id);
   if (!l || !account) return null;
   const what = l.ticker ? `${l.kind === 'buy' ? 'Bought' : 'Sold'} ${l.ticker}` : l.kind === 'buy' ? 'A purchase' : 'A sale';
   const shares = l.trade?.shares ?? l.shares;
@@ -115,15 +134,32 @@ export function LineTradeSection(props: { txn: Transaction }) {
     matched: 'In this account’s holdings, as the trade you added',
     counted: `Counted in the positions you imported for ${formatShortDate(positionsDay(account, trades) ?? l.txn.date)}`,
     'kept-out': 'Kept out of this account’s holdings',
+    unheld: 'Its shares were bought before your files start, so this account’s holdings don’t have them',
     missing: l.ticker ? 'Not in this account’s holdings yet' : 'The line doesn’t say which stock',
   }[l.state];
+  // The purchase of the shares it sold, and with it every sale of them still waiting.
+  const addPurchase = () =>
+    nav.present((close) => (
+      <TradeSheet
+        account={account}
+        ticker={l.ticker}
+        kind="buy"
+        forSales={lines.filter((x): x is Line & { ticker: string } => x.state === 'unheld' && x.ticker === l.ticker)}
+        onClose={close}
+      />
+    ));
   const inHoldings = l.state === 'added' || l.state === 'matched';
   return (
     <Section title="Holdings">
-      <Row title={title} subtitle={subtitle} onClick={inHoldings ? open : undefined} chevron={inHoldings} />
+      <Row title={title} subtitle={subtitle} wrap onClick={inHoldings ? open : undefined} chevron={inHoldings} />
       {(l.state === 'missing' || l.state === 'kept-out') && (
         <button type="button" class="row link-row" onClick={l.ticker ? () => void add() : choose}>
           {l.ticker ? 'Add to Holdings' : 'Choose the Stock'}
+        </button>
+      )}
+      {l.state === 'unheld' && (
+        <button type="button" class="row link-row" onClick={addPurchase}>
+          Add When You Bought Them
         </button>
       )}
     </Section>

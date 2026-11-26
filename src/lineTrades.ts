@@ -36,19 +36,26 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
  * After an import: the trades in the lines it added (`added`) that go straight into holdings, and the ones
  * that wait for you, with a sentence on each for the Done screen.
  */
-export async function tradesForImport(added: Set<string>): Promise<{ add: Line[]; waiting: Line[]; notes: { added?: string; waiting?: string } }> {
+export async function tradesForImport(added: Set<string>): Promise<{ add: Line[]; waiting: Line[]; unheld: Line[]; notes: ImportNotes }> {
   const [accounts, txns, trades, picked] = await Promise.all([
     db.accounts.toArray(),
     db.transactions.toArray(),
     db.trades.toArray(),
     getMeta<Record<string, string>>(LINE_TICKERS),
   ]);
-  const { add, waiting } = importedTrades({ accounts, txns, trades, added, picked: picked ?? {} });
+  const { add, waiting, unheld } = importedTrades({ accounts, txns, trades, added, picked: picked ?? {} });
   await addLineTrades(add);
-  return { add, waiting, notes: importNotes(add, waiting, accounts) };
+  return { add, waiting, unheld, notes: importNotes(add, waiting, unheld, accounts) };
 }
 
-function importNotes(add: Line[], waiting: Line[], accounts: Account[]): { added?: string; waiting?: string } {
+/** The Done screen's sentences: what went into holdings, what waits for you, and sales of shares bought before your files. */
+export interface ImportNotes {
+  added?: string;
+  waiting?: string;
+  unheld?: string;
+}
+
+function importNotes(add: Line[], waiting: Line[], unheld: Line[], accounts: Account[]): ImportNotes {
   const where = (lines: Line[]) => {
     const ids = [...new Set(lines.map((l) => l.txn.accountId))];
     return {
@@ -56,11 +63,17 @@ function importNotes(add: Line[], waiting: Line[], accounts: Account[]): { added
       one: ids.length === 1,
     };
   };
-  const notes: { added?: string; waiting?: string } = {};
+  const notes: ImportNotes = {};
   if (add.length) notes.added = `${cap(tradesText(add))} also went into ${where(add).holdings}.`;
   if (waiting.length) {
     const w = where(waiting);
     notes.waiting = `${cap(tradesText(waiting))} can go into ${w.holdings}: open ${w.one ? 'the account' : 'each account'} in Net Worth to add ${waiting.length === 1 ? 'it' : 'them'}.`;
+  }
+  if (unheld.length) {
+    const one = unheld.length === 1;
+    notes.unheld = `${cap(tradesText(unheld))} ${one ? 'is' : 'are'} of shares bought before your files start: open the account in Net Worth to add when you bought them, and ${
+      one ? 'it goes' : 'they go'
+    } in with ${one ? 'its' : 'their'} gain.`;
   }
   return notes;
 }
