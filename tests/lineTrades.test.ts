@@ -97,6 +97,16 @@ describe('after an import', () => {
     ).toEqual(['a', 'b']);
   });
 
+  it('says when a sale is of shares bought before the files start', async () => {
+    await db.transactions.add(txn('s', '2026-09-20', { description: 'YOU SOLD APPLE INC (AAPL) (Cash)', amount: 115_000 }));
+    const r = await tradesForImport(new Set(['s']));
+    expect(r.notes).toEqual({
+      unheld:
+        'A sale of AAPL is of shares bought before your files start: open the account in Net Worth to add when you bought them, and it goes in with its gain.',
+    });
+    expect(await db.trades.count()).toBe(0);
+  });
+
   it('says nothing when the lines aren’t trades', async () => {
     await db.transactions.add(txn('a', '2026-09-08', { description: 'Electronic Funds Transfer Received (Cash)', amount: 10_000 }));
     expect((await tradesForImport(new Set(['a']))).notes).toEqual({});

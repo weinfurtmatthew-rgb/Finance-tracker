@@ -13,6 +13,15 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-26',
+    date: 'November 26, 2026',
+    title: 'Sales of shares you bought before',
+    items: [
+      'A sale of shares bought before your files start used to be left out of your holdings without a word. Now it’s listed on the account’s page under From your bank files, and on its own page.',
+      'Tap it to add when you bought those shares and what they cost: the sale then goes in, with its gain.',
+    ],
+  },
+  {
     id: '2026-11-24b',
     date: 'November 24, 2026',
     title: 'A stock bought and sold the same day',

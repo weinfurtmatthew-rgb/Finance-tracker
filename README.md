@@ -216,7 +216,10 @@ value follows their prices (`src/lib/holdings.ts`).
   here. Lines up to a positions file's day are counted in it already, and a purchase you typed in yourself counts as
   its line's. On one day, purchases go in before sales: a file doesn't say which came first (Fidelity lists the newest
   first), and since a sale takes the oldest shares that's right either way, so a stock bought and sold the same day
-  isn't left held. Once an account has holdings, each import adds its new ones (the Done screen says so); purchases
+  isn't left held. A sale of shares bought before your files start (and not in a positions file) has nothing to sell
+  from: it's listed under From your bank files and on its own page with **Add When You Bought Them**, a purchase of
+  the shares it sold (when, and what they cost), after which the sale goes in with its gain; the import's Done screen
+  says so too. Once an account has holdings, each import adds its new ones (the Done screen says so); purchases
   imported before, or into an account without holdings yet, wait under **From your bank files** on its page, and a
   line's page shows how it stands. Undoing the import, deleting the line or the trade takes it out (a deleted trade's
   line isn't offered again). These lines are named for what they did: "Bought FXAIX", "Sold VTI", "Dividend from VTI"

@@ -178,9 +178,13 @@ describe('the trades in an investment account’s lines', () => {
     expect(accountLines(account(), txns, [trade({ date: '2026-09-07', source: 'import', txnId: 'gone' })])[0].state).toBe('matched');
   });
 
-  it('a sale needs shares to sell from', () => {
+  it('a sale needs shares to sell from: one of shares bought before the files start waits for that purchase', () => {
     const sale = 'YOU SOLD FIDELITY 500 INDEX FUND (FXAIX) (Cash)';
-    expect(accountLines(account(), [txn('2026-09-10', 50000, sale)], [])).toEqual([]);
+    expect(states(accountLines(account(), [txn('2026-09-10', 50000, sale)], []))).toEqual(['2026-09-10 sell FXAIX unheld']);
+    // Once that purchase is in, it's a sale like any other.
+    expect(states(accountLines(account(), [txn('2026-09-10', 50000, sale)], [trade({ date: '2023-04-03', amount: 30000 })]))).toEqual([
+      '2026-09-10 sell FXAIX missing',
+    ]);
     expect(states(accountLines(account(), [txn('2026-09-07', -10000, FXAIX), txn('2026-09-10', 5000, sale)], []))).toEqual([
       '2026-09-07 buy FXAIX missing',
       '2026-09-10 sell FXAIX missing',
@@ -226,6 +230,13 @@ describe('trades from lines', () => {
       createdAt: 5,
     });
     expect(tradeFor(lines[1] as Line & { ticker: string }, 'b', 6)).toMatchObject({ kind: 'sell', amount: 30000, cash: true, txnId: sell.id });
+  });
+
+  it('an import says which of its sales are of shares bought before the files start', () => {
+    const sale = txn('2026-09-20', 115000, 'YOU SOLD APPLE INC (AAPL) (Cash)', { security: { ticker: 'AAPL', shares: 5 } });
+    const r = importedTrades({ accounts: [account()], txns: [sale], trades: [trade({ date: '2026-08-01' })], added: new Set([sale.id]) });
+    expect(r.add).toEqual([]);
+    expect(r.unheld.map((l) => [l.ticker, l.shares, l.state])).toEqual([['AAPL', 5, 'unheld']]);
   });
 
   it('an import adds them to accounts whose holdings are tracked, for the lines it brought in', () => {

@@ -113,6 +113,8 @@ export type LineState =
   | 'counted'
   /** You kept it out. */
   | 'kept-out'
+  /** A sale of shares they don't have: bought before your files start. It goes in once that purchase is added. */
+  | 'unheld'
   /** Not in them yet. */
   | 'missing';
 
@@ -203,8 +205,9 @@ export function accountLines(account: Account, txns: Transaction[], trades: Trad
         out.push({ ...line, state: 'matched', trade: free[i] });
         free.splice(i, 1);
       } else if (line.kind === 'sell' && line.ticker && !boughtBy(line.ticker, txn.date)) {
-        // A sale of shares from before the holdings start: there's nothing to take them from.
-        continue;
+        // A sale of shares bought before your files start: there's nothing to take them from until that
+        // purchase is added.
+        out.push({ ...line, state: 'unheld' });
       } else out.push(line);
     }
   }
@@ -246,23 +249,29 @@ export function tradeFor(line: Line & { ticker: string }, id: string, createdAt:
  * What happens to the trades in the lines an import just added (`added`, their ids). In accounts whose
  * holdings are tracked (they have trades already), the ones missing from them with a known stock go in
  * (`add`). The rest wait for you (`waiting`): an account without holdings yet is yours to start, since its
- * value would become just these, and a line without a stock needs one picked.
+ * value would become just these, and a line without a stock needs one picked. A sale of shares bought
+ * before your files start waits for that purchase (`unheld`).
  */
 export function importedTrades(args: { accounts: Account[]; txns: Transaction[]; trades: Trade[]; added: Set<string>; picked?: Record<string, string> }): {
   add: (Line & { ticker: string })[];
   waiting: Line[];
+  unheld: Line[];
 } {
   const tracked = new Set(args.trades.map((t) => t.accountId));
   const add: (Line & { ticker: string })[] = [];
   const waiting: Line[] = [];
-  for (const [accountId, lines] of missingLines(args.accounts, args.txns, args.trades, args.picked)) {
-    for (const l of lines) {
+  const unheld: Line[] = [];
+  for (const a of args.accounts) {
+    if (a.archived) continue;
+    for (const l of accountLines(a, args.txns, args.trades, args.picked)) {
       if (!args.added.has(l.txn.id)) continue;
-      if (tracked.has(accountId) && l.ticker) add.push(l as Line & { ticker: string });
+      if (l.state === 'unheld') unheld.push(l);
+      else if (l.state !== 'missing') continue;
+      else if (tracked.has(a.id) && l.ticker) add.push(l as Line & { ticker: string });
       else waiting.push(l);
     }
   }
-  return { add, waiting };
+  return { add, waiting, unheld };
 }
 
 /** "2 purchases of FXAIX", "a sale of VTI", "3 trades of FXAIX and VTI". */

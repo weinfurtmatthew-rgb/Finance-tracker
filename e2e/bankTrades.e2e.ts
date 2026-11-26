@@ -177,3 +177,40 @@ test('a stock bought and sold the same day isn’t held, though the file lists t
   await expect(holdings.locator('.row', { hasText: 'NVDA' })).toContainText('sold · +$10.00 gain');
   await expect(section(app, /^From your bank files$/)).toHaveCount(0);
 });
+
+test('a sale of shares bought before the file starts: add when they were bought, and it goes in with its gain', async ({ app, page }) => {
+  await addAccount(app, 'Fidelity Brokerage', '5678');
+  const csv = [
+    'Run Date,Account,Account Number,Action,Symbol,Description,Type,Quantity,Price,Amount,Settlement Date',
+    '09/20/2026,"Individual - TOD","Z12345678","YOU SOLD APPLE INC (AAPL) (Cash)",AAPL,"APPLE INC",Cash,-5,230.00,1150.00,09/21/2026',
+    '09/14/2026,"Individual - TOD","Z12345678","YOU BOUGHT PROSPECTUS UNDER SEPARATE COVER FIDELITY 500 INDEX FUND (FXAIX) (Cash)",FXAIX,"FIDELITY 500 INDEX FUND",Cash,0.518,193.05,-100.00,09/15/2026',
+  ].join('\n');
+  await app.openImport();
+  await page.locator('.drop input[type=file]').setInputFiles({ name: 'Accounts_History.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  await page.getByRole('button', { name: 'Import 2', exact: true }).click();
+  // The sale isn't left out without a word.
+  await expect(app.sheet()).toContainText('A sale of AAPL is of shares bought before your files start');
+  await app.closeSheets();
+
+  await openAccount(app, 'Fidelity Brokerage');
+  const fromBank = section(app, /^From your bank files$/);
+  await expect(fromBank.locator('.row', { hasText: 'A sale of AAPL' })).toContainText('Its shares were bought before your files start');
+  await fromBank.locator('.row', { hasText: 'A sale of AAPL' }).click();
+  await expect(app.sheet().getByRole('heading', { name: 'Add Purchase' })).toBeVisible();
+  await expect(section(app, /^For this sale$/)).toContainText('Sold AAPL');
+  await expect(app.field('Shares').locator('input')).toHaveValue('5');
+  await app.field('Amount').locator('input').fill('900');
+  await app.field('Date').locator('input').fill('2024-03-01');
+  await app.sheet().getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('.toast')).toHaveText('AAPL purchase added, with its sale');
+
+  // Sold, with its gain; the purchase still waits on its own.
+  const holdings = section(app, /^Holdings/);
+  await expect(holdings.locator('.row', { hasText: 'AAPL' })).toContainText('sold · +$250.00 gain');
+  await expect(fromBank.locator('.row', { hasText: 'A sale of AAPL' })).toHaveCount(0);
+  await expect(fromBank).toContainText('A purchase of FXAIX');
+  await app.closeSheets();
+  await app.tab('Activity');
+  await app.txnRows('Sold AAPL').click();
+  await expect(section(app, /^Holdings$/)).toContainText('In this account’s holdings');
+});
