@@ -219,7 +219,10 @@ value follows their prices (`src/lib/holdings.ts`).
   isn't left held. A sale of shares bought before your files start (and not in a positions file) has nothing to sell
   from: it's listed under From your bank files and on its own page with **Add When You Bought Them**, a purchase of
   the shares it sold (when, and what they cost), after which the sale goes in with its gain; the import's Done screen
-  says so too. Once an account has holdings, each import adds its new ones (the Done screen says so); purchases
+  says so too. A sale of everything the brokerage counted sells everything here too: what the brokerage's count and the
+  app's differ by (a dividend reinvested at its price rather than that day's close, rounded quantities) is a speck,
+  under a share and under 0.5% of the holding or worth under $1, not a holding left over. Once an account has holdings,
+  each import adds its new ones (the Done screen says so); purchases
   imported before, or into an account without holdings yet, wait under **From your bank files** on its page, and a
   line's page shows how it stands. Undoing the import, deleting the line or the trade takes it out (a deleted trade's
   line isn't offered again). These lines are named for what they did: "Bought FXAIX", "Sold VTI", "Dividend from VTI"

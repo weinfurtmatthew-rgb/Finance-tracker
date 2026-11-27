@@ -410,4 +410,66 @@ describe('backups', () => {
   });
 });
 
+describe('a sale of everything, as the brokerage counts it', () => {
+  // FXAIX: 2 shares bought, a $12.31 dividend reinvested on Sep 22 at that day's close (0.06398 shares).
+  const dates = ['2026-09-01', '2026-09-08', '2026-09-15', '2026-09-22', '2026-09-28'];
+  const closes = [190, 191, 193, 192.4, 195.31];
+  const fxaix: PriceHistory = {
+    ticker: 'FXAIX',
+    dates,
+    close: closes,
+    total: closes,
+    splits: [],
+    dividends: [{ date: '2026-09-22', amount: 6.155 }],
+    from: dates[0],
+    fetchedAt: 0,
+  };
+  const position = (sold: number, held = 2) =>
+    buildPosition({
+      accountId: 'brk',
+      ticker: 'FXAIX',
+      history: fxaix,
+      reinvest: true,
+      trades: [
+        trade({ ticker: 'FXAIX', date: '2026-09-01', kind: 'buy', amount: held * 19000, shares: held }),
+        trade({ ticker: 'FXAIX', date: '2026-09-28', kind: 'sell', amount: Math.round(sold * 19531), shares: sold, cash: true }),
+      ],
+    });
+
+  it('leaves nothing, though the brokerage reinvested a little differently', () => {
+    // Fidelity reinvested 0.0635 shares at its own price: a sale of all 2.0635 would leave the app 0.00048.
+    const p = position(2.0635);
+    expect(p.shares).toBe(0);
+    expect(p.value).toBe(0);
+    expect(p.lots).toEqual([]);
+    // Or 0.0645: a sale a speck bigger than what's held isn't a sale of shares that weren't there.
+    expect(position(2.0645).oversold).toBeUndefined();
+    expect(position(2.0645).shares).toBe(0);
+  });
+
+  it('keeps what a sale really leaves', () => {
+    expect(position(1.5).shares).toBeCloseTo(0.56398, 4);
+    expect(position(299, 300).shares).toBeCloseTo(1 + 300 * 0.031991, 3);
+    // A sale well over what's held still says so.
+    expect(position(3).oversold).toBe(true);
+  });
+
+  it('prices a sale that says no amount at that day’s close', () => {
+    const sale = (shares: number) =>
+      buildPosition({
+        accountId: 'brk',
+        ticker: 'FXAIX',
+        history: fxaix,
+        reinvest: true,
+        trades: [
+          trade({ ticker: 'FXAIX', date: '2026-09-01', kind: 'buy', amount: 38_000, shares: 2 }),
+          trade({ ticker: 'FXAIX', date: '2026-09-28', kind: 'sell', amount: 0, shares }),
+        ],
+      }).shares;
+    // 0.56 shares left is $109 at $195.31, not a speck.
+    expect(sale(1.5)).toBeCloseTo(0.56398, 4);
+    expect(sale(2.0635)).toBe(0);
+  });
+});
+
 afterEach(() => vi.unstubAllGlobals());

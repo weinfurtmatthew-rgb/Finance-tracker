@@ -130,6 +130,16 @@ const EPS = 1e-9;
 const NEARLY_ALL = 0.98;
 
 /**
+ * What a sale of given shares leaves (or goes over by) that isn't really there: under a share, and under
+ * 0.5% of what was held or worth under a dollar. The brokerage's count and the app's drift that much
+ * (a dividend reinvested at its price, not that day's close; quantities rounded in files), so a sale of
+ * everything would otherwise leave a speck of a share.
+ */
+function isSpeck(gap: number, held: number, price: number): boolean {
+  return gap > EPS && gap < 1 && (gap < held * 0.005 || gap * price < 1);
+}
+
+/**
  * Oldest first. On one day, purchases read from bank file lines come first: the file doesn't say which
  * came first that day, and buying first is right either way, since a sale takes the oldest shares. The
  * rest go in the order they were added (a buy before a sale added at the same moment).
@@ -251,6 +261,8 @@ export function buildPosition(args: {
     } else {
       let n = t.all ? shares : (given ?? t.amount / 100 / priceOn(t.date));
       if (!t.all && given == null && n >= shares * NEARLY_ALL) n = shares;
+      // Priced at what it brought in, or that day's close when it says no amount.
+      if (!t.all && given != null && isSpeck(Math.abs(shares - given), shares, t.amount > 0 ? t.amount / 100 / given : priceOn(t.date))) n = shares;
       if (n > shares * (1 + 1e-6) + EPS) oversold = true;
       n = Math.min(n, shares);
       const taken = takeLots(lots, n);
