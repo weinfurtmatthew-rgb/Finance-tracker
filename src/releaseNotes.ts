@@ -13,6 +13,14 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-11-27',
+    date: 'November 27, 2026',
+    title: 'Selling everything sells everything',
+    items: [
+      'After selling all of a stock, it could still show a speck of a share: your brokerage reinvests dividends at its own price, so its count and the app’s differ a little. Now a sale that would leave only a speck sells it all.',
+    ],
+  },
+  {
     id: '2026-11-26',
     date: 'November 26, 2026',
     title: 'Sales of shares you bought before',
